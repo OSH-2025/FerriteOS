@@ -6,7 +6,7 @@ wavm
 
 ## 组徽
 
-<img src="../assets/logo.jpg" style="zoom: 50%;" />
+<img src="./assets/logo.jpg" style="zoom: 50%;" />
 
 ## 组员
 
