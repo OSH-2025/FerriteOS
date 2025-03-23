@@ -6,7 +6,7 @@ FerriteOS
 
 ## 组徽
 
-待定
+<img src="./assets/logo.jpg" width="400" />
 
 ## 组员
 
