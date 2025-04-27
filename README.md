@@ -29,3 +29,4 @@ FerriteOS
 | 可行性分析 |     4月4日     | 第五次线下讨论。讨论了可行性报告内容框架，确定了分工：朱东胜负责理论依据/LiteOS编译、qemu运行LiteOS模块以及文档总体汇总；秦铭格写理论依据/rust部分；徐家慧写理论依据/LiteOS部分；袁谦朗写技术依据/C调用Rust部分；杨博文写技术依据/Rust调用C部分。 |
 | 源代码阅读 | 4月12日 | 第六次线下讨论。讨论并深入了解 Huawei LiteOS 源代码中 kernel 内核部分的代码结构，同时结合往届项目学习改写经验。最后对之后一周的任务做出初步规划：每人负责尝试改写 kernel/mem 目录下的一至两个文件，并对中期汇报内容进行构思。朱东胜负责 bestfit_little 中的 los_heap.c & los_memory.c；徐家慧负责 common/memstat 中的 los_memstat.c；秦铭格负责 common/multipool 中的 los_multipool.c；杨博文负责 membox 的 los_memory_dyn.c；袁谦朗负责 membox 中的 los_membox.c。 |
 | 中期汇报 | 4月18日 | 第七次线下讨论。讨论了中期报告的框架，确定了分工，秦铭格负责what，袁谦朗负责why，徐家慧负责how，杨博文负责演讲；与此同时，朱东胜尝试通过交叉编译与混合编译实现LiteOS调用Rust（遇到问题，还不知道怎么解决）。 |
+| 开发阶段 | 4月27日 | 第八次小组讨论。集体解决了环境配置等开发准备问题，了解了LiteOS的编译流程。朱东胜介绍了改写 los_bitmap.c 并实现 Rust 调用 LIteOS 中的函数成功经验。 |
