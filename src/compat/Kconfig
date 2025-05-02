@@ -1,4 +1,0 @@
-menu "Compat"
-osource "compat/cmsis/Kconfig"
-endmenu
-
