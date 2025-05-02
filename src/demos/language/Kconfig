@@ -1,0 +1,6 @@
+menu "Language Demo"
+
+source "demos/language/jerryscript/Kconfig"
+source "demos/language/lua/Kconfig"
+
+endmenu

@@ -1,0 +1,55 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2019-2020. All rights reserved.
+
+osource "arch/arm/Kconfig"
+osource "arch/arm64/Kconfig"
+osource "arch/xtensa/Kconfig"
+osource "arch/riscv/Kconfig"
+osource "arch/csky/Kconfig"
+
+config LOSCFG_ARCH_FPU_ENABLE
+    bool "Enable Floating Pointer Unit"
+    default y
+    depends on LOSCFG_ARCH_CORTEX_M4 || LOSCFG_ARCH_CORTEX_M7 || LOSCFG_ARCH_ARM_AARCH32 || \
+    LOSCFG_ARCH_ARM_AARCH64 || LOSCFG_ARCH_RISCV_RV32IMC || LOSCFG_ARCH_XTENSA_LX6
+    help
+      This option will bypass floating procedure in system.
+
+config LOSCFG_ARCH_SECURE_MONITOR_MODE
+    bool "Run On Secure Monitor Mode"
+    default n
+    depends on LOSCFG_ARCH_ARM_AARCH64
+    help
+      This option will make the system run on EL3.
+
+config LOSCFG_APC_ENABLE
+    bool "Enable Access Permission Control"
+    default y
+    help
+      This option will Enable Access Permission Control
+
+config LOSCFG_FPB_ENABLE
+    bool "Enable Flash Patch"
+    default n
+    depends on LOSCFG_ARCH_ARM_CORTEX_M || LOSCFG_ARCH_RISCV_RV32IMC
+    help
+      Answer Y to enable LiteOS to support Flash Patch
+
+config RISCV_FPB_SET_PCO
+    bool "Enable patch offset bigger than 1M"
+    default y
+    depends on LOSCFG_ARCH_RISCV && LOSCFG_FPB_ENABLE
+    help
+      Enable patch offset bigger than 1M by Set PCO(patch code branch offset) bit
+
+config LOSCFG_LIB_CONFIGURABLE
+    bool
+    default n
+    help
+      Answer Y to enable LiteOS to support base kernel lib configurable
+
+config LOSCFG_MULTI_BINARIES
+    bool
+    default n
+    select LOSCFG_LIB_CONFIGURABLE
+    help
+      Answer Y to enable LiteOS to support multi binaries

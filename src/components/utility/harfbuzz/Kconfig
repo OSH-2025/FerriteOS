@@ -1,0 +1,7 @@
+config LOSCFG_COMPONENTS_HARFBUZZ
+    bool "Enable Harfbuzz"
+    default n
+    select LOSCFG_COMPONENTS_FS_VFS
+    select LOSCFG_COMPONENTS_FREETYPE
+    help
+      Answer y to enable harfbuzz.

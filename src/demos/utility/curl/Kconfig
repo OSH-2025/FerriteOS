@@ -1,0 +1,8 @@
+config LOSCFG_DEMOS_CURL
+    bool "Enable Curl Demo"
+    select LOSCFG_COMPONENTS_NET_LWIP
+    select LOSCFG_COMPONENTS_FS_FATFS
+    select LOSCFG_COMPONENTS_CURL
+    default n
+    help
+      Answer y to enable curl demo.

@@ -1,0 +1,249 @@
+menu "Kernel Demo"
+
+config LOSCFG_DEMOS_KERNEL
+    bool "Enable Kernel Demo"
+    default n
+    help
+    Answer y to enable kernel demo.
+
+config LOSCFG_DEMOS_KERNEL_SELECT
+    depends on LOSCFG_DEMOS_KERNEL
+    string
+    default "DemoEntry"              if LOSCFG_DEMOS_KERNEL_ENTRY
+    default "InspectEntry"           if LOSCFG_DEMOS_KERNEL_INSPECT_ENTRY
+
+choice
+    prompt "Kernel Demo Entry"
+    depends on LOSCFG_DEMOS_KERNEL
+    default LOSCFG_DEMOS_KERNEL_INSPECT_ENTRY
+    help
+      support entry:
+      DemoEntry
+      InspectEntry
+
+config LOSCFG_DEMOS_KERNEL_INSPECT_ENTRY
+    bool "InspectEntry"
+
+config LOSCFG_DEMOS_KERNEL_ENTRY
+    bool "DemoEntry"
+
+config LOS_KERNEL_DEMO_TASK
+    bool "Run Kernel Task Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel task demo.
+
+config LOS_KERNEL_DEMO_MEM_DYNAMIC
+    bool "Run Kernel Dynamic Mem Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel dynamic mem demo.
+
+config LOS_KERNEL_DEMO_MEM_STATIC
+    bool "Run Kernel Static Mem Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel mem_static demo.
+
+config LOS_KERNEL_DEMO_INTERRUPT
+    bool "Run Kernel Interrupt Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel interrupt demo.
+
+config LOS_KERNEL_DEMO_QUEUE
+    bool "Run Kernel Queue Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel queue demo.
+
+config LOS_KERNEL_DEMO_EVENT
+    bool "Run Kernel Event Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel event demo.
+
+config LOS_KERNEL_DEMO_MUTEX
+    bool "Run Kernel Mutex Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel mutex demo.
+
+config LOS_KERNEL_DEMO_SEMPHORE
+    bool "Run Kernel Semphore Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel semphore demo.
+
+config LOS_KERNEL_DEMO_SYSTICK
+    bool "Run Kernel Systick Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel systick demo.
+
+config LOS_KERNEL_DEMO_SWTIMER
+    bool "Run Kernel Software Timer Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel software timer demo.
+
+config LOS_KERNEL_DEMO_LIST
+    bool "Run Kernel List Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    default n
+    help
+      Answer y to run kernel list demo.
+
+# test task
+config LOS_KERNEL_DEBUG_TASK
+    bool "Run Kernel Test Task Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    depends on LOSCFG_ARCH_CORTEX_A9
+    default n
+    help
+      Answer y to run kernel task demo.
+
+config LOS_KERNEL_TASK_CYCLE_TIMES
+    int "Task Cycle Times"
+    depends on LOS_KERNEL_DEBUG_TASK
+    default 5
+
+config LOS_KERNEL_TASK_NAME
+    string "Task Name"
+    depends on LOS_KERNEL_DEBUG_TASK
+    default "task1"
+
+config LOS_KERNEL_TASK_PRIORITY
+    int "Task Priority"
+    depends on LOS_KERNEL_DEBUG_TASK
+    default 4
+
+config LOS_KERNEL_TASK_STACKSIZE
+    int "Task Stacksize"
+    depends on LOS_KERNEL_DEBUG_TASK
+    default 2048
+
+config LOS_KERNEL_TASK_DELAYINTERVAL
+    int "Task Delay Interval"
+    depends on LOS_KERNEL_DEBUG_TASK
+    default 1000
+
+# test queue
+config LOS_KERNEL_DEBUG_QUEUE
+    bool "Run Kernel Test Queue Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    depends on LOSCFG_ARCH_CORTEX_A9
+    default n
+    help
+      Answer y to run kernel queue demo.
+
+config LOS_KERNEL_QUEUE_CYCLE_TIMES
+    int "Queue Cycle Times"
+    depends on LOS_KERNEL_DEBUG_QUEUE
+    default 5
+
+config LOS_KERNEL_QUEUE_SIZE
+    int "Queue Size"
+    depends on LOS_KERNEL_DEBUG_QUEUE
+    default 10
+
+config LOS_KERNEL_QUEUE_MESSAGELEN
+    int "Queue Message Len"
+    depends on LOS_KERNEL_DEBUG_QUEUE
+    default 50
+
+config LOS_KERNEL_QUEUE_MESSAGE
+    string "Queue Message"
+    depends on LOS_KERNEL_DEBUG_QUEUE
+    default "message"
+
+config LOS_KERNEL_QUEUE_SENDINTERVAL
+    int "Queue Send Interval"
+    depends on LOS_KERNEL_DEBUG_QUEUE
+    default 1000
+
+config LOS_KERNEL_QUEUE_RECEIVEINTERVAL
+    int "Queue Receive Interval"
+    depends on LOS_KERNEL_DEBUG_QUEUE
+    default 1000
+
+config LOS_KERNEL_QUEUE_OVERTIME
+    int "Queue Timeout Interval"
+    depends on LOS_KERNEL_DEBUG_QUEUE
+    default 1000
+
+# test event
+config LOS_KERNEL_DEBUG_EVENT
+    bool "Run Kernel Test Event Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    depends on LOSCFG_ARCH_CORTEX_A9
+    default n
+    help
+      Answer y to run kernel event demo.
+
+config LOS_KERNEL_EVENT_CYCLE_TIMES
+    int "Event Cycle Times"
+    depends on LOS_KERNEL_DEBUG_EVENT
+    default 5
+
+config LOS_KERNEL_EVENT_ID
+    int "Event Id"
+    depends on LOS_KERNEL_DEBUG_EVENT
+    default 1
+
+config LOS_KERNEL_EVENT_OVERTIME
+    int "Event Receiving Timeout Interval"
+    depends on LOS_KERNEL_DEBUG_EVENT
+    default 0
+
+# test mutex
+config LOS_KERNEL_DEBUG_MUTEX
+    bool "Run Kernel Test Mutex Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    depends on LOSCFG_ARCH_CORTEX_A9
+    default n
+    help
+      Answer y to run kernel mutex demo.
+
+config LOS_KERNEL_MUTEX_CYCLE_TIMES
+    int "Mutex Cycle Times"
+    depends on LOS_KERNEL_DEBUG_MUTEX
+    default 5
+
+config LOS_KERNEL_MUTEX_OVERTIME
+    int "Mutex Timeout Interval"
+    depends on LOS_KERNEL_DEBUG_MUTEX
+    default 10000
+
+# test semphore
+config LOS_KERNEL_DEBUG_SEMPHORE
+    bool "Run Kernel Test Semphore Demo"
+    depends on LOSCFG_DEMOS_KERNEL_ENTRY
+    depends on LOSCFG_ARCH_CORTEX_A9
+    default n
+    help
+      Answer y to run kernel semphore demo.
+
+config LOS_KERNEL_SEMPHORE_CYCLE_TIMES
+    int "Semphore Cycle Times"
+    depends on LOS_KERNEL_DEBUG_SEMPHORE
+    default 5
+
+config LOS_KERNEL_SEMPHORE_OVERTIME
+    int "Semphore Timeout Interval"
+    depends on LOS_KERNEL_DEBUG_SEMPHORE
+    default 10000
+
+endchoice
+
+endmenu

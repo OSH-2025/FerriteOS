@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_QRENCODE
+    bool "Enable Qrencode Demo"
+    select LOSCFG_COMPONENTS_QRENCODE
+    select LOSCFG_COMPONENTS_FS_FATFS
+    default n
+    help
+      Answer y to enable qrencode demo.

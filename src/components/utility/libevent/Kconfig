@@ -1,0 +1,7 @@
+config LOSCFG_COMPONENTS_LIBEVENT
+    bool "Enable Libevent"
+    select LOSCFG_COMPONENTS_OPENSSL
+    select LOSCFG_COMPONENTS_NET_LWIP
+    default n
+    help
+      Answer y to enable libevent.

@@ -1,0 +1,14 @@
+config LOSCFG_COMPONENTS_MICROPYTHON
+    bool "Enable Micropython"
+    select LOSCFG_COMPONENTS_FS_VFS
+    default n
+    help
+      Answer y to enable micropython.
+
+config LOSCFG_MICROPYTHON_HEAD_SIZE
+    int "Micropython Head Size"
+    depends on LOSCFG_COMPONENTS_MICROPYTHON
+    default 4096
+    help
+      Heap size occupied by python runtime.
+

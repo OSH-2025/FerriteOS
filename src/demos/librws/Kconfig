@@ -1,0 +1,10 @@
+menu "Librws Demo"
+
+config LOSCFG_DEMOS_LIBRWS
+    bool "Enable Librws Demo"
+    select LOSCFG_COMPONENTS_LIBRWS
+    default n
+    help
+      Answer y to enable librws demo.
+
+endmenu

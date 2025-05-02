@@ -1,0 +1,21 @@
+config LOSCFG_PLATFORM
+    string
+    default "APM32F103_Geehy"           	if LOSCFG_PLATFORM_APM32F103_GEEHY
+
+choice
+    prompt "Target"
+    depends on LOSCFG_FAMILY_APM32
+    default LOSCFG_PLATFORM_APM32F103_GEEHY
+    help
+      support several boards:
+      APM32F103_Geehy
+
+config LOSCFG_PLATFORM_APM32F103_GEEHY
+    bool "APM32F103_Geehy"
+    select LOSCFG_USING_BOARD_LD
+    select LOSCFG_ARCH_CORTEX_M3
+    select LOSCFG_CORTEX_M_NVIC
+    select LOSCFG_CORTEX_M_SYSTICK
+    select LOSCFG_DRIVER_APM_LIB
+
+endchoice

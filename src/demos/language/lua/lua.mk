@@ -1,0 +1,1 @@
+DEMOS_LUA_INCLUDE := -I $(LITEOSTOPDIR)/demos/language/lua

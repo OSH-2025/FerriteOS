@@ -1,0 +1,5 @@
+config LOSCFG_DEMO_CAN
+   bool "Enable Can Demo"
+   default n
+   help
+     Answer y to run can demo.

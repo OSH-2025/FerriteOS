@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_OPUS
+    bool "Enable Opus"
+    default n
+    select LOSCFG_COMPONENTS_FS_VFS
+    help
+      Answer y to enable opus.

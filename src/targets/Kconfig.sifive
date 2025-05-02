@@ -1,0 +1,20 @@
+config LOSCFG_PLATFORM
+    string
+    default "HiFive1_Rev1_B01"          if LOSCFG_PLATFORM_HIFIVE1_REV1_B01
+
+choice
+    prompt "Target"
+    depends on LOSCFG_FAMILY_SIFIVE
+    default LOSCFG_PLATFORM_HIFIVE1_REV1_B01
+    help
+      HiFive1_Rev1_B01
+
+config LOSCFG_PLATFORM_HIFIVE1_REV1_B01
+    bool "HiFive1_Rev1_B01"
+    select LOSCFG_ARCH_RISCV_RV32IMC
+    select LOSCFG_DRIVER_SIFIVE_LIB
+    select LOSCFG_USING_BOARD_LD
+    select LOSCFG_RISCV32_M_TIMER
+    select LOSCFG_PLATFORM_BSP_RISCV_PLIC
+
+endchoice

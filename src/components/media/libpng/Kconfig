@@ -1,0 +1,5 @@
+config LOSCFG_COMPONENTS_LIBPNG
+    bool "Enable libPng"
+    default n
+    help
+      Answer y to enable libpng.

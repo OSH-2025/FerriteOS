@@ -1,0 +1,6 @@
+config LOSCFG_DEMOS_ICONV
+    bool "Enable Iconv Demo"
+    select LOSCFG_COMPONENTS_ICONV
+    default n
+    help
+      Answer y to enable icon demo.

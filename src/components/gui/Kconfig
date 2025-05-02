@@ -1,0 +1,10 @@
+menu "Graphical User Interface"
+
+config LOSCFG_COMPONENTS_GUI
+    bool "Enable Gui"
+    default n
+    depends on LOSCFG_PLATFORM_STM32F769IDISCOVERY
+    help
+      Answer y to enable Graphical User Interface.
+
+endmenu

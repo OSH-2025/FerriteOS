@@ -1,0 +1,23 @@
+include $(LITEOSTOPDIR)/config.mk
+MODULE_NAME := trace_demo
+
+TRACE_DEMO_DIR = $(LITEOSTOPDIR)/demos/trace
+
+TRACE_DEMO_INCLUDE := \
+    -I $(LITEOSTOPDIR)/kernel/extended/include \
+    -I $(TRACE_DEMO_DIR)
+
+BOARD_INCLUDES += $(TRACE_DEMO_INCLUDE)
+
+TRACE_DEMO_SRC = $(wildcard $(TRACE_DEMO_DIR)/*.c)
+
+C_SOURCES += $(TRACE_DEMO_SRC)
+
+BOARD_SRCS += $(C_SOURCES)
+
+LOCAL_SRCS := $(subst $(CURDIR)/,, $(BOARD_SRCS))
+
+LOCAL_INCLUDE += $(BOARD_INCLUDES)
+LOCAL_FLAGS := $(BOARD_DEF) $(LOCAL_INCLUDE) $(LITEOS_GCOV_OPTS) -Wno-error
+
+include $(MODULE)

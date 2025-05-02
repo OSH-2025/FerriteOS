@@ -1,0 +1,53 @@
+menu "FileSystem"
+
+config LOSCFG_COMPONENTS_FS_FATFS
+    bool "Enable FATFS"
+    default n
+    select LOSCFG_COMPONENTS_FS_VFS
+    help
+      Answer y to enable LiteOS support fat filesystem.
+
+choice
+    prompt "Choose Peripheral Driver"
+    default LOSCFG_FATFS_USE_SD_CARD
+    depends on LOSCFG_COMPONENTS_FS_FATFS
+
+    config LOSCFG_FATFS_USE_SD_CARD
+        bool "SD Card"
+        depends on LOSCFG_HW_SD_CARD
+
+    config LOSCFG_FATFS_USE_SPI_FLASH
+        bool "SPI Flash"
+        depends on LOSCFG_HW_SPI_FLASH
+      
+endchoice
+
+config LOSCFG_COMPONENTS_FS_LITTLEFS
+    bool "Enable LITTLEFS"
+    default n
+    select LOSCFG_COMPONENTS_FS_VFS
+    help
+      Answer y to enable littlefs filesystem.
+
+config LOSCFG_COMPONENTS_FS_RAMFS
+    bool "Enable RAMFS"
+    default n
+    select LOSCFG_COMPONENTS_FS_VFS
+    help
+      Answer y to enable LiteOS support ram filesystem.
+
+config LOSCFG_COMPONENTS_FS_SPIFFS
+    bool "Enable SPIFFS"
+    default n
+    select LOSCFG_COMPONENTS_FS_VFS
+    help
+      Answer y to enable LiteOS support spi flash filesystem.
+
+config LOSCFG_COMPONENTS_FS_VFS
+    bool
+    select LOSCFG_COMPONENTS_FS
+
+config LOSCFG_COMPONENTS_FS
+    bool
+
+endmenu

@@ -1,0 +1,5 @@
+config LOSCFG_COMPONENTS_REGEX
+    bool "Enable Regex"
+    default n
+    help
+      A small regex implementation in C.

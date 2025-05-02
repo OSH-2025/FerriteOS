@@ -1,0 +1,2 @@
+URIPARSER_VERSION = uriparser-0.9.5
+COMPONENTS_URIPARSER_INCLUDE = -I $(LITEOSTOPDIR)/components/utility/uriparser/$(URIPARSER_VERSION)/include

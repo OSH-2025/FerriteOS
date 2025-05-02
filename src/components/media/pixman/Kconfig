@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_PIXMAN
+    bool "Enable Pixman"
+    select LOSCFG_COMPONENTS_LIBPNG
+    default n
+    help
+      Answer y to enable pixman.

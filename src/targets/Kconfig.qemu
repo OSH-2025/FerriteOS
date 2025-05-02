@@ -1,0 +1,51 @@
+config LOSCFG_PLATFORM
+    string
+    default "realview-pbx-a9" if LOSCFG_PLATFORM_PBX_A9
+    default "qemu-virt-a53"   if LOSCFG_PLATFORM_QEMU_VIRT_A53
+    default "SmartL_E802"     if LOSCFG_PLATFORM_SMARTL_E802
+    default "ESP32"           if LOSCFG_PLATFORM_ESP32_QEMU
+
+choice
+    prompt "Target"
+    depends on LOSCFG_FAMILY_QEMU
+    default LOSCFG_PLATFORM_PBX_A9
+    help
+      qemu-virt-a53
+      realview-pbx-a9
+      SmartL_E802
+      ESP32
+
+config LOSCFG_PLATFORM_PBX_A9
+    bool "realview-pbx-a9"
+    select LOSCFG_ARCH_CORTEX_A9
+    select LOSCFG_ARM_GIC_V2
+    select LOSCFG_ARM_PRIVATE_TIMER
+    select LOSCFG_DRIVERS_UART_ARM_PL011
+    select LOSCFG_USING_BOARD_LD
+
+config LOSCFG_PLATFORM_QEMU_VIRT_A53
+    bool "qemu-virt-a53"
+    select LOSCFG_ARCH_CORTEX_A53
+    select LOSCFG_ARM_GIC_V2
+    select LOSCFG_ARM_GENERIC_TIMER
+    select LOSCFG_DRIVERS_UART_ARM_PL011
+    select LOSCFG_ARCH_ARM_AARCH64
+    select LOSCFG_USING_BOARD_LD
+
+config LOSCFG_PLATFORM_SMARTL_E802
+    bool "SmartL_E802"
+    select LOSCFG_ARCH_CSKY_CK802
+    select LOSCFG_PLATFORM_BSP_VIC
+    select LOSCFG_CSKY_SYSTICK
+    select LOSCFG_DRIVERS_UART_CSKY_PORT
+    select LOSCFG_DRIVER_CSKY_LIB
+    select LOSCFG_USING_BOARD_LD
+
+config LOSCFG_PLATFORM_ESP32_QEMU
+    bool "ESP32"
+    select LOSCFG_USING_BOARD_LD
+    select LOSCFG_ARCH_XTENSA_LX6
+    select LOSCFG_XTENSA_LX6_TIMER
+    select LOSCFG_LX6_INT_CONTROLLER
+
+endchoice

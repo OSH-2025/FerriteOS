@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_RHASH
+    bool "Enable RHash"
+    default n
+    select LOSCFG_COMPONENTS_SECURITY
+    help
+      Answer y to enable rhash.

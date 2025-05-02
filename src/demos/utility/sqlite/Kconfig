@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_SQLITE
+    bool "Enable Sqlite Demo"
+    select LOSCFG_COMPONENTS_SQLITE
+    select LOSCFG_COMPONENTS_FS_FATFS
+    default n
+    help
+      Answer y to enable sqlite demo.

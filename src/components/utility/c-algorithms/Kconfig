@@ -1,0 +1,5 @@
+config LOSCFG_COMPONENTS_C_ALGORITHMS
+    bool "Enable C-algorithms"
+    default n
+    help
+      Answer y to enable c-algorithms.

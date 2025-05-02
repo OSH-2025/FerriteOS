@@ -1,0 +1,17 @@
+COMPONENTS_LANGUAGE_INCLUDE :=
+
+ifeq ($(LOSCFG_COMPONENTS_JERRYSCRIPT), y)
+include $(LITEOSTOPDIR)/components/language/jerryscript/jerryscript.mk
+COMPONENTS_LANGUAGE_INCLUDE += $(COMPONENTS_JERRYSCRIPT_INCLUDE)
+endif
+
+ifeq ($(LOSCFG_COMPONENTS_LUA), y)
+include $(LITEOSTOPDIR)/components/language/lua/lua.mk
+COMPONENTS_LANGUAGE_INCLUDE += $(COMPONENTS_LUA_INCLUDE)
+endif
+
+ifeq ($(LOSCFG_COMPONENTS_MICROPYTHON), y)
+include $(LITEOSTOPDIR)/components/language/micropython/micropython.mk
+COMPONENTS_LANGUAGE_INCLUDE += $(COMPONENTS_MICROPYTHON_INCLUDE)
+endif
+

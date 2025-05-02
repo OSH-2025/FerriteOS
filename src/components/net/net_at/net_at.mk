@@ -1,0 +1,22 @@
+COMPONENTS_AT_INCLUDE :=
+
+NET_AT_DIR := $(LITEOSTOPDIR)/components/net/net_at
+
+COMPONENTS_AT_INCLUDE += -I $(NET_AT_DIR)/at_device
+COMPONENTS_AT_INCLUDE += -I $(NET_AT_DIR)/at_frame
+
+ifeq ($(LOSCFG_COMPONENTS_NET_AT_ESP8266), y)
+COMPONENTS_AT_INCLUDE += -I $(NET_AT_DIR)/at_device/wifi_esp8266
+endif
+
+ifeq ($(LOSCFG_COMPONENTS_NET_AT_BG36), y)
+COMPONENTS_AT_INCLUDE += -I $(NET_AT_DIR)/at_device/emtc_bg36
+endif
+
+ifeq ($(LOSCFG_COMPONENTS_NET_AT_SIM900A), y)
+COMPONENTS_AT_INCLUDE += -I $(NET_AT_DIR)/at_device/gprs_sim900a
+endif
+
+ifeq ($(LOSCFG_COMPONENTS_NET_AT_BC95), y)
+COMPONENTS_AT_INCLUDE += -I $(NET_AT_DIR)/at_device/nb_bc95
+endif

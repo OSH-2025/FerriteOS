@@ -1,0 +1,71 @@
+menu "Test Basic Config"
+
+depends on LOSCFG_TEST
+
+config LOSCFG_TEST_MODULE_CHECK
+    bool "Enable module test suite result check"
+    default y
+    depends on LOSCFG_TEST
+
+config LOSCFG_TEST_TASK_STACK_SIZE
+    hex "Test Task Stack Size"
+    default 0x3000
+    help
+      This represents the test task stack size.
+
+config LOSCFG_TEST_PLATFORM_MEMPOOL_SIZE
+    hex "Test Platform Mempool Size"
+    default 0x5000
+    help
+      This represents the test platform mempool size.
+
+endmenu
+
+config LOSCFG_TEST_KERNEL_BASE
+    bool "Enable Kernel Testsuit"
+    default y
+    depends on LOSCFG_TEST
+config LOSCFG_TEST_KERNEL_BASE_TASK
+    bool "Enable Task Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST
+config LOSCFG_TEST_KERNEL_BASE_HWI
+    bool "Enable Hwi Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST
+config LOSCFG_TEST_KERNEL_BASE_SWTMR
+    bool "Enable Swtmr Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST && LOSCFG_BASE_CORE_SWTMR
+config LOSCFG_TEST_KERNEL_BASE_IPC_QUEUE
+    bool "Enable Queue Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST && LOSCFG_BASE_IPC_QUEUE
+config LOSCFG_TEST_KERNEL_BASE_IPC_MUX
+    bool "Enable MUX Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST && LOSCFG_BASE_IPC_MUX
+config LOSCFG_TEST_KERNEL_BASE_IPC_SEM
+    bool "Enable Sem Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST && LOSCFG_BASE_IPC_SEM
+config LOSCFG_TEST_KERNEL_BASE_IPC_EVENT
+    bool "Enable Event Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST && LOSCFG_BASE_IPC_EVENT
+config LOSCFG_TEST_KERNEL_BASE_MP
+    bool "Enable MP Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST && LOSCFG_KERNEL_SMP
+config LOSCFG_TEST_KERNEL_BASE_MEM
+    bool "Enable MEM Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST
+config LOSCFG_TEST_KERNEL_BASE_MISC
+    bool "Enable MISC Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST
+config LOSCFG_TEST_KERNEL_BASE_ATOMIC
+    bool "Enable ATOMIC Testsuit"
+    default y
+    depends on LOSCFG_TEST_KERNEL_BASE && LOSCFG_TEST

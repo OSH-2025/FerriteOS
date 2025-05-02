@@ -1,0 +1,71 @@
+choice
+    prompt "Family"
+
+config LOSCFG_FAMILY_APM32
+    bool "APM32"
+
+config LOSCFG_FAMILY_CSKY
+    bool "CSKY"
+
+config LOSCFG_FAMILY_FMSH
+    bool "FMSH"
+
+config LOSCFG_FAMILY_GD
+    bool "GD"
+
+config LOSCFG_FAMILY_QEMU
+    bool "QEMU"
+
+config LOSCFG_FAMILY_RASPBERRY
+    bool "raspberry"
+
+config LOSCFG_FAMILY_SIFIVE
+    bool "SIFIVE"
+
+config LOSCFG_FAMILY_STM32
+    bool "STM32"
+
+config LOSCFG_FAMILY_XTENSA
+    bool "XTENSA"
+
+endchoice
+
+osource "targets/Kconfig.apm32"
+osource "targets/Kconfig.csky"
+osource "targets/Kconfig.fmsh"
+osource "targets/Kconfig.gd"
+osource "targets/Kconfig.qemu"
+osource "targets/Kconfig.raspberry"
+osource "targets/Kconfig.sifive"
+osource "targets/Kconfig.stm32"
+osource "targets/Kconfig.xtensa"
+
+config LOSCFG_HW_SD_CARD
+    bool
+
+config LOSCFG_DRIVER_HAL_LIB
+    bool
+
+config LOSCFG_DRIVER_GD_LIB
+    bool
+
+config LOSCFG_DRIVER_CSKY_LIB
+    bool
+
+config LOSCFG_DRIVER_SIFIVE_LIB
+    bool
+
+config LOSCFG_DRIVER_APM_LIB
+    bool
+
+config LOSCFG_HW_SPI_FLASH
+    bool
+
+config LOSCFG_USING_BOARD_LD
+    bool
+
+config LOSCFG_HW_QSPI
+    bool "Qspi peripherals"
+
+config LOSCFG_DRIVER_E53
+    bool

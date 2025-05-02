@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_GENANN
+    bool "Enable Genann Demo"
+    select LOSCFG_COMPONENTS_GENANN
+    select LOSCFG_COMPONENTS_FS_VFS
+    default n
+    help
+      Answer y to enable genann demo.

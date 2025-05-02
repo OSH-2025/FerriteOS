@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_LUA
+    bool "Enable Lua Demo"
+    default n
+    select LOSCFG_COMPONENTS_LUA
+    select LOSCFG_COMPONENTS_FS_RAMFS
+    help
+      Answer y to enable lua demo.

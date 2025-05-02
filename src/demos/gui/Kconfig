@@ -1,0 +1,15 @@
+menu "Graphical User Interface Demo"
+
+config LOSCFG_DEMOS_GUI
+    bool "Enable Gui Demo"
+    default n
+    depends on LOSCFG_PLATFORM_STM32F769IDISCOVERY
+    select LOSCFG_COMPONENTS_GUI
+    select LOSCFG_GUI_ENABLE
+    help
+      Answer y to enable Graphical User Interface demo.
+
+   config LOSCFG_GUI_ENABLE
+   bool
+
+endmenu

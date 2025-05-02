@@ -1,0 +1,13 @@
+include $(LITEOSTOPDIR)/config.mk
+MODULE_NAME := perf_demo
+
+PERF_DEMO_DIR = $(LITEOSTOPDIR)/demos/perf
+
+BOARD_INCLUDES += -I$(PERF_DEMO_DIR)
+BOARD_SRCS += $(wildcard $(PERF_DEMO_DIR)/*.c)
+
+LOCAL_SRCS = $(BOARD_SRCS)
+LOCAL_INCLUDE += $(BOARD_INCLUDES)
+LOCAL_FLAGS := $(LOCAL_INCLUDE)
+
+include $(MODULE)

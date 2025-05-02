@@ -1,0 +1,7 @@
+menu "Language"
+
+source "components/language/jerryscript/Kconfig"
+source "components/language/lua/Kconfig"
+source "components/language/micropython/Kconfig"
+
+endmenu

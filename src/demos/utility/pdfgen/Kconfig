@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_PDFGEN
+    bool "Enable PDFGen Demo"
+    select LOSCFG_COMPONENTS_PDFGEN
+    select LOSCFG_COMPONENTS_FS_FATFS
+    default n
+    help
+      Answer y to enable PDFGen demo.

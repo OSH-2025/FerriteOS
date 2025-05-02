@@ -1,0 +1,10 @@
+menu "PERF Demo"
+
+config LOSCFG_DEMOS_PERF
+    bool "Enable PERF Demo"
+    default n
+    select LOSCFG_KERNEL_PERF
+    help
+      Answer y to enable perf demo.
+
+endmenu

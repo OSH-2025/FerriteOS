@@ -1,0 +1,2 @@
+TJPGDEC_VERSION = tjpgd3
+COMPONENTS_TJPGDEC_INCLUDE = -I $(LITEOSTOPDIR)/components/media/tjpgdec/src

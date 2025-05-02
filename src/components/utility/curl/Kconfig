@@ -1,0 +1,15 @@
+config LOSCFG_COMPONENTS_CURL
+    bool "Enable Curl"
+    select LOSCFG_COMPONENTS_NET_LWIP
+    select LOSCFG_COMPONENTS_FS_FATFS
+    default n
+    help
+      Answer y to enable curl.
+
+config CURL_OPENSSL
+    bool "Use Openssl"
+    depends on LOSCFG_COMPONENTS_CURL
+    select LOSCFG_COMPONENTS_OPENSSL
+    default n
+    help
+        Answer y to enable use openssl.

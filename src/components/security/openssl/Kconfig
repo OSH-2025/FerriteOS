@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_OPENSSL
+    bool "Enable Openssl"
+    default n
+    select LOSCFG_COMPONENTS_SECURITY
+    help
+      Answer y to enable openssl.

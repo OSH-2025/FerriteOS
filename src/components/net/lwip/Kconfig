@@ -1,0 +1,32 @@
+config LOSCFG_COMPONENTS_NET_LWIP
+    bool "Enable Lwip"
+    select LOSCFG_COMPONENTS_FS_VFS
+    select LOSCFG_COMPONENTS_NETWORK
+    select LOSCFG_COMPONENTS_NET_SAL
+    default n
+    help
+      Answer y to enable lwip.
+
+config LOSCFG_COMPONENTS_LWIP_DHCP
+    bool "Enable DHCP"
+    depends on LOSCFG_COMPONENTS_NET_LWIP
+    default y
+    help
+      Answer y to enable lwip dhcp.
+
+choice
+    prompt "Enable Ipv4 Or Ipv6 Or NIP"
+    default LOSCFG_LWIP_IPV4
+    depends on LOSCFG_COMPONENTS_NET_LWIP
+
+config LOSCFG_LWIP_IPV4
+    bool "Enable Ipv4"
+
+config LOSCFG_LWIP_IPV6
+    bool "Enable Ipv6"
+
+config LOSCFG_LWIP_NIP
+    bool "Enable NIP"
+	
+endchoice
+

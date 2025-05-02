@@ -1,0 +1,50 @@
+COMPONENTS_INCLUDE :=
+
+include $(LITEOSTOPDIR)/components/connectivity/connectivity.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_CONNECTIVITY_INCLUDE)
+
+ifeq ($(LOSCFG_COMPONENTS_FS), y)
+include $(LITEOSTOPDIR)/components/fs/fs.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_FS_INCLUDE)
+endif
+
+ifeq ($(LOSCFG_COMPONENTS_GUI), y)
+include $(LITEOSTOPDIR)/components/gui/gui.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_GUI_INCLUDE)
+endif
+
+ifeq ($(LOSCFG_COMPONENTS_SENSORHUB), y)
+include $(LITEOSTOPDIR)/components/sensorhub/sensorhub.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_SENSORHUB_INCLUDE)
+endif
+
+include $(LITEOSTOPDIR)/components/net/net.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_NET_INCLUDE)
+
+include $(LITEOSTOPDIR)/components/security/security.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_SECURITY_INCLUDE)
+
+ifeq ($(LOSCFG_COMPONENTS_LIB), y)
+include $(LITEOSTOPDIR)/components/lib/lib.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_LIB_INCLUDE)
+endif
+
+ifeq ($(LOSCFG_COMPONENTS_AI), y)
+include $(LITEOSTOPDIR)/components/ai/ai.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_AI_INCLUDE)
+endif
+
+include $(LITEOSTOPDIR)/components/utility/utility.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_UTILITY_INCLUDE)
+
+include $(LITEOSTOPDIR)/components/media/media.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_MEDIA_INCLUDE)
+
+include $(LITEOSTOPDIR)/components/language/language.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_LANGUAGE_INCLUDE)
+
+
+ifeq ($(LOSCFG_COMPONENTS_OTA), y)
+include $(LITEOSTOPDIR)/components/ota/ota.mk
+COMPONENTS_INCLUDE += $(COMPONENTS_OTA_INCLUDE)
+endif

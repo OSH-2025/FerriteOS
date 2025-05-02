@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_NET_IFCONFIG
+    bool "Enable Ifconfig"
+    select LOSCFG_COMPONENTS_NET_LWIP
+    default n
+    help
+        Answer y to enable ifconfig.

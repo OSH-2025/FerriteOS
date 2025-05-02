@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_BIDIREFERENCE
+    bool "Enable Bidireference"
+    default n
+    select LOSCFG_COMPONENTS_FS_VFS
+    help
+      Answer y to enable Bidireference.

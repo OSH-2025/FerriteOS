@@ -1,0 +1,7 @@
+config LOSCFG_COMPONENTS_LIBRWS
+    bool "Enable Librws"
+    select LOSCFG_COMPONENTS_NET_LWIP
+    select LOSCFG_COMPONENTS_FS_VFS
+    default n
+    help
+    Answer y to enable librws.

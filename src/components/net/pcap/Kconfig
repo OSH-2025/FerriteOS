@@ -1,0 +1,12 @@
+config LOSCFG_COMPONENTS_PCAP
+    bool "Enable Pcap"
+    select LOSCFG_COMPONENTS_NET_LWIP
+    select LOSCFG_PF_PACKET_SOCKET
+    select LOSCFG_COMPONENTS_FS_FATFS
+    select LOSCFG_COMPONENTS_NET_IFCONFIG
+    default n
+    help
+    Answer y to enable pcap.
+
+config LOSCFG_PF_PACKET_SOCKET
+    bool

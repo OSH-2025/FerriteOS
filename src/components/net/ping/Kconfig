@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_NET_PING
+    bool "Enable Ping"
+    select LOSCFG_COMPONENTS_NET_LWIP
+    default n
+    help
+        Answer y to enable ping.

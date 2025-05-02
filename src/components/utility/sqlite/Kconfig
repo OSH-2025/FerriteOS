@@ -1,0 +1,5 @@
+config LOSCFG_COMPONENTS_SQLITE
+    bool "Enable Sqlite"
+    default n
+    help
+      Answer y to enable sqlite.

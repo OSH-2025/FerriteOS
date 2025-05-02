@@ -1,0 +1,33 @@
+config LOSCFG_COMPONENTS_SFUD
+    bool "Enable Sfud"
+    default n
+    help
+      Answer y to enable sfud.
+
+config LOSCFG_SFUD_DEBUG_MODE
+    bool "Enable debug mode"
+    default n
+    depends on LOSCFG_COMPONENTS_SFUD
+    help
+      Answer y to enable debug mode.
+
+config LOSCFG_SFUD_USING_SFDP
+    bool "Enable using sfdp"
+    default n
+    depends on LOSCFG_COMPONENTS_SFUD
+    help
+      Answer y to enable using sfdp.
+config LOSCFG_SFUD_USING_FLASH_INFO_TABLE
+    bool "Enable using flash info table"
+    default n
+    depends on LOSCFG_COMPONENTS_SFUD
+    help
+      Answer y to enable using flash info table.
+
+config LOSCFG_SFUD_USING_QSPI
+    bool "Enable using qspi"
+    default n
+    depends on LOSCFG_COMPONENTS_SFUD && LOSCFG_HW_QSPI
+    help
+      Answer y to enable using qspi.
+

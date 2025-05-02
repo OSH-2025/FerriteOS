@@ -1,0 +1,11 @@
+config LOSCFG_EXTERNAL_MEM
+    bool
+    default n
+
+config LOSCFG_COMPONENTS_APRILTAG
+    select LOSCFG_COMPONENTS_FS_FATFS
+    select LOSCFG_EXTERNAL_MEM
+    bool "Enable Apriltag"
+    default n
+    help
+      Answer y to enable apriltag.

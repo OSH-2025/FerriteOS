@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_TINYCRYPT
+    bool "Enable Tinycrypt"
+    default n
+    select LOSCFG_COMPONENTS_SECURITY
+    help
+      Answer y to enable tinycrypt.

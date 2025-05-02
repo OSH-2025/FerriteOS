@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_LIBXML2
+    bool "Enable Libxml2 Demo"
+    select LOSCFG_COMPONENTS_LIBXML2
+    select LOSCFG_COMPONENTS_FS_FATFS
+    default n
+    help
+      Answer y to enable libxml2 demo.

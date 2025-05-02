@@ -1,0 +1,1 @@
+DEMOS_AGRICULTURE_INCLUDE := -I $(LITEOSTOPDIR)/demos/agriculture

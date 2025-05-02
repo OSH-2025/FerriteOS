@@ -1,0 +1,13 @@
+include $(LITEOSTOPDIR)/config.mk
+
+MODULE_NAME := $(notdir $(CURDIR))
+
+LOCAL_SRCS_$(LOSCFG_DRIVERS_UART_ARM_PL011) += arm_pl011.c
+
+LOCAL_SRCS = $(LOCAL_SRCS_y)
+
+LOCAL_INCLUDE := -I $(LITEOSTOPDIR)/drivers/uart/src/arm_pl011
+
+LOCAL_FLAGS := $(LOCAL_INCLUDE) $(LITEOS_GCOV_OPTS)
+
+include $(MODULE)

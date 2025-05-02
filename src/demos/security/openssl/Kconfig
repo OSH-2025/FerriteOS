@@ -1,0 +1,6 @@
+config LOSCFG_DEMOS_OPENSSL
+    bool "Enable Openssl Demo"
+    default n
+    select LOSCFG_COMPONENTS_OPENSSL
+    help
+      Answer y to enable openssl demo.

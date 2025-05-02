@@ -1,0 +1,3 @@
+LUA_VERSION = lua-5.4.2
+
+COMPONENTS_LUA_INCLUDE := -I $(LITEOSTOPDIR)/components/language/lua/$(LUA_VERSION)

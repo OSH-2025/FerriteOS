@@ -1,0 +1,24 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2021-2021. All rights reserved.
+
+config LOSCFG_ARCH_CSKY
+    bool
+    help
+      This option will make the system run on csky architecture
+
+config LOSCFG_ARCH_CSKY_V2
+    bool
+    select LOSCFG_ARCH_CSKY 
+    help
+      This option will make the system run on csky-v2 architecture
+
+config LOSCFG_ARCH_CSKY_CK802
+    bool
+    select LOSCFG_ARCH_CSKY_V2
+
+config LOSCFG_ARCH_CPU
+    string
+    default "ck802"  if LOSCFG_ARCH_CSKY_CK802
+
+config LOSCFG_ARCH_CSKY_VER
+    string
+    default "ck802"  if LOSCFG_ARCH_CSKY_CK802

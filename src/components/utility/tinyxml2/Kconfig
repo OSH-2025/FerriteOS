@@ -1,0 +1,5 @@
+config LOSCFG_COMPONENTS_TINYXML2
+    bool "Enable Tinyxml2"
+    default n
+    help
+      Answer y to enable tinyxml2.

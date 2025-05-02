@@ -1,0 +1,51 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2020-2020. All rights reserved.
+
+# XTENSA Architecture
+
+config LOSCFG_ARCH_XTENSA
+    bool
+
+#
+# XTENSA support 32-bit(Aarch32)
+#
+config LOSCFG_ARCH_XTENSA_ARCH32
+    bool
+    select LOSCFG_ARCH_XTENSA
+    help
+      32-bit XTENSA architecture implementations
+
+config LOSCFG_ARCH_XTENSA_LX6
+    bool
+    select LOSCFG_LIB_LIBC
+    select LOSCFG_ARCH_XTENSA_ARCH32
+
+config LOSCFG_ARCH_XTENSA_L106
+    bool
+    select LOSCFG_LIB_LIBC
+    select LOSCFG_ARCH_XTENSA_ARCH32
+
+config LOSCFG_ARCH_XTENSA_XEA2
+    bool
+    select LOSCFG_ARCH_XTENSA
+    select LOSCFG_ARCH_XTENSA_ARCH32
+
+config LOSCFG_ARCH_XTENSA_XEA3
+    bool
+    select LOSCFG_ARCH_XTENSA
+
+config LOSCFG_ARCH_CPU
+    string
+    default "xtensa-lx6"  if LOSCFG_ARCH_XTENSA_LX6
+    default "xtensa-l106" if LOSCFG_ARCH_XTENSA_L106
+    default "xtensa-xea2" if LOSCFG_ARCH_XTENSA_XEA2
+    default "xtensa-xea3" if LOSCFG_ARCH_XTENSA_XEA3
+
+config LOSCFG_XTENSA_HIFI3Z
+    bool
+    select LOSCFG_ARCH_XTENSA_XEA2
+
+config LOSCFG_HUAWEI_VISIONQ6_V3
+    bool
+    select LOSCFG_ARCH_XTENSA_XEA3
+
+

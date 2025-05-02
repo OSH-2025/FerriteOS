@@ -1,0 +1,8 @@
+menu "Driver"
+
+osource "drivers/base/Kconfig"
+osource "drivers/interrupt/Kconfig"
+osource "drivers/timer/Kconfig"
+osource "drivers/uart/Kconfig"
+
+endmenu

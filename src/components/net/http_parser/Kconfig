@@ -1,0 +1,6 @@
+config LOSCFG_COMPONENTS_HTTP_PARSER
+    bool "Enable Http Parser"
+    select LOSCFG_COMPONENTS_NETWORK
+    default n
+    help
+      Answer y to enable http parser.

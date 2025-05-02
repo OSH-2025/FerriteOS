@@ -1,0 +1,15 @@
+# RISC-V Architecture
+config LOSCFG_ARCH_RISCV
+    bool
+    select LOSCFG_LIB_LIBC
+
+config LOSCFG_ARCH_RISCV_RV32IMC
+    bool
+    select LOSCFG_ARCH_RISCV
+    help
+      32-bit RISCV architecture implementations.
+
+config LOSCFG_ARCH_RISCV_RV32F
+    bool
+    help
+      32-bit RISCV FPU architecture implementations.

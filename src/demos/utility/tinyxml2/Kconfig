@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_TINYXML2
+    bool "Enable Tinyxml2 Demo"
+    select LOSCFG_COMPONENTS_TINYXML2
+    select LOSCFG_COMPONENTS_FS_RAMFS
+    default n
+    help
+      Answer y to enable tinyxml2 demo.

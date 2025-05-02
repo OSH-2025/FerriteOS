@@ -1,0 +1,42 @@
+
+config LOSCFG_COMPONENTS_NET_AT
+    bool "Enable Net AT"
+    select LOSCFG_COMPONENTS_NETWORK
+    default n
+    help
+      Answer y to enable net AT.
+
+config LOSCFG_COMPONENTS_NET_AT_INFO
+    bool "Enable AT INFO"
+    depends on LOSCFG_COMPONENTS_NET_AT
+    default n
+
+config LOSCFG_COMPONENTS_NET_AT_DEBUG
+    bool "Enable AT DEBUG"
+    depends on LOSCFG_COMPONENTS_NET_AT
+    default n
+
+choice
+    prompt "Choose AT Device"
+    default LOSCFG_COMPONENTS_NET_AT_ESP8266
+    depends on LOSCFG_COMPONENTS_NET_AT
+
+    config LOSCFG_COMPONENTS_NET_AT_ESP8266
+    depends on LOSCFG_COMPONENTS_NET_AT
+    bool "Enable esp8266"
+
+    config LOSCFG_COMPONENTS_NET_AT_SIM900A
+    depends on LOSCFG_COMPONENTS_NET_AT
+    bool "Enable sim900a"
+
+    config LOSCFG_COMPONENTS_NET_AT_BC95
+    depends on LOSCFG_COMPONENTS_NET_AT
+    depends on LOSCFG_COMPONENTS_CONNECTIVITY_NB_IOT
+    bool "Enable bc95"
+
+    config LOSCFG_COMPONENTS_NET_AT_BG36
+    depends on LOSCFG_COMPONENTS_NET_AT
+    depends on LOSCFG_COMPONENTS_CONNECTIVITY_NB_IOT
+    bool "Enable bg36"
+
+endchoice

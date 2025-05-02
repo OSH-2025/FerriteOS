@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_FREETYPE
+    bool "Enable FreeType Demo"
+    select LOSCFG_COMPONENTS_FS_FATFS
+    select LOSCFG_COMPONENTS_FREETYPE
+    default n
+    help
+      Answer y to enable freetype demo.

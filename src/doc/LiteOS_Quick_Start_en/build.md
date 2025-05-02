@@ -1,0 +1,33 @@
+# Build<a name="EN-US_TOPIC_0308937179"></a>
+
+After the development environment is set up, perform the following steps to complete the build:
+
+1.  Download the Huawei LiteOS code.
+
+    Download the complete Huawei LiteOS code of master branch from  [LiteOS code repository](https://gitee.com/LiteOS/LiteOS)  on Gitee.
+
+2.  Copy the .config file of the development board to the root directory.
+
+    Copy the default configuration file  _$\{platform\}_**.config**  in  **tools/build/config/**  to the root directory and rename it  **.config**.
+
+3.  Configure the demo to be executed.
+
+    Run the  **make menuconfig**  command in the Huawei\_LiteOS root directory to open the menuconfig GUI and enable the demo to be executed. The following uses Kernel Task Demo as an example to describe how to configure a demo. For details about how to enable other demos, see README in each subdirectory of the  **demos**  directory in the root directory of the Huawei LiteOS source code.
+
+    Choose  **Demos**  \>  **Kernel Demo**. Press the space bar to select  **Enable Kernel Demo**  \(**\[ \* \]**  is displayed after this configuration item is enabled\). Then, choose  **Kernel Demo Entry**  and select  **DemoEntry**. \(This configuration item can be used to execute one or multiple kernel demos. Another configuration item  **InspectEntry**  indicates that all kernel demos are executed.\) Choose  **Run Kernel Task Demo**  from the submenu, as shown in the following figure.
+
+    ![](figures/select_task_demo_in_menuconfig.png)
+
+    After the configuration is complete, enter  **S**  to save configuration items to the .config file in the root directory by default. Press  **Enter**. Enter  **Q**  to exit menuconfig.
+
+4.  Clear the project.
+
+    Before build, run the  **make clean**  command in the root directory of Huawei\_LiteOS to delete binary files that have been built before.
+
+5.  Build the project.
+
+    Run the  **make**  command in the root directory of Huawei\_LiteOS to build the project. The build result is displayed on the screen.
+
+    The built files are stored in the  **out**  directory. Take Cloud\_STM32F429IGTx\_FIRE as an example. The generated system image files and disassembly files are stored in the  **out/Cloud\_STM32F429IGTx\_FIRE**  directory, the library files are stored in the  **out/Cloud\_STM32F429IGTx\_FIRE/lib**  directory, and the intermediate files are stored in the  **out/Cloud\_STM32F429IGTx\_FIRE/obj**  directory.  **Kernel Task Demo**  is enabled in step 3, and the  **libkernel\_demo.a**  library file exists in the  **lib**  directory where the library file is saved.
+
+

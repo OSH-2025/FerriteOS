@@ -1,0 +1,16 @@
+include $(LITEOSTOPDIR)/config.mk
+
+MODULE_NAME := csysdeps
+
+LOCAL_INCLUDE :=
+
+LOCAL_SRCS := memcmp.S strcmp.S
+ifeq ($(LOSCFG_ARCH_FPU_VFP_NEON), y)
+	LOCAL_SRCS += memset.S
+endif
+
+LOCAL_ASFLAGS := $(AS_OBJS_LIBC_FLAGS)
+
+LOCAL_FLAGS := $(LOCAL_INCLUDE) $(LITEOS_GCOV_OPTS)
+
+include $(MODULE_LIBC)

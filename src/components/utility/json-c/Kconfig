@@ -1,0 +1,5 @@
+config LOSCFG_COMPONENTS_JSON_C
+    bool "Enable Json-c"
+    default n
+    help
+      Answer y enable json-c.

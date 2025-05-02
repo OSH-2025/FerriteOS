@@ -1,0 +1,1 @@
+DEMOS_OPENEXIF_INCLUDE := -I $(LITEOSTOPDIR)/demos/media/openexif

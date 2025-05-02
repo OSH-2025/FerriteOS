@@ -1,0 +1,7 @@
+config LOSCFG_COMPONENTS_THTTPD
+    bool "Enable Thttpd"
+    default n
+    select LOSCFG_COMPONENTS_FS_FATFS
+    select LOSCFG_COMPONENTS_NET_LWIP
+    help
+      Answer y to enable thttpd.

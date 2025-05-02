@@ -1,0 +1,7 @@
+config LOSCFG_DEMOS_JSONCPP
+    bool "Enable Jsoncpp Demo"
+    default n
+    select LOSCFG_COMPONENTS_JSONCPP
+    select LOSCFG_COMPONENTS_FS_VFS
+    help
+      Answer y to enable jsoncpp demo.

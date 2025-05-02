@@ -1,0 +1,1 @@
+DEMOS_ICONV_INCLUDE := -I $(LITEOSTOPDIR)/demos/utility/iconv

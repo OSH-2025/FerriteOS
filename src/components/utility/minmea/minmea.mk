@@ -1,0 +1,3 @@
+MINMEA_VERSION = minmea-0.3.0
+
+COMPONENTS_MINMEA_INCLUDE = -I $(LITEOSTOPDIR)/components/utility/minmea/$(MINMEA_VERSION)
