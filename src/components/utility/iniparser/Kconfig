@@ -1,6 +1,0 @@
-config LOSCFG_COMPONENTS_INIPARSER
-    bool "Enable Iniparser"
-    default n
-    select LOSCFG_COMPONENTS_FS_VFS
-    help
-      Answer y to enable iniparser.

@@ -1,1 +1,0 @@
-DEMOS_HTTP_CLIENT_INCLUDE = -I $(LITEOSTOPDIR)/demos/http_client

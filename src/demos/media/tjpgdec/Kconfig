@@ -1,7 +1,0 @@
-config LOSCFG_DEMOS_TJPGDEC
-    bool "Enable Tjpgdec Demo"
-    select LOSCFG_COMPONENTS_TJPGDEC
-    select LOSCFG_COMPONENTS_FS_FATFS
-    default n
-    help
-      Answer y to enable tjpgdec demo.

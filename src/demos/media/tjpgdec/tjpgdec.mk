@@ -1,1 +1,0 @@
-DEMOS_TJPGDEC_INCLUDE = -I $(LITEOSTOPDIR)/demos/media/tjpgdec

@@ -1,6 +1,0 @@
-include $(LITEOSTOPDIR)/config.mk
-
-MODULE_$(LOSCFG_COMPONENTS_ATINY_MQTT) += atiny_mqtt
-MODULE_$(LOSCFG_COMPONENTS_ATINY_LWM2M) += atiny_lwm2m
-
-include $(MODULE)

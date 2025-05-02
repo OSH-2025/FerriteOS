@@ -1,8 +1,0 @@
-menu "Security"
-
-source "components/security/mbedtls/Kconfig"
-source "components/security/openssl/Kconfig"
-source "components/security/rhash/Kconfig"
-source "components/security/tinycrypt/Kconfig"
-
-endmenu

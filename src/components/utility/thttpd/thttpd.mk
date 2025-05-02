@@ -1,4 +1,0 @@
-THTTPD_VERSION = thttpd-2.27
-
-COMPONENTS_THTTPD_INCLUDE := \
-    -I $(LITEOSTOPDIR)/components/utility/thttpd/$(THTTPD_VERSION)

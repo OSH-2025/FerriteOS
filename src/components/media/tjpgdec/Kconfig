@@ -1,5 +1,0 @@
-config LOSCFG_COMPONENTS_TJPGDEC
-    bool "Enable Tjpgdec"
-    default n
-    help
-      Answer y to enable tjpgdec.

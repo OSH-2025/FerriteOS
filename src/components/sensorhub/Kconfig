@@ -1,9 +1,0 @@
-menu "Sensorhub"
-
-config LOSCFG_COMPONENTS_SENSORHUB
-    bool "Enable Sensorhub"
-    default n
-    help
-      Answer y to support Sensor Hub.
-
-endmenu

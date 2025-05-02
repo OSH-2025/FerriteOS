@@ -1,5 +1,0 @@
-menu "Drivers Demo"
-
-source "demos/drivers/can/Kconfig"
-
-endmenu

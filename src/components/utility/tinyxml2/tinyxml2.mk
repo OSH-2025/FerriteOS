@@ -1,4 +1,0 @@
-TINYXML2_VERSION = tinyxml2-8.0.0
-
-COMPONENTS_TINYXML2_INCLUDE += \
-    -I $(LITEOSTOPDIR)/components/utility/tinyxml2/$(TINYXML2_VERSION) \

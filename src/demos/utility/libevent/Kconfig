@@ -1,6 +1,0 @@
-config LOSCFG_DEMOS_LIBEVENT
-    bool "Enable Libevent Demo"
-    select LOSCFG_COMPONENTS_LIBEVENT
-    default n
-    help
-      Answer y to enable libevent demo.

@@ -1,2 +1,0 @@
-DEMOS_GUI_INCLUDE := \
-	-I $(LITEOSTOPDIR)/demos/gui

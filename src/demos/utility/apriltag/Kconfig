@@ -1,7 +1,0 @@
-config LOSCFG_DEMOS_APRILTAG
-    bool "Enable Apriltag Demo"
-    select LOSCFG_COMPONENTS_APRILTAG
-    depends on LOSCFG_PLATFORM_STM32F769IDISCOVERY
-    default n
-    help
-      Answer y to enable apriltag demo.

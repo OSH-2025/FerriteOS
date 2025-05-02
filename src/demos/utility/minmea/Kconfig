@@ -1,6 +1,0 @@
-config LOSCFG_DEMOS_MINMEA
-    bool "Enable Minmea Demo"
-    select LOSCFG_COMPONENTS_MINMEA
-    default n
-    help
-      Answer y to enable minmea demo.

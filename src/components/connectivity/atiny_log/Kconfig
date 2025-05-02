@@ -1,5 +1,0 @@
-config LOSCFG_COMPONENTS_ATINY_LOG
-    bool "Enable Atiny Log"
-    default y
-    help
-      Answer y to enable agent tiny log.

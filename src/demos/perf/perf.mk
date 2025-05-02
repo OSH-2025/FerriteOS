@@ -1,1 +1,0 @@
-DEMOS_PERF_INCLUDE := -I $(LITEOSTOPDIR)/demos/perf

@@ -1,7 +1,0 @@
-config LOSCFG_DEMOS_JERRYSCRIPT
-    bool "Enable Jerryscript Demo"
-    select LOSCFG_COMPONENTS_JERRYSCRIPT
-    default n
-    help
-      Answer y to enable jerryscript demo.
-

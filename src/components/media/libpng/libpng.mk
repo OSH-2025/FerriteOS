@@ -1,4 +1,0 @@
-LIBPNG_VERSION = libpng-1.6.29
-
-COMPONENTS_LIBPNG_INCLUDE += \
-    -I $(LITEOSTOPDIR)/components/media/libpng/$(LIBPNG_VERSION)

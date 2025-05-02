@@ -1,5 +1,0 @@
-config LOSCFG_COMPONENTS_QRENCODE
-    bool "Enable Qrencode"
-    default n
-    help
-      Answer y to enable qrencode.

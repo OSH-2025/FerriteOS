@@ -1,6 +1,0 @@
-config LOSCFG_DEMOS_TINYCRYPT
-    bool "Enable Tinycrypt Demo"
-    default n
-    select LOSCFG_COMPONENTS_TINYCRYPT
-    help
-      Answer y to enable tinycrypt demo.

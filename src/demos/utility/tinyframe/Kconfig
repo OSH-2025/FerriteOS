@@ -1,6 +1,0 @@
-config LOSCFG_DEMOS_TINYFRAME
-    bool "Enable Tinyframe Demo"
-    select LOSCFG_COMPONENTS_TINYFRAME
-    default n
-    help
-      Answer y to enable tinyframe demo.

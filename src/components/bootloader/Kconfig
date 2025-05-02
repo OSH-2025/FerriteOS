@@ -1,9 +1,0 @@
-menu "Bootloader"
-
-config LOSCFG_BOOTLOADER
-    bool "Enable BootLoader"
-    default n
-    help
-      Answer y to enable bootloader.
-
-endmenu

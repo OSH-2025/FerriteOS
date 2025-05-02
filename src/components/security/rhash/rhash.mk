@@ -1,3 +1,0 @@
-RHASH_VERSION = RHash-1.4.2
-
-COMPONENTS_RHASH_INCLUDE = -I $(LITEOSTOPDIR)/components/security/rhash/$(RHASH_VERSION)

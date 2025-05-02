@@ -1,7 +1,0 @@
-config LOSCFG_DEMOS_JSMN
-    bool "Enable Jsmn Demo"
-    select LOSCFG_COMPONENTS_JSMN
-    select LOSCFG_COMPONENTS_FS_VFS
-    default n
-    help
-      Answer y to enable jsmn demo.

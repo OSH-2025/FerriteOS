@@ -1,1 +1,0 @@
-DEMOS_CAN_INCLUDE := -I $(LITEOSTOPDIR)/demos/drivers/can

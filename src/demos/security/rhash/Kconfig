@@ -1,6 +1,0 @@
-config LOSCFG_DEMOS_RHASH
-    bool "Enable RHash Demo"
-    default n
-    select LOSCFG_COMPONENTS_RHASH
-    help
-      Answer y to enable rhash demo.

@@ -1,7 +1,0 @@
-config LOSCFG_DEMOS_EASYFLASH
-    bool "Enable Easyflash Demo"
-    select LOSCFG_COMPONENTS_EASYFLASH
-    default n
-    help
-      Answer y to enable easyflash demo.
-
