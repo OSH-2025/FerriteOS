@@ -1,0 +1,10 @@
+unsafe extern "C" {
+    // kernel/base/mem/bestfit/los_memory.c
+    #[link_name = "GetOsSysMemSizeWrapper"]
+    unsafe fn get_os_sys_mem_size_wrapper() -> u32;
+}
+
+#[inline]
+pub fn get_os_sys_mem_size() -> u32 {
+    unsafe { get_os_sys_mem_size_wrapper() }
+}

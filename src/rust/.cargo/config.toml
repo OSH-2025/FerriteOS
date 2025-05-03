@@ -17,7 +17,7 @@ rustflags = [
   # By default, the LLD linker is used, which is shipped with the Rust
   # toolchain. If you run into problems with LLD, you can switch to the
   # GNU linker by uncommenting this line:
-  "-C", "linker=arm-none-eabi-ld",          # 指定链接器
+  "-C", "linker=arm-none-eabi-ld",
 
   # If you need to link to pre-compiled C libraries provided by a C toolchain
   # use GCC as the linker by uncommenting the three lines below:
