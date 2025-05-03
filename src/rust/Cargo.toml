@@ -8,3 +8,7 @@ panic-halt = "1.0.0"
 
 [lib]
 crate-type = ["staticlib"]
+
+[features]
+bitmap = []
+event = []

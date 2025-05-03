@@ -1,0 +1,21 @@
+menu "Rust"
+config LOSCFG_ENABLE_RUST
+    bool "Enable Rust"
+    default n
+    help
+        Enable the use of Rust in LiteOS.
+
+config LOSCFG_ENABLE_RUST_BITMAP
+    bool "Enable Rust in Bitmap Module"
+    default n
+    depends on LOSCFG_ENABLE_RUST
+    help
+        Enable the use of Rust in the Bitmap module of LiteOS.
+
+config LOSCFG_ENABLE_RUST_EVENT
+    bool "Enable Rust in Event Module"
+    default n
+    depends on LOSCFG_ENABLE_RUST && LOSCFG_BASE_IPC_EVENT
+    help
+        Enable the use of Rust in the Event module of LiteOS.
+endmenu
