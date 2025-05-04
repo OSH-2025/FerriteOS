@@ -58,6 +58,11 @@ pub fn os_mem_node_get_used_flag(size_and_flag: u32) -> bool {
 }
 
 #[inline]
+pub fn os_mem_node_set_used_flag(size_and_flag: &mut u32) {
+    *size_and_flag |= OS_MEM_NODE_USED_FLAG;
+}
+
+#[inline]
 pub fn os_mem_magic_valid(node: *mut LosMemDynNode) -> bool {
     unsafe {
         let magic = (*node).self_node.node_info.used_node_info.magic;

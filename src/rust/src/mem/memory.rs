@@ -151,8 +151,7 @@ fn os_mem_split_node(
 ) {
     unsafe {
         let pool = pool as *mut LosMemPoolInfo;
-        let first_node = os_mem_first_node(pool);
-        let first_node = first_node as *const core::ffi::c_void;
+        let first_node = os_mem_first_node(pool) as *const core::ffi::c_void;
         // 计算新空闲节点的地址
         let new_free_node = (alloc_node as usize + alloc_size as usize) as *mut LosMemDynNode;
         // 初始化新空闲节点
@@ -329,9 +328,97 @@ pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
     }
 }
 
+fn os_mem_alloc_with_check(pool: *mut LosMemPoolInfo, size: u32) -> *mut core::ffi::c_void {
+    let first_node = os_mem_first_node(pool) as *const core::ffi::c_void;
+
+    let alloc_size = os_mem_align(size as usize + OS_MEM_NODE_HEAD_SIZE, OS_MEM_ALIGN_SIZE) as u32;
+
+    let alloc_node =
+        match os_mem_find_suitable_free_block(pool as *mut core::ffi::c_void, alloc_size) {
+            Some(node) => node,
+            None => {
+                // TODO os_mem_info_alert
+                return core::ptr::null_mut();
+            }
+        };
+    unsafe {
+        if (alloc_size + OS_MEM_NODE_HEAD_SIZE as u32 + OS_MEM_ALIGN_SIZE as u32)
+            <= (*alloc_node).self_node.size_and_flag
+        {
+            os_mem_split_node(pool as *mut core::ffi::c_void, alloc_node, alloc_size);
+        }
+        os_mem_list_delete(
+            &mut (*alloc_node).self_node.node_info.free_node_info as *mut LinkedList,
+            first_node,
+        );
+        os_mem_set_magic_num_and_task_id(alloc_node);
+        os_mem_node_set_used_flag(&mut (*alloc_node).self_node.size_and_flag);
+        memstat::os_memstat_task_used_dec(
+            &mut (*pool).stat,
+            os_mem_node_get_size((*alloc_node).self_node.size_and_flag),
+            (*alloc_node).get_task_id(),
+        );
+        alloc_node.add(1) as *mut core::ffi::c_void
+    }
+}
+
+#[inline]
+fn os_mem_realloc_smaller(
+    pool: *mut LosMemPoolInfo,
+    alloc_size: u32,
+    node: *mut LosMemDynNode,
+    node_size: u32,
+) {
+    unsafe {
+        if (alloc_size + OS_MEM_NODE_HEAD_SIZE as u32 + OS_MEM_ALIGN_SIZE as u32) <= node_size {
+            (*node).self_node.size_and_flag = node_size;
+            os_mem_split_node(pool as *mut core::ffi::c_void, node, alloc_size);
+            os_mem_node_set_used_flag(&mut (*node).self_node.size_and_flag);
+            memstat::os_memstat_task_used_dec(
+                &mut (*pool).stat,
+                node_size - alloc_size,
+                (*node).get_task_id(),
+            );
+        }
+    }
+}
+
+#[inline]
+fn os_mem_merge_node_for_realloc_bigger(
+    pool: *mut LosMemPoolInfo,
+    alloc_size: u32,
+    node: *mut LosMemDynNode,
+    node_size: u32,
+    next_node: *mut LosMemDynNode,
+) {
+    unsafe {
+        let first_node = os_mem_first_node(pool) as *const core::ffi::c_void;
+        (*node).self_node.size_and_flag = node_size;
+        os_mem_list_delete(
+            &mut (*next_node).self_node.node_info.free_node_info as *mut LinkedList,
+            first_node,
+        );
+        os_mem_merge_node(next_node);
+        if (alloc_size + OS_MEM_NODE_HEAD_SIZE as u32 + OS_MEM_ALIGN_SIZE as u32)
+            <= (*node).self_node.size_and_flag
+        {
+            os_mem_split_node(pool as *mut core::ffi::c_void, node, alloc_size);
+        }
+        memstat::os_memstat_task_used_inc(
+            &mut (*pool).stat,
+            (*node).self_node.size_and_flag - node_size,
+            (*node).get_task_id(),
+        );
+        os_mem_node_set_used_flag(&mut (*node).self_node.size_and_flag);
+    }
+}
+
 unsafe extern "C" {
     #[link_name = "LOS_MemInit"]
     unsafe fn los_mem_init_wrapper(pool: *mut core::ffi::c_void, size: u32) -> u32;
+
+    #[link_name = "OsMemSetMagicNumAndTaskID"]
+    unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
 }
 
 pub fn los_mem_init(pool: *mut core::ffi::c_void, size: u32) -> u32 {
