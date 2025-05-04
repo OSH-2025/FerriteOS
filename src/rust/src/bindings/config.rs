@@ -8,3 +8,6 @@ unsafe extern "C" {
 pub fn get_os_sys_mem_size() -> u32 {
     unsafe { get_os_sys_mem_size_wrapper() }
 }
+
+pub const LOS_OK: u32 = 0;
+pub const LOS_NOK: u32 = 1;

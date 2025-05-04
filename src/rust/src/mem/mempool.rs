@@ -1,7 +1,4 @@
-use super::memory::LosMemDynNode;
 use super::memstat::Memstat;
-use super::multiple_dlink_head::{LosMultipleDlinkHead, OS_MULTI_DLNK_HEAD_SIZE};
-use crate::utils::list::LinkedList;
 
 #[repr(C)]
 pub struct LosMemPoolInfo {
@@ -13,19 +10,20 @@ pub struct LosMemPoolInfo {
     pub stat: Memstat,
 }
 
-#[inline]
-pub fn os_mem_head_addr(pool: *mut LosMemPoolInfo) -> *mut LosMultipleDlinkHead {
-    (pool as usize + core::mem::size_of::<LosMemPoolInfo>()) as *mut LosMultipleDlinkHead
-}
-
-#[inline]
-pub fn os_mem_first_node(pool: *mut LosMemPoolInfo) -> *mut LosMemDynNode {
-    let head_addr = os_mem_head_addr(pool) as usize;
-    (head_addr + OS_MULTI_DLNK_HEAD_SIZE) as *mut LosMemDynNode
-}
-
-#[inline]
-pub fn os_mem_head(pool: *mut LosMemPoolInfo, size: u32) -> *mut LinkedList {
-    let head_addr = os_mem_head_addr(pool);
-    unsafe { (*head_addr).get_list_head_by_size(size) as *mut LinkedList }
+/// 内存池状态信息
+#[repr(C)]
+// #[derive(Debug, Copy, Clone)]
+pub struct LosMemPoolStatus {
+    /// 总已使用内存大小
+    pub total_used_size: u32,
+    /// 总空闲内存大小
+    pub total_free_size: u32,
+    /// 最大空闲节点大小
+    pub max_free_node_size: u32,
+    /// 已使用节点数量
+    pub used_node_num: u32,
+    /// 空闲节点数量
+    pub free_node_num: u32,
+    /// 内存使用水线
+    pub usage_water_line: u32,
 }

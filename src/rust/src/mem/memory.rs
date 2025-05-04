@@ -1,9 +1,10 @@
-use crate::bindings::config::get_os_sys_mem_size;
+use crate::bindings::config::{LOS_NOK, LOS_OK, get_os_sys_mem_size};
 use crate::utils::list::LinkedList;
 use crate::utils::printf::dprintf;
 use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
 
-use super::mempool;
+use super::defs::*;
+use super::mempool::{LosMemPoolInfo, LosMemPoolStatus};
 use super::memstat;
 use super::multiple_dlink_head;
 
@@ -58,29 +59,6 @@ impl LosMemDynNode {
     }
 }
 
-const OS_MEM_NODE_USED_FLAG: u32 = 0x80000000;
-const OS_MEM_NODE_ALIGNED_FLAG: u32 = 0x40000000;
-const OS_MEM_NODE_ALIGNED_AND_USED_FLAG: u32 = OS_MEM_NODE_USED_FLAG | OS_MEM_NODE_ALIGNED_FLAG;
-
-/// 获取节点的大小
-#[inline]
-fn os_mem_node_get_size(size_and_flag: u32) -> u32 {
-    size_and_flag & !OS_MEM_NODE_ALIGNED_AND_USED_FLAG
-}
-
-#[inline]
-fn os_mem_next_node(node: *mut LosMemDynNode) -> *mut LosMemDynNode {
-    unsafe {
-        let size = os_mem_node_get_size((*node).self_node.size_and_flag);
-        (node as usize + size as usize) as *mut LosMemDynNode
-    }
-}
-
-#[inline]
-fn os_mem_node_get_used_flag(size_and_flag: u32) -> bool {
-    size_and_flag & OS_MEM_NODE_USED_FLAG != 0
-}
-
 #[inline]
 fn os_mem_list_delete(node: *mut LinkedList, _first_node: *const core::ffi::c_void) {
     unsafe {
@@ -126,10 +104,9 @@ fn os_mem_find_suitable_free_block(
     pool: *mut core::ffi::c_void,
     alloc_size: u32,
 ) -> Option<*mut LosMemDynNode> {
-    let pool = pool as *mut mempool::LosMemPoolInfo;
-    let head =
-        mempool::os_mem_head(pool, alloc_size) as *mut multiple_dlink_head::LosMultipleDlinkHead;
-    let mut list_node_head = mempool::os_mem_head(pool, alloc_size);
+    let pool = pool as *mut LosMemPoolInfo;
+    let head = os_mem_head(pool, alloc_size) as *mut multiple_dlink_head::LosMultipleDlinkHead;
+    let mut list_node_head = os_mem_head(pool, alloc_size);
     while !list_node_head.is_null() {
         list_for_each_entry!(
             tmp_node,
@@ -173,8 +150,8 @@ fn os_mem_split_node(
     alloc_size: u32,
 ) {
     unsafe {
-        let pool = pool as *mut mempool::LosMemPoolInfo;
-        let first_node = mempool::os_mem_first_node(pool);
+        let pool = pool as *mut LosMemPoolInfo;
+        let first_node = os_mem_first_node(pool);
         let first_node = first_node as *const core::ffi::c_void;
         // 计算新空闲节点的地址
         let new_free_node = (alloc_node as usize + alloc_size as usize) as *mut LosMemDynNode;
@@ -197,7 +174,7 @@ fn os_mem_split_node(
             os_mem_merge_node(next_node);
         }
         // 获取新空闲节点对应的链表头
-        let list_node_head = mempool::os_mem_head(pool, (*new_free_node).self_node.size_and_flag);
+        let list_node_head = os_mem_head(pool, (*new_free_node).self_node.size_and_flag);
         os_check_null_return!(list_node_head);
 
         // 将新空闲节点添加到链表中
@@ -209,9 +186,9 @@ fn os_mem_split_node(
     }
 }
 
-fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut mempool::LosMemPoolInfo) {
+fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut LosMemPoolInfo) {
     unsafe {
-        let first_node = mempool::os_mem_first_node(pool) as *const core::ffi::c_void;
+        let first_node = os_mem_first_node(pool) as *const core::ffi::c_void;
         // 更新内存统计信息
         memstat::os_memstat_task_used_dec(
             &mut (*pool).stat,
@@ -241,7 +218,7 @@ fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut mempool::LosMemPoolInfo
                 first_node,
             );
 
-            let list_node_head = mempool::os_mem_head(pool, (*pre_node).self_node.size_and_flag);
+            let list_node_head = os_mem_head(pool, (*pre_node).self_node.size_and_flag);
             os_check_null_return!(list_node_head);
 
             os_mem_list_add(
@@ -259,7 +236,7 @@ fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut mempool::LosMemPoolInfo
                 os_mem_merge_node(next_node);
             }
 
-            let list_node_head = mempool::os_mem_head(pool, (*node).self_node.size_and_flag);
+            let list_node_head = os_mem_head(pool, (*node).self_node.size_and_flag);
             os_check_null_return!(list_node_head);
 
             os_mem_list_add(
@@ -268,6 +245,48 @@ fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut mempool::LosMemPoolInfo
                 first_node,
             );
         }
+    }
+}
+
+fn os_mem_info_get(pool_info: *mut LosMemPoolInfo, pool_status: &mut LosMemPoolStatus) -> u32 {
+    unsafe {
+        let tmp_node = os_mem_end_node(pool_info);
+        let tmp_node = os_mem_align(tmp_node as usize, OS_MEM_ALIGN_SIZE) as *mut LosMemDynNode;
+
+        if !os_mem_magic_valid(tmp_node) {
+            dprintf(b"Wrong memory pool address: {%p}\n" as *const u8, pool_info);
+            return LOS_NOK;
+        }
+
+        let mut total_used_size = 0;
+        let mut total_free_size = 0;
+        let mut max_free_node_size = 0;
+        let mut used_node_num = 0;
+        let mut free_node_num = 0;
+
+        let mut tmp_node = os_mem_first_node(pool_info);
+        while tmp_node <= os_mem_end_node(pool_info) {
+            if !os_mem_node_get_used_flag((*tmp_node).self_node.size_and_flag) {
+                free_node_num += 1;
+                total_free_size += os_mem_node_get_size((*tmp_node).self_node.size_and_flag);
+                max_free_node_size = u32::max(
+                    max_free_node_size,
+                    os_mem_node_get_size((*tmp_node).self_node.size_and_flag),
+                );
+            } else {
+                used_node_num += 1;
+                total_used_size += os_mem_node_get_size((*tmp_node).self_node.size_and_flag);
+            }
+            tmp_node = os_mem_next_node(tmp_node);
+        }
+
+        pool_status.total_used_size = total_used_size;
+        pool_status.total_free_size = total_free_size;
+        pool_status.max_free_node_size = max_free_node_size;
+        pool_status.used_node_num = used_node_num;
+        pool_status.free_node_num = free_node_num;
+        pool_status.usage_water_line = (*pool_info).stat.mem_total_peak;
+        LOS_OK
     }
 }
 

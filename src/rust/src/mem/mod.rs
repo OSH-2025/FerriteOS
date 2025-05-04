@@ -5,3 +5,5 @@ pub mod memory;
 pub mod memstat;
 
 pub mod mempool;
+
+pub mod defs;

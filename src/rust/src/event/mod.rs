@@ -6,7 +6,7 @@ pub struct EventControlBlock {
     pub event_list: DlList, // 读取事件的任务链表
 }
 
-const LOS_OK: u32 = 0; // 成功
+// const LOS_OK: u32 = 0; // 成功
 const LOS_ERRNO_EVENT_SETBIT_INVALID: u32 = 0x02001c00;
 const LOS_ERRNO_EVENT_READ_TIMEOUT: u32 = 0x02001c01;
 const LOS_ERRNO_EVENT_EVENTMASK_INVALID: u32 = 0x02001c02;
