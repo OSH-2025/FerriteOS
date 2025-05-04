@@ -1,4 +1,4 @@
-use crate::utils::dl_list::DlList;
+use crate::utils::list::LinkedList;
 
 pub const OS_MAX_MULTI_DLNK_LOG2: u32 = 29;
 pub const OS_MIN_MULTI_DLNK_LOG2: u32 = 4;
@@ -9,11 +9,12 @@ pub const OS_DLNK_HEAD_SIZE: usize = OS_MULTI_DLNK_HEAD_SIZE;
 /// 多级双向链表头结构
 #[repr(C)]
 pub struct LosMultipleDlinkHead {
-    pub list_head: [DlList; OS_MULTI_DLNK_NUM],
+    pub list_head: [LinkedList; OS_MULTI_DLNK_NUM],
 }
 
 impl LosMultipleDlinkHead {
     /// 初始化多级双向链表头
+    #[inline]
     fn init(&mut self) {
         for list_node_head in self.list_head.iter_mut() {
             list_node_head.init();
@@ -21,17 +22,14 @@ impl LosMultipleDlinkHead {
     }
 
     /// 根据内存块大小获取对应的链表头节点
-    pub fn get_multi_head(&self, size: u32) -> Option<&DlList> {
+    #[inline]
+    pub fn get_list_head_by_size(&self, size: u32) -> *const LinkedList {
         let index = os_log2(size);
         if index > OS_MAX_MULTI_DLNK_LOG2 {
-            None
+            core::ptr::null_mut()
         } else {
-            let index = if index <= OS_MIN_MULTI_DLNK_LOG2 {
-                OS_MIN_MULTI_DLNK_LOG2
-            } else {
-                index
-            };
-            Some(&self.list_head[(index - OS_MIN_MULTI_DLNK_LOG2) as usize])
+            let index = u32::max(index, OS_MIN_MULTI_DLNK_LOG2);
+            &self.list_head[(index - OS_MIN_MULTI_DLNK_LOG2) as usize] as *const LinkedList
         }
     }
 }
@@ -41,20 +39,24 @@ fn os_log2(size: u32) -> u32 {
     size.checked_ilog2().unwrap_or(0)
 }
 
-#[unsafe(export_name = "OsDLnkInitMultiHead")]
+// #[unsafe(export_name = "OsDLnkInitMultiHead")]
 pub fn os_dlnk_init_multi_head(head_addr: *mut ()) {
     let dlink_head = head_addr as *mut LosMultipleDlinkHead;
     unsafe { (*dlink_head).init() };
 }
 
-#[unsafe(export_name = "OsDLnkMultiHead")]
-pub fn os_dlnk_multi_head(head_addr: *mut (), size: u32) -> *mut DlList {
-    let dlink_head = head_addr as *mut LosMultipleDlinkHead;
+pub fn os_dlnk_next_multi_head(
+    head_addr: *mut LosMultipleDlinkHead,
+    list_node_head: *mut LinkedList,
+) -> *mut LinkedList {
     unsafe {
-        // 使用 get_multi_head 方法获取链表头节点
-        match (*dlink_head).get_multi_head(size) {
-            Some(list_head) => list_head as *const DlList as *mut DlList,
-            None => core::ptr::null_mut(),
+        if list_node_head
+            == &(*head_addr).list_head[OS_MULTI_DLNK_NUM - 1] as *const LinkedList
+                as *mut LinkedList
+        {
+            core::ptr::null_mut()
+        } else {
+            list_node_head.add(1)
         }
     }
 }
