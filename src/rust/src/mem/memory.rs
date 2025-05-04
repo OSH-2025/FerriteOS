@@ -1,9 +1,11 @@
 use crate::bindings::config::get_os_sys_mem_size;
-use crate::mem::mempool;
-use crate::mem::multiple_dlink_head;
 use crate::utils::list::LinkedList;
 use crate::utils::printf::dprintf;
 use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
+
+use super::mempool;
+use super::memstat;
+use super::multiple_dlink_head;
 
 /// The start address of the exception interaction dynamic memory pool.
 /// When the exception interaction feature is not supported, `m_aucSysMem0` equals `m_aucSysMem1`.
@@ -47,20 +49,20 @@ pub struct LosMemDynNode {
 }
 
 impl LosMemDynNode {
-    // fn set_task_id(&mut self, task_id: u32) {
-    //     self.self_node.node_info.used_node_info.task_id = task_id as u16;
-    // }
+    fn set_task_id(&mut self, task_id: u32) {
+        self.self_node.node_info.used_node_info.task_id = task_id as u16;
+    }
 
-    // fn get_task_id(&self) -> u32 {
-    //     unsafe { self.self_node.node_info.used_node_info.task_id as u32 }
-    // }
+    fn get_task_id(&self) -> u32 {
+        unsafe { self.self_node.node_info.used_node_info.task_id as u32 }
+    }
 }
 
 const OS_MEM_NODE_USED_FLAG: u32 = 0x80000000;
 const OS_MEM_NODE_ALIGNED_FLAG: u32 = 0x40000000;
 const OS_MEM_NODE_ALIGNED_AND_USED_FLAG: u32 = OS_MEM_NODE_USED_FLAG | OS_MEM_NODE_ALIGNED_FLAG;
 
-/// 获取节点的大小（去掉对齐和使用标志位）
+/// 获取节点的大小
 #[inline]
 fn os_mem_node_get_size(size_and_flag: u32) -> u32 {
     size_and_flag & !OS_MEM_NODE_ALIGNED_AND_USED_FLAG
@@ -204,6 +206,68 @@ fn os_mem_split_node(
             &mut (*new_free_node).self_node.node_info.free_node_info,
             first_node,
         );
+    }
+}
+
+fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut mempool::LosMemPoolInfo) {
+    unsafe {
+        let first_node = mempool::os_mem_first_node(pool) as *const core::ffi::c_void;
+        // 更新内存统计信息
+        memstat::os_memstat_task_used_dec(
+            &mut (*pool).stat,
+            os_mem_node_get_size((*node).self_node.size_and_flag),
+            (*node).get_task_id(),
+        );
+        // 更新节点的大小，去掉标志位
+        (*node).self_node.size_and_flag = os_mem_node_get_size((*node).self_node.size_and_flag);
+
+        if !(*node).self_node.pre_node.is_null()
+            && !os_mem_node_get_used_flag((*(*node).self_node.pre_node).self_node.size_and_flag)
+        {
+            let pre_node = (*node).self_node.pre_node;
+            os_mem_merge_node(node);
+
+            let next_node = os_mem_next_node(pre_node);
+            if !os_mem_node_get_used_flag((*next_node).self_node.size_and_flag) {
+                os_mem_list_delete(
+                    &mut (*next_node).self_node.node_info.free_node_info as *mut LinkedList,
+                    first_node,
+                );
+                os_mem_merge_node(next_node);
+            }
+
+            os_mem_list_delete(
+                &mut (*pre_node).self_node.node_info.free_node_info as *mut LinkedList,
+                first_node,
+            );
+
+            let list_node_head = mempool::os_mem_head(pool, (*pre_node).self_node.size_and_flag);
+            os_check_null_return!(list_node_head);
+
+            os_mem_list_add(
+                list_node_head,
+                &mut (*pre_node).self_node.node_info.free_node_info,
+                first_node,
+            );
+        } else {
+            let next_node = os_mem_next_node(node);
+            if !os_mem_node_get_used_flag((*next_node).self_node.size_and_flag) {
+                os_mem_list_delete(
+                    &mut (*next_node).self_node.node_info.free_node_info as *mut LinkedList,
+                    first_node,
+                );
+                os_mem_merge_node(next_node);
+            }
+
+            let list_node_head = mempool::os_mem_head(pool, (*node).self_node.size_and_flag);
+            os_check_null_return!(list_node_head);
+
+            os_mem_list_add(
+                list_node_head,
+                &mut (*node).self_node.node_info.free_node_info,
+                first_node,
+            );
+        }
     }
 }
 
