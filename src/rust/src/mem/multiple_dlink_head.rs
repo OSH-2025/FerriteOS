@@ -4,7 +4,6 @@ pub const OS_MAX_MULTI_DLNK_LOG2: u32 = 29;
 pub const OS_MIN_MULTI_DLNK_LOG2: u32 = 4;
 pub const OS_MULTI_DLNK_NUM: usize = (OS_MAX_MULTI_DLNK_LOG2 - OS_MIN_MULTI_DLNK_LOG2 + 1) as usize;
 pub const OS_MULTI_DLNK_HEAD_SIZE: usize = core::mem::size_of::<LosMultipleDlinkHead>();
-pub const OS_DLNK_HEAD_SIZE: usize = OS_MULTI_DLNK_HEAD_SIZE;
 
 /// 多级双向链表头结构
 #[repr(C)]

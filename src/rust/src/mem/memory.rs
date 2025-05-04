@@ -3,7 +3,7 @@ use crate::mem::mempool;
 use crate::mem::multiple_dlink_head;
 use crate::utils::list::LinkedList;
 use crate::utils::printf::dprintf;
-use crate::{container_of, list_for_each_entry, offset_of};
+use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
 
 /// The start address of the exception interaction dynamic memory pool.
 /// When the exception interaction feature is not supported, `m_aucSysMem0` equals `m_aucSysMem1`.
@@ -56,6 +56,53 @@ impl LosMemDynNode {
     // }
 }
 
+const OS_MEM_NODE_USED_FLAG: u32 = 0x80000000;
+const OS_MEM_NODE_ALIGNED_FLAG: u32 = 0x40000000;
+const OS_MEM_NODE_ALIGNED_AND_USED_FLAG: u32 = OS_MEM_NODE_USED_FLAG | OS_MEM_NODE_ALIGNED_FLAG;
+
+/// 获取节点的大小（去掉对齐和使用标志位）
+#[inline]
+fn os_mem_node_get_size(size_and_flag: u32) -> u32 {
+    size_and_flag & !OS_MEM_NODE_ALIGNED_AND_USED_FLAG
+}
+
+#[inline]
+fn os_mem_next_node(node: *mut LosMemDynNode) -> *mut LosMemDynNode {
+    unsafe {
+        let size = os_mem_node_get_size((*node).self_node.size_and_flag);
+        (node as usize + size as usize) as *mut LosMemDynNode
+    }
+}
+
+#[inline]
+fn os_mem_node_get_used_flag(size_and_flag: u32) -> bool {
+    size_and_flag & OS_MEM_NODE_USED_FLAG != 0
+}
+
+#[inline]
+fn os_mem_list_delete(node: *mut LinkedList, _first_node: *const core::ffi::c_void) {
+    unsafe {
+        (*(*node).next).prev = (*node).prev;
+        (*(*node).prev).next = (*node).next;
+        (*node).next = core::ptr::null_mut();
+        (*node).prev = core::ptr::null_mut();
+    }
+}
+
+#[inline]
+pub fn os_mem_list_add(
+    list_node: *mut LinkedList,
+    node: *mut LinkedList,
+    _first_node: *const core::ffi::c_void,
+) {
+    unsafe {
+        (*node).next = (*list_node).next;
+        (*node).prev = list_node;
+        (*(*list_node).next).prev = node;
+        (*list_node).next = node;
+    }
+}
+
 #[unsafe(export_name = "OsMemSystemInit")]
 pub unsafe extern "C" fn os_mem_system_init(mem_start: usize) -> u32 {
     unsafe { m_aucSysMem1 = mem_start as *mut u8 };
@@ -72,6 +119,7 @@ pub unsafe extern "C" fn os_mem_system_init(mem_start: usize) -> u32 {
     ret
 }
 
+#[inline]
 fn os_mem_find_suitable_free_block(
     pool: *mut core::ffi::c_void,
     alloc_size: u32,
@@ -98,30 +146,64 @@ fn os_mem_find_suitable_free_block(
     Option::None
 }
 
+#[inline]
 fn os_mem_clear_node(node: *mut LosMemDynNode) {
     unsafe { core::ptr::write_bytes(node, 0, 1) };
 }
 
-pub fn os_mem_merge_node(node: *mut LosMemDynNode) {
+#[inline]
+fn os_mem_merge_node(node: *mut LosMemDynNode) {
     unsafe {
-        // 获取前一个节点并合并当前节点的大小到前一个节点
-        (*(*node).self_node.pre_node).self_node.size_and_flag += (*node).self_node.size_and_flag;
-
-        // 计算下一个节点的地址
-        let next_node = (node as usize + (*node).self_node.size_and_flag as usize) as *mut LosMemDynNode;
-
-        // 更新下一个节点的前置节点指针
-        (*next_node).self_node.pre_node = (*node).self_node.pre_node;
-
-        #[cfg(feature = "loscfg_mem_head_backup")]
-        {
-            // 如果启用了头部备份功能，保存节点信息
-            mempool::os_mem_node_save((*node).self_node.pre_node);
-            mempool::os_mem_node_save(next_node);
-        }
-
-        // 清除当前节点
+        let merge_node = &mut *node;
+        let prev_node = &mut *merge_node.self_node.pre_node;
+        prev_node.self_node.size_and_flag += merge_node.self_node.size_and_flag;
+        let next_node = &mut *((node as usize + merge_node.self_node.size_and_flag as usize)
+            as *mut LosMemDynNode);
+        next_node.self_node.pre_node = prev_node;
         os_mem_clear_node(node);
+    }
+}
+
+#[inline]
+fn os_mem_split_node(
+    pool: *mut core::ffi::c_void,
+    alloc_node: *mut LosMemDynNode,
+    alloc_size: u32,
+) {
+    unsafe {
+        let pool = pool as *mut mempool::LosMemPoolInfo;
+        let first_node = mempool::os_mem_first_node(pool);
+        let first_node = first_node as *const core::ffi::c_void;
+        // 计算新空闲节点的地址
+        let new_free_node = (alloc_node as usize + alloc_size as usize) as *mut LosMemDynNode;
+        // 初始化新空闲节点
+        (*new_free_node).self_node.pre_node = alloc_node;
+        (*new_free_node).self_node.size_and_flag =
+            (*alloc_node).self_node.size_and_flag - alloc_size;
+        // 更新分配节点的大小
+        (*alloc_node).self_node.size_and_flag = alloc_size;
+        // 获取下一个节点
+        let next_node = os_mem_next_node(alloc_node);
+        // 更新下一个节点的前置节点指针
+        (*next_node).self_node.pre_node = new_free_node;
+        // 如果下一个节点未被使用，合并节点
+        if !os_mem_node_get_used_flag((*next_node).self_node.size_and_flag) {
+            os_mem_list_delete(
+                &mut (*next_node).self_node.node_info.free_node_info as *mut LinkedList,
+                first_node,
+            );
+            os_mem_merge_node(next_node);
+        }
+        // 获取新空闲节点对应的链表头
+        let list_node_head = mempool::os_mem_head(pool, (*new_free_node).self_node.size_and_flag);
+        os_check_null_return!(list_node_head);
+
+        // 将新空闲节点添加到链表中
+        os_mem_list_add(
+            list_node_head,
+            &mut (*new_free_node).self_node.node_info.free_node_info,
+            first_node,
+        );
     }
 }
 
