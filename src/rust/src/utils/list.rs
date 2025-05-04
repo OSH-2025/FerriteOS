@@ -10,6 +10,26 @@ impl LinkedList {
         self.prev = self as *mut LinkedList;
         self.next = self as *mut LinkedList;
     }
+
+    // LOS_ListTailInsert(LOS_DL_LIST *list, LOS_DL_LIST *node)
+    // {
+    // LOS_ListAdd(list->pstPrev, node);
+    // }
+    pub fn add(list: *mut LinkedList, node: *mut LinkedList) {
+        unsafe {
+            (*node).next = (*list).next;
+            (*node).prev = list;
+            (*(*list).next).prev = node;
+            (*list).next = node;
+        }
+    }
+
+    #[inline]
+    pub fn tail_insert(list: *mut LinkedList, node: *mut LinkedList) {
+        unsafe {
+            LinkedList::add((*list).prev, node);
+        }
+    }
 }
 
 #[macro_export]

@@ -38,10 +38,8 @@ fn os_log2(size: u32) -> u32 {
     size.checked_ilog2().unwrap_or(0)
 }
 
-// #[unsafe(export_name = "OsDLnkInitMultiHead")]
-pub fn os_dlnk_init_multi_head(head_addr: *mut ()) {
-    let dlink_head = head_addr as *mut LosMultipleDlinkHead;
-    unsafe { (*dlink_head).init() };
+pub fn os_dlnk_init_multi_head(head_addr: *mut LosMultipleDlinkHead) {
+    unsafe { (*head_addr).init() };
 }
 
 pub fn os_dlnk_next_multi_head(

@@ -5,7 +5,7 @@ use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
 
 use super::defs::*;
 use super::mempool::{LosMemPoolInfo, LosMemPoolStatus};
-use super::memstat;
+use super::memstat::{self, Memstat};
 use super::multiple_dlink_head;
 
 /// The start address of the exception interaction dynamic memory pool.
@@ -410,6 +410,48 @@ fn os_mem_merge_node_for_realloc_bigger(
             (*node).get_task_id(),
         );
         os_mem_node_set_used_flag(&mut (*node).self_node.size_and_flag);
+    }
+}
+
+fn os_mem_init(pool: *mut core::ffi::c_void, size: u32) -> u32 {
+    unsafe {
+        let pool_info = pool as *mut LosMemPoolInfo;
+        let pool_size = size;
+        // 初始化内存池信息
+        (*pool_info).pool = pool;
+        (*pool_info).pool_size = pool_size;
+        // 初始化多链表头
+        multiple_dlink_head::os_dlnk_init_multi_head(os_mem_head_addr(pool_info));
+        // 初始化第一个节点
+        let new_node = os_mem_first_node(pool_info);
+        (*new_node).self_node.size_and_flag =
+            pool_size - (new_node as usize - pool as usize) as u32 - OS_MEM_NODE_HEAD_SIZE as u32;
+        (*new_node).self_node.pre_node = os_mem_end_node(pool_info);
+        // 获取对应链表头
+        let list_node_head = os_mem_head(pool_info, (*new_node).self_node.size_and_flag);
+        if list_node_head.is_null() {
+            return LOS_NOK;
+        }
+        // 将新节点添加到链表尾部
+        LinkedList::tail_insert(
+            list_node_head,
+            &mut (*new_node).self_node.node_info.free_node_info as *mut LinkedList,
+        );
+        // 初始化结束节点
+        let end_node = os_mem_end_node(pool_info);
+        os_mem_clear_node(end_node);
+        (*end_node).self_node.pre_node = new_node;
+        (*end_node).self_node.size_and_flag = OS_MEM_NODE_HEAD_SIZE as u32;
+        os_mem_node_set_used_flag(&mut (*end_node).self_node.size_and_flag);
+        os_mem_set_magic_num_and_task_id(end_node);
+        // 初始化内存统计信息
+        let zeroed_struct = core::mem::zeroed();
+        (*pool_info).stat = zeroed_struct;
+        (*pool_info).stat.mem_total_used = core::mem::size_of::<LosMemPoolInfo>() as u32
+            + OS_MEM_NODE_HEAD_SIZE as u32
+            + os_mem_node_get_size((*end_node).self_node.size_and_flag);
+        (*pool_info).stat.mem_total_peak = (*pool_info).stat.mem_total_used;
+        LOS_OK
     }
 }
 
