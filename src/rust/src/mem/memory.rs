@@ -290,6 +290,45 @@ fn os_mem_info_get(pool_info: *mut LosMemPoolInfo, pool_status: &mut LosMemPoolS
     }
 }
 
+#[unsafe(export_name = "OsMemInfoPrint")]
+pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
+    let mut status: LosMemPoolStatus = LosMemPoolStatus {
+        total_used_size: 0,
+        total_free_size: 0,
+        max_free_node_size: 0,
+        used_node_num: 0,
+        free_node_num: 0,
+        usage_water_line: 0,
+    };
+    if os_mem_info_get(pool_info, &mut status) == LOS_NOK {
+        return;
+    }
+    unsafe {
+        dprintf(
+            b"pool addr          pool size    used size     free size    \
+             max free node size   used node num     free node num      \
+             UsageWaterLine\n\0" as *const u8,
+        );
+        dprintf(
+            b"---------------    --------     -------       --------     \
+             --------------       -------------      ------------      \
+             ------------\n\0" as *const u8,
+        );
+        dprintf(
+            b"%-16p   0x%-8x   0x%-8x    0x%-8x   0x%-16x   0x%-13x    0x%-13x    \
+             0x%-13x\n\0" as *const u8,
+            (*pool_info).pool,
+            (*pool_info).pool_size,
+            status.total_used_size,
+            status.total_free_size,
+            status.max_free_node_size,
+            status.used_node_num,
+            status.free_node_num,
+            (*pool_info).stat.mem_total_peak,
+        );
+    }
+}
+
 unsafe extern "C" {
     #[link_name = "LOS_MemInit"]
     unsafe fn los_mem_init_wrapper(pool: *mut core::ffi::c_void, size: u32) -> u32;
