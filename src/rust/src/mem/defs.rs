@@ -1,17 +1,29 @@
 use super::memory::LosMemDynNode;
 use super::mempool::LosMemPoolInfo;
-use super::multiple_dlink_head::{LosMultipleDlinkHead, OS_MULTI_DLNK_HEAD_SIZE};
+use super::multiple_dlink_head::LosMultipleDlinkHead;
+use crate::spinlock;
 use crate::utils::list::LinkedList;
 
+pub const OS_MAX_MULTI_DLNK_LOG2: u32 = 29;
+pub const OS_MIN_MULTI_DLNK_LOG2: u32 = 4;
+pub const OS_MULTI_DLNK_NUM: usize = (OS_MAX_MULTI_DLNK_LOG2 - OS_MIN_MULTI_DLNK_LOG2 + 1) as usize;
+pub const OS_MULTI_DLNK_HEAD_SIZE: usize = core::mem::size_of::<LosMultipleDlinkHead>();
 pub const OS_MEM_NODE_HEAD_SIZE: usize = core::mem::size_of::<LosMemDynNode>();
-pub const OS_MEM_ALIGN_SIZE: usize = core::mem::size_of::<usize>();
+pub const OS_MEM_POOL_INFO_SIZE: usize = core::mem::size_of::<LosMemPoolInfo>();
 pub const OS_MEM_NODE_USED_FLAG: u32 = 0x80000000;
 pub const OS_MEM_NODE_ALIGNED_FLAG: u32 = 0x40000000;
 pub const OS_MEM_NODE_ALIGNED_AND_USED_FLAG: u32 = OS_MEM_NODE_USED_FLAG | OS_MEM_NODE_ALIGNED_FLAG;
+pub const OS_MEM_ALIGN_SIZE: usize = core::mem::size_of::<usize>();
+pub const OS_MEM_MIN_POOL_SIZE: usize =
+    OS_MULTI_DLNK_HEAD_SIZE + (2 * OS_MEM_NODE_HEAD_SIZE) + OS_MEM_POOL_INFO_SIZE;
+
+unsafe extern "C" {
+    pub unsafe static mut g_memSpin: spinlock::Spinlock;
+}
 
 #[inline]
 pub fn os_mem_head_addr(pool: *mut LosMemPoolInfo) -> *mut LosMultipleDlinkHead {
-    (pool as usize + core::mem::size_of::<LosMemPoolInfo>()) as *mut LosMultipleDlinkHead
+    (pool as usize + OS_MEM_POOL_INFO_SIZE) as *mut LosMultipleDlinkHead
 }
 
 #[inline]
@@ -36,6 +48,12 @@ pub fn os_mem_head(pool: *mut LosMemPoolInfo, size: u32) -> *mut LinkedList {
 #[inline]
 pub fn os_mem_align(p: usize, align_size: usize) -> usize {
     (p + align_size - 1) & !(align_size - 1)
+}
+
+/// 检查是否对齐
+#[inline]
+pub fn is_aligned(value: usize, align: usize) -> bool {
+    (value & (align - 1)) == 0
 }
 
 /// 获取节点的大小
@@ -68,5 +86,19 @@ pub fn os_mem_magic_valid(node: *mut LosMemDynNode) -> bool {
         let magic = (*node).self_node.node_info.used_node_info.magic;
         let magic_ptr = &(*node).self_node.node_info.used_node_info.magic as *const _ as u32;
         (magic ^ magic_ptr) == u32::MAX
+    }
+}
+
+#[inline]
+pub fn mem_lock(state: &mut u32) {
+    unsafe {
+        spinlock::los_spin_lock_save(&mut g_memSpin, state);
+    }
+}
+
+#[inline]
+pub fn mem_unlock(state: u32) {
+    unsafe {
+        spinlock::los_spin_unlock_restore(&mut g_memSpin, state);
     }
 }

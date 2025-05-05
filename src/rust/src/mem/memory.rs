@@ -5,7 +5,7 @@ use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
 
 use super::defs::*;
 use super::mempool::{LosMemPoolInfo, LosMemPoolStatus};
-use super::memstat::{self, Memstat};
+use super::memstat;
 use super::multiple_dlink_head;
 
 /// The start address of the exception interaction dynamic memory pool.
@@ -413,7 +413,7 @@ fn os_mem_merge_node_for_realloc_bigger(
     }
 }
 
-fn os_mem_init(pool: *mut core::ffi::c_void, size: u32) -> u32 {
+fn os_mem_init(pool: *mut core::ffi::c_void, size: u32) -> Result<(), ()> {
     unsafe {
         let pool_info = pool as *mut LosMemPoolInfo;
         let pool_size = size;
@@ -430,7 +430,7 @@ fn os_mem_init(pool: *mut core::ffi::c_void, size: u32) -> u32 {
         // 获取对应链表头
         let list_node_head = os_mem_head(pool_info, (*new_node).self_node.size_and_flag);
         if list_node_head.is_null() {
-            return LOS_NOK;
+            return Err(());
         }
         // 将新节点添加到链表尾部
         LinkedList::tail_insert(
@@ -451,18 +451,47 @@ fn os_mem_init(pool: *mut core::ffi::c_void, size: u32) -> u32 {
             + OS_MEM_NODE_HEAD_SIZE as u32
             + os_mem_node_get_size((*end_node).self_node.size_and_flag);
         (*pool_info).stat.mem_total_peak = (*pool_info).stat.mem_total_used;
-        LOS_OK
+        Ok(())
+    }
+}
+
+#[unsafe(export_name = "LOS_MemInit")]
+pub fn los_mem_init(pool: *mut core::ffi::c_void, mut size: u32) -> u32 {
+    if pool.is_null() || size < OS_MEM_MIN_POOL_SIZE as u32 {
+        return LOS_NOK;
+    }
+    if !is_aligned(size as usize, OS_MEM_ALIGN_SIZE)
+        || !is_aligned(pool as usize, OS_MEM_ALIGN_SIZE)
+    {
+        // 打印警告信息
+        unsafe {
+            dprintf(
+                b"pool [%p, %p) size 0x%x should be aligned with OS_MEM_ALIGN_SIZE\n\0"
+                    as *const u8,
+                pool as usize,
+                pool as usize + size as usize,
+                size,
+            )
+        };
+        size = os_mem_align(size as usize, OS_MEM_ALIGN_SIZE) as u32 - OS_MEM_ALIGN_SIZE as u32;
+    }
+    // 加锁
+    let mut int_save: u32 = 0;
+    mem_lock(&mut int_save);
+    // 初始化内存池
+    match os_mem_init(pool, size) {
+        Ok(_) => {
+            mem_unlock(int_save);
+            return LOS_OK;
+        }
+        Err(_) => {
+            mem_unlock(int_save);
+            return LOS_NOK;
+        }
     }
 }
 
 unsafe extern "C" {
-    #[link_name = "LOS_MemInit"]
-    unsafe fn los_mem_init_wrapper(pool: *mut core::ffi::c_void, size: u32) -> u32;
-
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
-}
-
-pub fn los_mem_init(pool: *mut core::ffi::c_void, size: u32) -> u32 {
-    unsafe { los_mem_init_wrapper(pool, size) }
 }

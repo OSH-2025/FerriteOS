@@ -9,3 +9,5 @@ use panic_halt as _;
 pub mod mem;
 pub mod utils;
 pub mod bindings;
+pub mod hwi;
+pub mod spinlock;
