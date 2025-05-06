@@ -84,7 +84,7 @@ pub fn os_mem_list_add(
 }
 
 #[unsafe(export_name = "OsMemSystemInit")]
-pub unsafe extern "C" fn os_mem_system_init(mem_start: usize) -> u32 {
+pub extern "C" fn os_mem_system_init(mem_start: usize) -> u32 {
     unsafe { m_aucSysMem1 = mem_start as *mut u8 };
     let pool_size = get_os_sys_mem_size();
     let ret = los_mem_init(unsafe { m_aucSysMem1 } as *mut core::ffi::c_void, pool_size);
@@ -601,6 +601,29 @@ fn os_mem_free(pool: *mut core::ffi::c_void, ptr: *const core::ffi::c_void) -> u
         break;
     }
     LOS_OK
+}
+
+#[unsafe(export_name = "LOS_MemFree")]
+pub fn los_mem_free(pool: *mut core::ffi::c_void, ptr: *mut core::ffi::c_void) -> u32 {
+    let mut int_save: u32 = 0;
+    // 参数检查
+    if pool.is_null()
+        || ptr.is_null()
+        || !is_aligned(
+            pool as usize,
+            core::mem::size_of::<*mut core::ffi::c_void>(),
+        )
+        || !is_aligned(ptr as usize, core::mem::size_of::<*mut core::ffi::c_void>())
+    {
+        return LOS_NOK;
+    }
+    // 加锁
+    mem_lock(&mut int_save);
+    // 尝试释放普通内存
+    let ret = os_mem_free(pool, ptr);
+    // 解锁
+    mem_unlock(int_save);
+    ret
 }
 
 unsafe extern "C" {
