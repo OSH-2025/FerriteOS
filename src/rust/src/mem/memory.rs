@@ -945,6 +945,14 @@ pub fn os_mem_reset_end_node(pool: *mut LosMemPoolInfo, pre_addr: usize) {
         os_mem_set_magic_num_and_task_id(end_node);
     }
 }
+
+#[unsafe(export_name = "LOS_MemPoolSizeGet")]
+pub fn los_mem_pool_size_get(pool: *const LosMemPoolInfo) -> u32 {
+    if pool.is_null() {
+        return LOS_NOK;
+    }
+    unsafe { (*pool).pool_size }
+}
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
