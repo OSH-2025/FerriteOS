@@ -824,8 +824,6 @@ pub fn los_mem_used_blks_get(pool: *mut LosMemPoolInfo) -> u32 {
     blk_nums
 }
 
-
-
 #[unsafe(export_name = "LOS_MemTaskIdGet")]
 pub fn los_mem_task_id_get(ptr: *const core::ffi::c_void) -> u32 {
     let pool_info;
@@ -879,7 +877,6 @@ pub fn los_mem_task_id_get(ptr: *const core::ffi::c_void) -> u32 {
     mem_unlock(int_save);
     OS_INVALID
 }
-
 
 #[unsafe(export_name = "LOS_MemFreeBlksGet")]
 pub fn los_mem_free_blks_get(pool: *mut LosMemPoolInfo) -> u32 {
@@ -979,8 +976,6 @@ pub fn los_mem_info_get(pool: *mut LosMemPoolInfo, pool_status: *mut LosMemPoolS
     ret
 }
 
-
-
 fn os_show_free_node(index: usize, length: usize, count_num: &[u32]) {
     let mut count = 0;
 
@@ -1009,6 +1004,62 @@ fn os_show_free_node(index: usize, length: usize, count_num: &[u32]) {
         }
         count += 1;
     }
+}
+
+#[unsafe(export_name = "LOS_MemFreeNodeShow")]
+pub fn los_mem_free_node_show(pool: *mut LosMemPoolInfo) -> u32 {
+    if pool.is_null() || (pool as usize) != unsafe { (*pool).pool as usize } {
+        unsafe {
+            dprintf(
+                b"wrong mem pool addr: %p, line:%d\n\0" as *const u8,
+                pool,
+                line!(),
+            );
+        }
+        return LOS_NOK;
+    }
+
+    let mut count_num = [0; OS_MULTI_DLNK_NUM];
+    let mut int_save: u32 = 0;
+
+    unsafe {
+        dprintf(
+            b"\n   ************************ left free node number**********************\n\0"
+                as *const u8,
+        );
+    }
+    mem_lock(&mut int_save);
+
+    let head_addr =
+        (pool as usize + core::mem::size_of::<LosMemPoolInfo>()) as *mut LosMultipleDlinkHead;
+    unsafe {
+        for link_head_index in 0..OS_MULTI_DLNK_NUM {
+            let mut list_node_head = (*head_addr).list_head[link_head_index].next;
+            while list_node_head != &mut (*head_addr).list_head[link_head_index] {
+                list_node_head = (*list_node_head).next;
+                count_num[link_head_index] += 1;
+            }
+        }
+    }
+
+    mem_unlock(int_save);
+
+    const COLUMN_NUM: usize = 8;
+    for link_head_index in (0..OS_MULTI_DLNK_NUM).step_by(COLUMN_NUM) {
+        let length = if link_head_index + COLUMN_NUM < OS_MULTI_DLNK_NUM {
+            COLUMN_NUM
+        } else {
+            OS_MULTI_DLNK_NUM - link_head_index
+        };
+        os_show_free_node(link_head_index, length, &count_num);
+    }
+    unsafe {
+        dprintf(
+            b"\n   ********************************************************************\n\n\0"
+                as *const u8,
+        );
+    }
+    LOS_OK
 }
 
 unsafe extern "C" {
