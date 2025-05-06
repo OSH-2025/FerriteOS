@@ -743,6 +743,42 @@ fn os_mem_realloc(
     tmp_ptr
 }
 
+#[unsafe(export_name = "LOS_MemRealloc")]
+pub fn los_mem_realloc(
+    pool: *mut core::ffi::c_void,
+    ptr: *mut core::ffi::c_void,
+    size: u32,
+) -> *mut core::ffi::c_void {
+    let mut int_save: u32 = 0;
+
+    // 参数检查
+    if os_mem_node_get_used_flag(size) || os_mem_node_get_aligned_flag(size) || pool.is_null() {
+        return core::ptr::null_mut();
+    }
+
+    // 如果 ptr 为 NULL，直接分配新内存
+    if ptr.is_null() {
+        return los_mem_alloc(pool, size);
+    }
+
+    // 如果 size 为 0，释放内存并返回 NULL
+    if size == 0 {
+        los_mem_free(pool, ptr);
+        return core::ptr::null_mut();
+    }
+
+    // 加锁
+    mem_lock(&mut int_save);
+
+    // 尝试重新分配普通内存
+    let new_ptr = os_mem_realloc(pool, ptr, size);
+
+    // 解锁
+    mem_unlock(int_save);
+
+    new_ptr
+}
+
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
