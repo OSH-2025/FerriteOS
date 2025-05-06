@@ -978,6 +978,39 @@ pub fn los_mem_info_get(pool: *mut LosMemPoolInfo, pool_status: *mut LosMemPoolS
     mem_unlock(int_save);
     ret
 }
+
+
+
+fn os_show_free_node(index: usize, length: usize, count_num: &[u32]) {
+    let mut count = 0;
+
+    // 打印块大小
+    unsafe {
+        dprintf(b"\n    block size:  \0" as *const u8);
+    }
+    while count < length {
+        unsafe {
+            dprintf(
+                b"2^%-5u \0" as *const u8,
+                index + OS_MIN_MULTI_DLNK_LOG2 as usize + count,
+            );
+        }
+        count += 1;
+    }
+
+    // 打印节点数量
+    unsafe {
+        dprintf(b"\n    node number: \0" as *const u8);
+    }
+    count = 0;
+    while count < length {
+        unsafe {
+            dprintf(b"%-5u \0" as *const u8, count_num[count + index]);
+        }
+        count += 1;
+    }
+}
+
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
