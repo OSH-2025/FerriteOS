@@ -670,6 +670,79 @@ fn os_get_real_ptr(
     Some(real_ptr)
 }
 
+fn os_mem_realloc(
+    pool: *mut core::ffi::c_void,
+    ptr: *mut core::ffi::c_void,
+    size: u32,
+) -> *mut core::ffi::c_void {
+    let alloc_size = os_mem_align(size as usize + OS_MEM_NODE_HEAD_SIZE, OS_MEM_ALIGN_SIZE) as u32;
+    // 获取实际指针
+    let real_ptr = match os_get_real_ptr(pool, ptr) {
+        Some(real_ptr) => real_ptr,
+        None => {
+            unsafe {
+                dprintf(
+                    b"[%s:%d]get real ptr error\n\0" as *const u8,
+                    b"os_mem_realloc\0" as *const u8,
+                    line!(),
+                )
+            };
+            return core::ptr::null_mut();
+        }
+    };
+
+    let node = (real_ptr as usize - OS_MEM_NODE_HEAD_SIZE as usize) as *mut LosMemDynNode;
+
+    // 获取节点大小
+    let node_size: u32;
+    unsafe {
+        node_size = os_mem_node_get_size((*node).self_node.size_and_flag);
+    }
+
+    // 如果当前节点大小足够，调整为更小的分配
+    if node_size >= alloc_size {
+        os_mem_realloc_smaller(pool as *mut LosMemPoolInfo, alloc_size, node, node_size);
+        return ptr;
+    }
+
+    // 获取下一个节点
+    let next_node = os_mem_next_node(node);
+    // 如果下一个节点未被使用且合并后大小足够，合并节点
+    unsafe {
+        if !os_mem_node_get_used_flag((*next_node).self_node.size_and_flag)
+            && ((*next_node).self_node.size_and_flag + node_size >= alloc_size)
+        {
+            os_mem_merge_node_for_realloc_bigger(
+                pool as *mut LosMemPoolInfo,
+                alloc_size,
+                node,
+                node_size,
+                next_node,
+            );
+            return ptr;
+        }
+    }
+
+    // 分配新的内存块
+    let tmp_ptr = os_mem_alloc_with_check(pool as *mut LosMemPoolInfo, size);
+    if !tmp_ptr.is_null() {
+        let gap_size = (ptr as usize - real_ptr as usize) as u32;
+
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                real_ptr,
+                tmp_ptr,
+                (node_size - OS_MEM_NODE_HEAD_SIZE as u32 - gap_size) as usize,
+            )
+        };
+
+        // 释放旧节点
+        os_mem_free_node(node, pool as *mut LosMemPoolInfo);
+    }
+
+    tmp_ptr
+}
+
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
