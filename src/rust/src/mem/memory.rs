@@ -922,6 +922,29 @@ pub fn los_mem_last_used_get(pool: *mut LosMemPoolInfo) -> usize {
         }
     }
 }
+
+#[unsafe(export_name = "OsMemResetEndNode")]
+pub fn os_mem_reset_end_node(pool: *mut LosMemPoolInfo, pre_addr: usize) {
+    unsafe {
+        // 获取内存池的结束节点
+        let end_node = os_mem_end_node(pool);
+
+        // 设置结束节点的大小和标志
+        (*end_node).self_node.size_and_flag = OS_MEM_NODE_HEAD_SIZE as u32;
+
+        // 如果提供了前一个节点的地址，则设置结束节点的前置节点
+        if pre_addr != 0 {
+            (*end_node).self_node.pre_node =
+                (pre_addr - OS_MEM_NODE_HEAD_SIZE) as *mut LosMemDynNode;
+        }
+
+        // 设置结束节点的已使用标志
+        os_mem_node_set_used_flag(&mut (*end_node).self_node.size_and_flag);
+
+        // 设置结束节点的魔数和任务 ID
+        os_mem_set_magic_num_and_task_id(end_node);
+    }
+}
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
