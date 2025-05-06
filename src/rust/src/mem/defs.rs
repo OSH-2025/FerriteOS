@@ -106,14 +106,10 @@ pub fn os_mem_magic_valid(node: *mut LosMemDynNode) -> bool {
 
 #[inline]
 pub fn mem_lock(state: &mut u32) {
-    unsafe {
-        spinlock::los_spin_lock_save(&mut g_memSpin, state);
-    }
+    spinlock::los_spin_lock_save(&raw mut g_memSpin, state);
 }
 
 #[inline]
 pub fn mem_unlock(state: u32) {
-    unsafe {
-        spinlock::los_spin_unlock_restore(&mut g_memSpin, state);
-    }
+    spinlock::los_spin_unlock_restore(&raw mut g_memSpin, state);
 }

@@ -1,4 +1,4 @@
-use crate::bindings::config::{LOS_NOK, LOS_OK, get_os_sys_mem_size};
+use crate::bindings::config::{LOS_NOK, LOS_OK, OS_INVALID, get_os_sys_mem_size};
 use crate::utils::list::LinkedList;
 use crate::utils::printf::dprintf;
 use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
@@ -7,6 +7,7 @@ use super::defs::*;
 use super::mempool::{LosMemPoolInfo, LosMemPoolStatus};
 use super::memstat;
 use super::multiple_dlink_head;
+use super::multiple_dlink_head::LosMultipleDlinkHead;
 
 /// The start address of the exception interaction dynamic memory pool.
 /// When the exception interaction feature is not supported, `m_aucSysMem0` equals `m_aucSysMem1`.
@@ -50,10 +51,6 @@ pub struct LosMemDynNode {
 }
 
 impl LosMemDynNode {
-    fn set_task_id(&mut self, task_id: u32) {
-        self.self_node.node_info.used_node_info.task_id = task_id as u16;
-    }
-
     fn get_task_id(&self) -> u32 {
         unsafe { self.self_node.node_info.used_node_info.task_id as u32 }
     }
@@ -778,6 +775,31 @@ pub fn los_mem_realloc(
 
     new_ptr
 }
+
+#[unsafe(export_name = "LOS_MemTotalUsedGet")]
+pub fn los_mem_total_used_get(pool: *mut LosMemPoolInfo) -> u32 {
+    if pool.is_null() {
+        return LOS_NOK;
+    }
+
+    let mut mem_used: u32 = 0;
+    let mut int_save: u32 = 0;
+
+    mem_lock(&mut int_save);
+    unsafe {
+        let mut tmp_node = os_mem_first_node(pool);
+        while tmp_node <= os_mem_end_node(pool) {
+            if os_mem_node_get_used_flag((*tmp_node).self_node.size_and_flag) {
+                mem_used += os_mem_node_get_size((*tmp_node).self_node.size_and_flag);
+            }
+            tmp_node = os_mem_next_node(tmp_node);
+        }
+    }
+    mem_unlock(int_save);
+
+    mem_used
+}
+
 
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
