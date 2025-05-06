@@ -626,6 +626,50 @@ pub fn los_mem_free(pool: *mut core::ffi::c_void, ptr: *mut core::ffi::c_void) -
     ret
 }
 
+fn os_get_real_ptr(
+    pool: *const core::ffi::c_void,
+    ptr: *mut core::ffi::c_void,
+) -> Option<*mut core::ffi::c_void> {
+    let mut real_ptr = ptr;
+    let mut gap_size: u32;
+    unsafe {
+        gap_size = *((ptr as usize - core::mem::size_of::<u32>()) as *const u32);
+    }
+    // 检查 gapSize 的标志位
+    if os_mem_node_get_aligned_flag(gap_size) && os_mem_node_get_used_flag(gap_size) {
+        unsafe {
+            dprintf(
+                b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
+                b"os_get_real_ptr\0" as *const u8,
+                line!(),
+                gap_size,
+            )
+        };
+        return None;
+    }
+    // 如果节点有对齐标志
+    if os_mem_node_get_aligned_flag(gap_size) {
+        gap_size = os_mem_node_get_aligned_gap_size(gap_size);
+        // 检查 gapSize 的合法性
+        if (gap_size & (OS_MEM_ALIGN_SIZE - 1) as u32) != 0
+            || gap_size > (ptr as usize - OS_MEM_NODE_HEAD_SIZE as usize - pool as usize) as u32
+        {
+            unsafe {
+                dprintf(
+                    b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
+                    b"os_get_real_ptr\0" as *const u8,
+                    line!(),
+                    gap_size,
+                )
+            };
+            return None;
+        }
+        // 计算实际指针
+        real_ptr = (ptr as usize - gap_size as usize) as *mut core::ffi::c_void;
+    }
+    Some(real_ptr)
+}
+
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
