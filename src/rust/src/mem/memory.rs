@@ -904,6 +904,24 @@ pub fn los_mem_free_blks_get(pool: *mut LosMemPoolInfo) -> u32 {
 
     blk_nums
 }
+
+#[unsafe(export_name = "LOS_MemLastUsedGet")]
+pub fn los_mem_last_used_get(pool: *mut LosMemPoolInfo) -> usize {
+    if pool.is_null() {
+        return LOS_NOK as usize;
+    }
+
+    unsafe {
+        let node = (*os_mem_end_node(pool)).self_node.pre_node;
+        if os_mem_node_get_used_flag((*node).self_node.size_and_flag) {
+            return node as usize
+                + os_mem_node_get_size((*node).self_node.size_and_flag) as usize
+                + core::mem::size_of::<LosMemDynNode>();
+        } else {
+            return node as usize + core::mem::size_of::<LosMemDynNode>();
+        }
+    }
+}
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
