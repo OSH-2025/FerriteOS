@@ -800,6 +800,29 @@ pub fn los_mem_total_used_get(pool: *mut LosMemPoolInfo) -> u32 {
     mem_used
 }
 
+#[unsafe(export_name = "LOS_MemUsedBlksGet")]
+pub fn los_mem_used_blks_get(pool: *mut LosMemPoolInfo) -> u32 {
+    if pool.is_null() {
+        return LOS_NOK;
+    }
+
+    let mut blk_nums: u32 = 0;
+    let mut int_save: u32 = 0;
+
+    mem_lock(&mut int_save);
+    unsafe {
+        let mut tmp_node = os_mem_first_node(pool);
+        while tmp_node <= os_mem_end_node(pool) {
+            if os_mem_node_get_used_flag((*tmp_node).self_node.size_and_flag) {
+                blk_nums += 1;
+            }
+            tmp_node = os_mem_next_node(tmp_node);
+        }
+    }
+    mem_unlock(int_save);
+
+    blk_nums
+}
 
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
