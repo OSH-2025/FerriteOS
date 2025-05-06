@@ -824,6 +824,62 @@ pub fn los_mem_used_blks_get(pool: *mut LosMemPoolInfo) -> u32 {
     blk_nums
 }
 
+
+
+#[unsafe(export_name = "LOS_MemTaskIdGet")]
+pub fn los_mem_task_id_get(ptr: *const core::ffi::c_void) -> u32 {
+    let pool_info;
+    unsafe {
+        pool_info = m_aucSysMem1 as *mut LosMemPoolInfo;
+    }
+
+    if ptr.is_null()
+        || ptr < os_mem_first_node(pool_info) as *const core::ffi::c_void
+        || ptr > os_mem_end_node(pool_info) as *const core::ffi::c_void
+    {
+        unsafe {
+            dprintf(
+                b"input ptr %p is out of system memory range[%p, %p]\n\0" as *const u8,
+                ptr,
+                os_mem_first_node(pool_info),
+                os_mem_end_node(pool_info),
+            );
+        }
+        return OS_INVALID;
+    }
+
+    let mut int_save: u32 = 0;
+
+    mem_lock(&mut int_save);
+    unsafe {
+        let mut tmp_node = os_mem_first_node(pool_info);
+        while tmp_node <= os_mem_end_node(pool_info) {
+            if (ptr as usize) < (tmp_node as usize) {
+                if os_mem_node_get_used_flag(
+                    (*(*tmp_node).self_node.pre_node).self_node.size_and_flag,
+                ) {
+                    mem_unlock(int_save);
+                    return (*(*tmp_node).self_node.pre_node)
+                        .self_node
+                        .node_info
+                        .used_node_info
+                        .task_id as u32;
+                } else {
+                    mem_unlock(int_save);
+                    dprintf(
+                        b"input ptr %p is belong to a free mem node\n\0" as *const u8,
+                        ptr,
+                    );
+                    return OS_INVALID;
+                }
+            }
+            tmp_node = os_mem_next_node(tmp_node);
+        }
+    }
+    mem_unlock(int_save);
+    OS_INVALID
+}
+
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
