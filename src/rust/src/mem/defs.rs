@@ -91,6 +91,11 @@ pub fn os_mem_node_set_aligned_flag(size_and_flag: &mut u32) {
 }
 
 #[inline]
+pub fn os_mem_node_get_aligned_gap_size(size_and_flag: u32) -> u32 {
+    size_and_flag & !OS_MEM_NODE_ALIGNED_FLAG
+}
+
+#[inline]
 pub fn os_mem_magic_valid(node: *mut LosMemDynNode) -> bool {
     unsafe {
         let magic = (*node).self_node.node_info.used_node_info.magic;
