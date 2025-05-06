@@ -561,6 +561,65 @@ pub fn los_mem_alloc_align(
     ptr
 }
 
+fn os_do_mem_free(pool: *mut core::ffi::c_void, node: *mut LosMemDynNode) {
+    os_mem_free_node(node, pool as *mut LosMemPoolInfo);
+}
+
+// pub fn os_mem_free(pool: *mut core::ffi::c_void, ptr: *const core::ffi::c_void) -> u32 {
+//     let mut ret: u32 = LOS_OK;
+//     let mut gap_size: u32;
+//     let mut node: *mut LosMemDynNode = core::ptr::null_mut();
+
+//     loop {
+//         // 获取 gapSize
+//         gap_size = *((ptr as usize - core::mem::size_of::<u32>()) as *const u32);
+
+//         // 检查 gapSize 的标志位
+//         if os_mem_node_get_aligned_flag(gap_size) && os_mem_node_get_used_flag(gap_size) {
+//             dprintf(
+//                 b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
+//                 b"OsMemFree\0" as *const u8,
+//                 line!(),
+//                 gap_size,
+//             );
+//             break;
+//         }
+
+//         // 获取节点指针
+//         node = (ptr as usize - OS_MEM_NODE_HEAD_SIZE as usize) as *mut LosMemDynNode;
+
+//         // 如果节点有对齐标志
+//         if os_mem_node_get_aligned_flag(gap_size) {
+//             gap_size = os_mem_node_get_aligned_gap_size(gap_size);
+//             if (gap_size & (OS_MEM_ALIGN_SIZE - 1)) != 0
+//                 || gap_size > (ptr as usize - OS_MEM_NODE_HEAD_SIZE as usize) as u32
+//             {
+//                 dprintf(b"illegal gapSize: 0x%x\n\0" as *const u8, gap_size);
+//                 break;
+//             }
+//             node = (ptr as usize - gap_size as usize - OS_MEM_NODE_HEAD_SIZE as usize)
+//                 as *mut LosMemDynNode;
+//         }
+
+//         #[cfg(not(feature = "loscfg_mem_head_backup"))]
+//         {
+//             os_do_mem_free(pool, ptr, node);
+//         }
+
+//         break;
+//     }
+
+//     #[cfg(feature = "loscfg_mem_head_backup")]
+//     {
+//         ret = os_mem_backup_check_and_restore(pool, ptr, node);
+//         if ret == 0 {
+//             os_do_mem_free(pool, ptr, node);
+//         }
+//     }
+
+//     ret
+// }
+
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
