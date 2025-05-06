@@ -328,6 +328,7 @@ pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
     }
 }
 
+#[inline]
 fn os_mem_alloc_with_check(pool: *mut LosMemPoolInfo, size: u32) -> *mut core::ffi::c_void {
     let first_node = os_mem_first_node(pool) as *const core::ffi::c_void;
 
@@ -489,6 +490,24 @@ pub fn los_mem_init(pool: *mut core::ffi::c_void, mut size: u32) -> u32 {
             return LOS_NOK;
         }
     }
+}
+
+#[unsafe(export_name = "LOS_MemAlloc")]
+pub fn los_mem_alloc(pool: *mut core::ffi::c_void, size: u32) -> *mut core::ffi::c_void {
+    let mut ptr: *mut core::ffi::c_void = core::ptr::null_mut();
+    let mut int_save: u32 = 0;
+    if pool.is_null() || size == 0 {
+        return core::ptr::null_mut();
+    }
+    // TODO: g_MALLOC_HOOK
+    mem_lock(&mut int_save);
+    // 分配内存
+    if os_mem_node_get_used_flag(size) || os_mem_node_get_aligned_flag(size) {
+        return ptr;
+    }
+    ptr = os_mem_alloc_with_check(pool as *mut LosMemPoolInfo, size);
+    mem_unlock(int_save);
+    ptr
 }
 
 unsafe extern "C" {
