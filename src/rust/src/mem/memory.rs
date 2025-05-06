@@ -953,6 +953,31 @@ pub fn los_mem_pool_size_get(pool: *const LosMemPoolInfo) -> u32 {
     }
     unsafe { (*pool).pool_size }
 }
+#[unsafe(export_name = "LOS_MemInfoGet")]
+pub fn los_mem_info_get(pool: *mut LosMemPoolInfo, pool_status: *mut LosMemPoolStatus) -> u32 {
+    if pool_status.is_null() {
+        unsafe {
+            dprintf(b"can't use NULL addr to save info\n\0" as *const u8);
+        }
+        return LOS_NOK;
+    }
+    let pool_status = unsafe { &mut *pool_status };
+    if pool.is_null() || (pool as usize) != unsafe { (*pool).pool as usize } {
+        unsafe {
+            dprintf(
+                b"wrong mem pool addr: %p, line:%d\n\0" as *const u8,
+                pool,
+                line!(),
+            );
+        }
+        return LOS_NOK;
+    }
+    let mut int_save: u32 = 0;
+    mem_lock(&mut int_save);
+    let ret = os_mem_info_get(pool, pool_status);
+    mem_unlock(int_save);
+    ret
+}
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
