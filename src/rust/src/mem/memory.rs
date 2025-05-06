@@ -510,6 +510,57 @@ pub fn los_mem_alloc(pool: *mut core::ffi::c_void, size: u32) -> *mut core::ffi:
     ptr
 }
 
+#[unsafe(export_name = "LOS_MemAllocAlign")]
+pub fn los_mem_alloc_align(
+    pool: *mut core::ffi::c_void,
+    size: u32,
+    boundary: u32,
+) -> *mut core::ffi::c_void {
+    let mut ptr: *mut core::ffi::c_void = core::ptr::null_mut();
+    let mut int_save: u32 = 0;
+    // 参数检查
+    if pool.is_null()
+        || size == 0
+        || !boundary.is_power_of_two()
+        || !is_aligned(
+            boundary as usize,
+            core::mem::size_of::<*mut core::ffi::c_void>(),
+        )
+    {
+        return core::ptr::null_mut();
+    }
+    mem_lock(&mut int_save);
+    // 分配内存
+    loop {
+        if (boundary - core::mem::size_of::<u32>() as u32) > (u32::MAX - size) {
+            break;
+        }
+        let use_size = size + boundary - core::mem::size_of::<u32>() as u32;
+        if os_mem_node_get_used_flag(use_size) || os_mem_node_get_aligned_flag(use_size) {
+            break;
+        }
+        ptr = os_mem_alloc_with_check(pool as *mut LosMemPoolInfo, use_size);
+        let aligned_ptr = os_mem_align(ptr as usize, boundary as usize) as *mut core::ffi::c_void;
+        if ptr == aligned_ptr {
+            break;
+        }
+        // 计算 gapSize 并存储
+        let mut gap_size = (aligned_ptr as usize - ptr as usize) as u32;
+        let alloc_node = unsafe { (ptr as *mut LosMemDynNode).offset(-1) };
+        unsafe {
+            os_mem_node_set_aligned_flag(&mut (*alloc_node).self_node.size_and_flag);
+        }
+        os_mem_node_set_aligned_flag(&mut gap_size);
+        unsafe {
+            *((aligned_ptr as usize - core::mem::size_of::<u32>() as usize) as *mut u32) = gap_size
+        };
+        ptr = aligned_ptr;
+        break;
+    }
+    mem_unlock(int_save);
+    ptr
+}
+
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
