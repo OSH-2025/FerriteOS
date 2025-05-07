@@ -30,6 +30,15 @@ unsafe extern "C" {
 }
 
 #[inline]
+pub fn os_sys_mem_size() -> usize {
+    unsafe {
+        let sys_mem_end = g_sys_mem_addr_end;
+        let aligned_heap_start = ((&__heap_start as *const _ as usize) + (63)) & !(63);
+        sys_mem_end - aligned_heap_start
+    }
+}
+
+#[inline]
 pub fn os_mem_head_addr(pool: *mut LosMemPoolInfo) -> *mut LosMultipleDlinkHead {
     (pool as usize + OS_MEM_POOL_INFO_SIZE) as *mut LosMultipleDlinkHead
 }
