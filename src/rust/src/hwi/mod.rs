@@ -1,8 +1,8 @@
 unsafe extern "C" {
-    #[link_name = "LOS_IntLock"]
+    #[link_name = "LOS_IntLock_Wrapper"]
     unsafe fn los_int_lock_wrapper() -> u32;
 
-    #[link_name = "LOS_IntRestore"]
+    #[link_name = "LOS_IntRestore_Wrapper"]
     unsafe fn los_int_restore_wrapper(int_save: u32);
 }
 
