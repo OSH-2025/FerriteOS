@@ -67,7 +67,7 @@ pub fn os_mem_list_add(
 #[unsafe(export_name = "OsMemSystemInit")]
 pub extern "C" fn os_mem_system_init(mem_start: usize) -> u32 {
     unsafe { m_aucSysMem1 = mem_start as *mut u8 };
-    let pool_size = unsafe { get_os_sys_mem_size() };
+    let pool_size = os_sys_mem_size() as u32;
     let ret = los_mem_init(mem_start as *mut core::ffi::c_void, pool_size);
     unsafe {
         dprintf(
@@ -1049,7 +1049,4 @@ pub fn los_mem_free_node_show(pool: *mut LosMemPoolInfo) -> u32 {
 unsafe extern "C" {
     #[link_name = "OsMemSetMagicNumAndTaskID"]
     unsafe fn os_mem_set_magic_num_and_task_id(node: *mut LosMemDynNode);
-
-    #[link_name = "GetOsSysMemSizeWrapper"]
-    unsafe fn get_os_sys_mem_size() -> u32;
 }
