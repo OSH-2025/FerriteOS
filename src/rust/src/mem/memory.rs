@@ -9,22 +9,6 @@ use super::memstat;
 use super::multiple_dlink_head;
 use super::multiple_dlink_head::LosMultipleDlinkHead;
 
-/// The start address of the exception interaction dynamic memory pool.
-/// When the exception interaction feature is not supported, `m_aucSysMem0` equals `m_aucSysMem1`.
-#[unsafe(no_mangle)]
-#[allow(non_upper_case_globals)]
-pub static mut m_aucSysMem0: *mut u8 = core::ptr::null_mut();
-
-/// The start address of the system dynamic memory pool.
-#[unsafe(no_mangle)]
-#[allow(non_upper_case_globals)]
-pub static mut m_aucSysMem1: *mut u8 = core::ptr::null_mut();
-
-#[unsafe(link_section = ".data.init")]
-#[unsafe(no_mangle)]
-#[allow(non_upper_case_globals)]
-pub static mut g_sys_mem_addr_end: usize = 0;
-
 #[repr(C)]
 pub union NodeInfo {
     pub free_node_info: LinkedList,
@@ -84,15 +68,15 @@ pub fn os_mem_list_add(
 pub extern "C" fn os_mem_system_init(mem_start: usize) -> u32 {
     unsafe { m_aucSysMem1 = mem_start as *mut u8 };
     let pool_size = unsafe { get_os_sys_mem_size() };
-    let ret = los_mem_init(unsafe { m_aucSysMem1 } as *mut core::ffi::c_void, pool_size);
+    let ret = los_mem_init(mem_start as *mut core::ffi::c_void, pool_size);
     unsafe {
         dprintf(
             b"LiteOS system heap memory address:%p,size:0x%x\n\0" as *const u8,
             m_aucSysMem1,
             pool_size,
-        )
-    };
-    unsafe { m_aucSysMem0 = m_aucSysMem1 };
+        );
+        m_aucSysMem0 = m_aucSysMem1;
+    }
     ret
 }
 
@@ -158,7 +142,7 @@ fn os_mem_split_node(
         // 更新分配节点的大小
         (*alloc_node).self_node.size_and_flag = alloc_size;
         // 获取下一个节点
-        let next_node = os_mem_next_node(alloc_node);
+        let next_node = os_mem_next_node(new_free_node);
         // 更新下一个节点的前置节点指针
         (*next_node).self_node.pre_node = new_free_node;
         // 如果下一个节点未被使用，合并节点
