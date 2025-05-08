@@ -5,6 +5,7 @@ use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
 
 use super::defs::*;
 use super::mempool::{LosMemPoolInfo, LosMemPoolStatus};
+#[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
 use super::memstat;
 use super::multiple_dlink_head;
 use super::multiple_dlink_head::LosMultipleDlinkHead;
@@ -35,6 +36,7 @@ pub struct LosMemDynNode {
 }
 
 impl LosMemDynNode {
+    #[allow(dead_code)]
     fn get_task_id(&self) -> u32 {
         unsafe { self.self_node.node_info.used_node_info.task_id as u32 }
     }
@@ -170,6 +172,7 @@ fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut LosMemPoolInfo) {
     unsafe {
         let first_node = os_mem_first_node(pool) as *const core::ffi::c_void;
         // 更新内存统计信息
+        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
         memstat::os_memstat_task_used_dec(
             &mut (*pool).stat,
             os_mem_node_get_size((*node).self_node.size_and_flag),
@@ -265,24 +268,21 @@ fn os_mem_info_get(pool_info: *mut LosMemPoolInfo, pool_status: &mut LosMemPoolS
         pool_status.max_free_node_size = max_free_node_size;
         pool_status.used_node_num = used_node_num;
         pool_status.free_node_num = free_node_num;
-        pool_status.usage_water_line = (*pool_info).stat.mem_total_peak;
+        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+        {
+            pool_status.usage_water_line = (*pool_info).stat.mem_total_peak;
+        }
         LOS_OK
     }
 }
 
 #[unsafe(export_name = "OsMemInfoPrint")]
 pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
-    let mut status: LosMemPoolStatus = LosMemPoolStatus {
-        total_used_size: 0,
-        total_free_size: 0,
-        max_free_node_size: 0,
-        used_node_num: 0,
-        free_node_num: 0,
-        usage_water_line: 0,
-    };
+    let mut status: LosMemPoolStatus = LosMemPoolStatus::default();
     if os_mem_info_get(pool_info, &mut status) == LOS_NOK {
         return;
     }
+    #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
     unsafe {
         dprintf(
             b"pool addr          pool size    used size     free size    \
@@ -304,7 +304,28 @@ pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
             status.max_free_node_size,
             status.used_node_num,
             status.free_node_num,
-            (*pool_info).stat.mem_total_peak,
+            status.usage_water_line,
+        );
+    }
+    #[cfg(not(feature = "LOSCFG_MEM_TASK_STAT"))]
+    unsafe {
+        dprintf(
+            b"pool addr          pool size    used size     free size    \
+             max free node size   used node num     free node num\n\0" as *const u8,
+        );
+        dprintf(
+            b"---------------    --------     -------       --------     \
+             --------------       -------------      ------------\n\0" as *const u8,
+        );
+        dprintf(
+            b"%-16p   0x%-8x   0x%-8x    0x%-8x   0x%-16x   0x%-13x    0x%-13x\n\0" as *const u8,
+            (*pool_info).pool,
+            (*pool_info).pool_size,
+            status.total_used_size,
+            status.total_free_size,
+            status.max_free_node_size,
+            status.used_node_num,
+            status.free_node_num,
         );
     }
 }
@@ -319,7 +340,6 @@ fn os_mem_alloc_with_check(pool: *mut LosMemPoolInfo, size: u32) -> *mut core::f
         match os_mem_find_suitable_free_block(pool as *mut core::ffi::c_void, alloc_size) {
             Some(node) => node,
             None => {
-                // TODO os_mem_info_alert
                 return core::ptr::null_mut();
             }
         };
@@ -335,7 +355,8 @@ fn os_mem_alloc_with_check(pool: *mut LosMemPoolInfo, size: u32) -> *mut core::f
         );
         os_mem_set_magic_num_and_task_id(alloc_node);
         os_mem_node_set_used_flag(&mut (*alloc_node).self_node.size_and_flag);
-        memstat::os_memstat_task_used_dec(
+        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+        memstat::os_memstat_task_used_inc(
             &mut (*pool).stat,
             os_mem_node_get_size((*alloc_node).self_node.size_and_flag),
             (*alloc_node).get_task_id(),
@@ -356,6 +377,7 @@ fn os_mem_realloc_smaller(
             (*node).self_node.size_and_flag = node_size;
             os_mem_split_node(pool as *mut core::ffi::c_void, node, alloc_size);
             os_mem_node_set_used_flag(&mut (*node).self_node.size_and_flag);
+            #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
             memstat::os_memstat_task_used_dec(
                 &mut (*pool).stat,
                 node_size - alloc_size,
@@ -386,6 +408,7 @@ fn os_mem_merge_node_for_realloc_bigger(
         {
             os_mem_split_node(pool as *mut core::ffi::c_void, node, alloc_size);
         }
+        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
         memstat::os_memstat_task_used_inc(
             &mut (*pool).stat,
             (*node).self_node.size_and_flag - node_size,
@@ -427,12 +450,14 @@ fn os_mem_init(pool: *mut core::ffi::c_void, size: u32) -> Result<(), ()> {
         os_mem_node_set_used_flag(&mut (*end_node).self_node.size_and_flag);
         os_mem_set_magic_num_and_task_id(end_node);
         // 初始化内存统计信息
-        let zeroed_struct = core::mem::zeroed();
-        (*pool_info).stat = zeroed_struct;
-        (*pool_info).stat.mem_total_used = core::mem::size_of::<LosMemPoolInfo>() as u32
-            + OS_MEM_NODE_HEAD_SIZE as u32
-            + os_mem_node_get_size((*end_node).self_node.size_and_flag);
-        (*pool_info).stat.mem_total_peak = (*pool_info).stat.mem_total_used;
+        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+        {
+            let zeroed_struct = core::mem::zeroed();
+            (*pool_info).stat = zeroed_struct;
+            (*pool_info).stat.mem_total_used =
+                (OS_MEM_POOL_INFO_SIZE + OS_MEM_NODE_HEAD_SIZE + OS_MEM_NODE_HEAD_SIZE) as u32;
+            (*pool_info).stat.mem_total_peak = (*pool_info).stat.mem_total_used;
+        }
         Ok(())
     }
 }

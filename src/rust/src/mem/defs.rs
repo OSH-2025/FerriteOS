@@ -30,12 +30,15 @@ unsafe extern "C" {
 }
 
 #[inline]
+pub const fn os_sys_mem_addr() -> *mut core::ffi::c_void {
+    unsafe { &__heap_start as *const _ as *mut core::ffi::c_void }
+}
+
+#[inline]
 pub fn os_sys_mem_size() -> usize {
-    unsafe {
-        let sys_mem_end = g_sys_mem_addr_end;
-        let aligned_heap_start = ((&__heap_start as *const _ as usize) + (63)) & !(63);
-        sys_mem_end - aligned_heap_start
-    }
+    let sys_mem_end = unsafe { g_sys_mem_addr_end };
+    let aligned_heap_start = ((os_sys_mem_addr() as usize) + (63)) & !(63);
+    sys_mem_end - aligned_heap_start
 }
 
 #[inline]

@@ -1,12 +1,11 @@
+#[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
 use super::memstat::Memstat;
 
 #[repr(C)]
 pub struct LosMemPoolInfo {
-    /// Starting address of a memory pool
     pub pool: *mut core::ffi::c_void,
-    /// Memory pool size
     pub pool_size: u32,
-    /// Memory statistics (enabled with LOSCFG_MEM_TASK_STAT)
+    #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
     pub stat: Memstat,
 }
 
@@ -14,16 +13,27 @@ pub struct LosMemPoolInfo {
 #[repr(C)]
 // #[derive(Debug, Copy, Clone)]
 pub struct LosMemPoolStatus {
-    /// 总已使用内存大小
     pub total_used_size: u32,
-    /// 总空闲内存大小
     pub total_free_size: u32,
-    /// 最大空闲节点大小
     pub max_free_node_size: u32,
-    /// 已使用节点数量
     pub used_node_num: u32,
-    /// 空闲节点数量
     pub free_node_num: u32,
-    /// 内存使用水线
+    #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
     pub usage_water_line: u32,
+}
+
+impl Default for LosMemPoolStatus {
+    fn default() -> Self {
+        {
+            LosMemPoolStatus {
+                total_used_size: 0,
+                total_free_size: 0,
+                max_free_node_size: 0,
+                used_node_num: 0,
+                free_node_num: 0,
+                #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+                usage_water_line: 0,
+            }
+        }
+    }
 }

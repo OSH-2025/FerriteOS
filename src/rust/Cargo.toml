@@ -5,12 +5,14 @@ edition = "2024"
 
 [dependencies]
 panic-halt = "1.0.0"
-# memoffset = "0.9"
 
 [lib]
 crate-type = ["staticlib"]
 
 [features]
+# default = ["LOSCFG_MEM_TASK_STAT", "bitmap", "mem"]
+default = ["bitmap", "mem"]
 bitmap = []
 event = []
 mem = []
+LOSCFG_MEM_TASK_STAT = []
