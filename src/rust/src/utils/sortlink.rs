@@ -1,14 +1,15 @@
+use super::list::LinkedList;
+
 /// 无效值常量
 pub const OS_INVALID_VALUE: u32 = 0xFFFFFFFF;
 
-/// 启用特性配置
-#[cfg(feature = "LOSCFG_BASE_CORE_USE_SINGLE_LIST")]
-mod config {
-    pub const OS_TSK_SORTLINK_LOGLEN: u32 = 0;
-    pub const OS_TSK_SORTLINK_LEN: u32 = 1;
-    pub const OS_TSK_MAX_ROLLNUM: u32 = 0xFFFFFFFE;
-    pub const OS_TSK_LOW_BITS_MASK: u32 = 0xFFFFFFFF;
-}
+// #[cfg(feature = "LOSCFG_BASE_CORE_USE_SINGLE_LIST")]
+// mod config {
+//     pub const OS_TSK_SORTLINK_LOGLEN: u32 = 0;
+//     pub const OS_TSK_SORTLINK_LEN: u32 = 1;
+//     pub const OS_TSK_MAX_ROLLNUM: u32 = 0xFFFFFFFE;
+//     pub const OS_TSK_LOW_BITS_MASK: u32 = 0xFFFFFFFF;
+// }
 
 #[cfg(feature = "LOSCFG_BASE_CORE_USE_MULTI_LIST")]
 mod config {
@@ -24,13 +25,13 @@ mod config {
 
 // use config::*;
 
-// #[repr(C)]
-// pub struct SortLinkList {
-//     /// 链表节点
-//     pub sort_link_node: DLListNode,
-//     /// 索引和轮数
-//     pub idx_roll_num: u32,
-// }
+#[repr(C)]
+pub struct SortLinkList {
+    /// 链表节点
+    pub sort_link_node: LinkedList,
+    /// 索引和轮数
+    pub idx_roll_num: u32,
+}
 
 // impl SortLinkList {
 //     /// 创建新的排序链表节点
