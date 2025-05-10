@@ -95,13 +95,15 @@ pub struct SortLinkList {
 //     }
 // }
 
-// /// 排序链表属性
-// pub struct SortLinkAttribute {
-//     /// 排序链表头
-//     pub sort_link: Vec<DLList>,
-//     /// 游标
-//     pub cursor: u16,
-// }
+/// 排序链表属性
+#[repr(C)]
+pub struct SortLinkAttribute {
+    /// 排序链表头
+    pub sort_link: *mut LinkedList,
+    /// 游标
+    pub cursor: u16,
+    _reserved: u16,
+}
 
 // impl SortLinkAttribute {
 //     /// 获取当前游标位置的链表对象
