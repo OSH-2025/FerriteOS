@@ -10,8 +10,8 @@ panic-halt = "1.0.0"
 crate-type = ["staticlib"]
 
 [features]
-# default = ["LOSCFG_MEM_TASK_STAT", "bitmap", "mem"]
-default = ["bitmap", "mem"]
+default = ["LOSCFG_MEM_TASK_STAT", "bitmap", "mem"]
+# default = ["bitmap", "mem"]
 bitmap = []
 event = []
 mem = []
