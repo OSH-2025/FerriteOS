@@ -3,11 +3,10 @@
 
 use panic_halt as _;
 
-// #[cfg(feature = "event")]
-// pub mod event;
-// #[cfg(feature = "mem")]
-pub mod mem;
-pub mod utils;
-pub mod bindings;
 pub mod hwi;
+pub mod mem;
 pub mod spinlock;
+pub mod utils;
+pub mod config;
+
+pub use config::*;

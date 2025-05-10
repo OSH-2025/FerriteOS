@@ -13,7 +13,7 @@ impl LosMultipleDlinkHead {
     #[inline]
     fn init(&mut self) {
         for list_node_head in self.list_head.iter_mut() {
-            list_node_head.init();
+            LinkedList::init(list_node_head);
         }
     }
 

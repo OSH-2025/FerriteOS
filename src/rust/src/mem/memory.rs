@@ -1,4 +1,4 @@
-use crate::bindings::config::{LOS_NOK, LOS_OK, OS_INVALID};
+use crate::{LOS_NOK, LOS_OK, OS_INVALID};
 use crate::utils::list::LinkedList;
 use crate::utils::printf::dprintf;
 use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
