@@ -24,6 +24,32 @@ pub struct SortLinkList {
     pub idx_roll_num: u32,
 }
 
+impl SortLinkList {
+    /// 设置轮数（低位部分）
+    #[inline]
+    fn set_roll_num(&mut self, value: u32) {
+        self.idx_roll_num = (self.idx_roll_num & OS_TSK_HIGH_BITS_MASK) | value;
+    }
+
+    /// 设置排序索引（高位部分）
+    #[inline]
+    fn set_sort_index(&mut self, value: u32) {
+        self.idx_roll_num = (self.idx_roll_num & OS_TSK_LOW_BITS_MASK) | (value << OS_TSK_LOW_BITS);
+    }
+
+    /// 获取轮数（低位部分）
+    #[inline]
+    fn get_roll_num(&self) -> u32 {
+        self.idx_roll_num & OS_TSK_LOW_BITS_MASK
+    }
+
+    /// 获取排序索引（高位部分）
+    #[inline]
+    fn get_sort_index(&self) -> u32 {
+        (self.idx_roll_num & OS_TSK_HIGH_BITS_MASK) >> OS_TSK_LOW_BITS
+    }
+}
+
 /// 排序链表属性
 #[repr(C)]
 pub struct SortLinkAttribute {
