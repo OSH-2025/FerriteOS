@@ -5,9 +5,6 @@ use crate::{
     offset_of,
 };
 
-/// 无效值常量
-pub const OS_INVALID_VALUE: u32 = 0xFFFFFFFF;
-
 pub const OS_TSK_HIGH_BITS: u32 = 3;
 pub const OS_TSK_LOW_BITS: u32 = 32 - OS_TSK_HIGH_BITS;
 pub const OS_TSK_SORTLINK_LOGLEN: u32 = OS_TSK_HIGH_BITS;
@@ -137,7 +134,7 @@ pub extern "C" fn os_add_to_sort_link(
         let list_object = sort_link_header.sort_link.add(sort_index as usize);
 
         // 如果链表为空，直接插入
-        if (*list_object).next == list_object {
+        if LinkedList::is_empty(list_object) {
             LinkedList::tail_insert(list_object, &mut sort_list.sort_link_node);
         } else {
             // 获取第一个节点并开始查找合适的插入位置
@@ -236,4 +233,46 @@ fn os_calc_expire_time(roll_num: u32, sort_index: u32, cur_sort_index: u16) -> u
 
     // 计算过期时间
     ((roll_num - 1) << OS_TSK_SORTLINK_LOGLEN) + sort_index
+}
+
+#[unsafe(export_name = "OsSortLinkGetNextExpireTime")]
+pub extern "C" fn os_sort_link_get_next_expire_time(sort_link_header: &SortLinkAttribute) -> u32 {
+    let mut min_sort_index = u32::MAX;
+    let mut min_roll_num = OS_TSK_LOW_BITS_MASK;
+
+    // 计算新的游标位置（当前游标+1，并考虑环形特性）
+    let cursor = (sort_link_header.cursor + 1) & (OS_TSK_SORTLINK_MASK as u16);
+
+    // 遍历所有桶
+    for i in 0..OS_TSK_SORTLINK_LEN {
+        unsafe {
+            // 获取对应桶的链表头
+            let list_object = sort_link_header
+                .sort_link
+                .add(((cursor as u32 + i) & OS_TSK_SORTLINK_MASK) as usize);
+
+            // 检查链表是否为空
+            if !LinkedList::is_empty(list_object) {
+                // 获取链表的第一个节点
+                let list_sorted = container_of!((*list_object).next, SortLinkList, sort_link_node);
+
+                // 获取节点的轮数
+                let roll_num = (*list_sorted).get_roll_num();
+
+                // 更新最小轮数和对应的排序索引
+                if min_roll_num > roll_num {
+                    min_roll_num = roll_num;
+                    min_sort_index = (cursor as u32 + i) & OS_TSK_SORTLINK_MASK;
+                }
+            }
+        }
+    }
+
+    // 如果找到有效的最小轮数，计算过期时间
+    if min_roll_num != OS_TSK_LOW_BITS_MASK {
+        os_calc_expire_time(min_roll_num, min_sort_index, sort_link_header.cursor)
+    } else {
+        // 如果没有找到有效的轮数，返回最大值
+        u32::MAX
+    }
 }

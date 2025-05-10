@@ -41,6 +41,11 @@ impl LinkedList {
             (*node).prev = core::ptr::null_mut();
         }
     }
+
+    #[inline]
+    pub fn is_empty(list: *mut LinkedList) -> bool {
+        unsafe { (*list).next == list }
+    }
 }
 
 #[macro_export]
