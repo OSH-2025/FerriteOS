@@ -329,3 +329,40 @@ pub extern "C" fn os_sort_link_update_expire_time(
     sort_link_header.cursor =
         ((sort_link_header.cursor as u32 + sleep_ticks - 1) % OS_TSK_SORTLINK_LEN) as u16;
 }
+
+/// 获取目标排序链表节点的到期时间
+///
+/// 计算从链表头到目标节点的累积轮数，然后转换为过期时间
+#[unsafe(export_name = "OsSortLinkGetTargetExpireTime")]
+pub extern "C" fn os_sort_link_get_target_expire_time(
+    sort_link_header: &SortLinkAttribute,
+    target_sort_list: &SortLinkList,
+) -> u32 {
+    // 获取目标节点的排序索引和初始轮数
+    let sort_index = target_sort_list.get_sort_index();
+    let mut roll_num = target_sort_list.get_roll_num();
+
+    unsafe {
+        // 获取对应桶的链表头
+        let list_object = sort_link_header.sort_link.add(sort_index as usize);
+
+        // 从链表的第一个节点开始
+        let mut list_sorted = container_of!((*list_object).next, SortLinkList, sort_link_node);
+
+        // 累加轮数直到找到目标节点
+        while list_sorted != target_sort_list as *const _ as *mut _ {
+            // 累加当前节点的轮数
+            roll_num += (*list_sorted).get_roll_num();
+
+            // 移动到下一个节点
+            list_sorted = container_of!(
+                (*list_sorted).sort_link_node.next,
+                SortLinkList,
+                sort_link_node
+            );
+        }
+
+        // 计算并返回最终的到期时间
+        os_calc_expire_time(roll_num, sort_index, sort_link_header.cursor)
+    }
+}
