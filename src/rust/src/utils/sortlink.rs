@@ -47,7 +47,7 @@ impl SortLinkList {
     /// 获取排序索引（高位部分）
     #[inline]
     fn get_sort_index(&self) -> u32 {
-        (self.idx_roll_num & OS_TSK_HIGH_BITS_MASK) >> OS_TSK_LOW_BITS
+        self.idx_roll_num >> OS_TSK_LOW_BITS
     }
 
     /// 从当前节点的轮数中减去指定的值，保留索引部分不变
@@ -55,6 +55,13 @@ impl SortLinkList {
     fn roll_num_sub_value(&mut self, value: u32) {
         let self_roll_num = self.get_roll_num();
         self.set_roll_num(self_roll_num - value);
+    }
+
+    /// 将指定值添加到当前节点的轮数中，保留索引部分不变
+    #[inline]
+    fn roll_num_add_value(&mut self, value: u32) {
+        let self_roll_num = self.get_roll_num();
+        self.set_roll_num(self_roll_num + value);
     }
 }
 
@@ -185,4 +192,33 @@ fn os_check_sort_link(list_head: *mut LinkedList, list_node: *mut LinkedList) {
         }
     }
     // TODO OsBackTrace
+}
+
+#[unsafe(export_name = "OsDeleteSortLink")]
+pub extern "C" fn os_delete_sort_link(
+    sort_link_header: &SortLinkAttribute,
+    sort_list: &mut SortLinkList,
+) {
+    // 获取排序索引
+    let sort_index = sort_list.get_sort_index();
+
+    unsafe {
+        // 获取对应的链表对象
+        let list_object = sort_link_header.sort_link.add(sort_index as usize);
+
+        // 检查节点是否在正确的链表中
+        os_check_sort_link(list_object, &mut sort_list.sort_link_node);
+
+        // 如果不是链表的最后一个节点，将轮数加到下一个节点上
+        if sort_list.sort_link_node.next != list_object {
+            let next_sort_list =
+                container_of!(sort_list.sort_link_node.next, SortLinkList, sort_link_node);
+
+            // 将当前节点的轮数添加到下一个节点
+            (*next_sort_list).roll_num_add_value(sort_list.get_roll_num());
+        }
+
+        // 从链表中删除节点
+        LinkedList::remove(&mut sort_list.sort_link_node);
+    }
 }

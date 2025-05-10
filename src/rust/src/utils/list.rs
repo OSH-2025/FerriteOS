@@ -13,7 +13,15 @@ impl LinkedList {
         }
     }
 
-    pub fn add(list: *mut LinkedList, node: *mut LinkedList) {
+    #[inline]
+    pub fn tail_insert(list: *mut LinkedList, node: *mut LinkedList) {
+        unsafe {
+            LinkedList::insert((*list).prev, node);
+        }
+    }
+
+    #[inline]
+    pub fn insert(list: *mut LinkedList, node: *mut LinkedList) {
         unsafe {
             (*node).next = (*list).next;
             (*node).prev = list;
@@ -23,9 +31,14 @@ impl LinkedList {
     }
 
     #[inline]
-    pub fn tail_insert(list: *mut LinkedList, node: *mut LinkedList) {
+    pub fn remove(node: *mut LinkedList) {
         unsafe {
-            LinkedList::add((*list).prev, node);
+            // 更新相邻节点的指针，将当前节点从链表中移除
+            (*(*node).next).prev = (*node).prev;
+            (*(*node).prev).next = (*node).next;
+            // 将节点指针设为 NULL，表示节点不再属于任何链表
+            (*node).next = core::ptr::null_mut();
+            (*node).prev = core::ptr::null_mut();
         }
     }
 }
