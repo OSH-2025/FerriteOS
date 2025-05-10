@@ -222,3 +222,18 @@ pub extern "C" fn os_delete_sort_link(
         LinkedList::remove(&mut sort_list.sort_link_node);
     }
 }
+
+#[inline]
+fn os_calc_expire_time(roll_num: u32, sort_index: u32, cur_sort_index: u16) -> u32 {
+    let mut sort_index = sort_index;
+
+    // 计算 sort_index 和 cur_sort_index 之间的距离，考虑循环特性
+    if sort_index > cur_sort_index as u32 {
+        sort_index = sort_index - cur_sort_index as u32;
+    } else {
+        sort_index = OS_TSK_SORTLINK_LEN - cur_sort_index as u32 + sort_index;
+    }
+
+    // 计算过期时间
+    ((roll_num - 1) << OS_TSK_SORTLINK_LOGLEN) + sort_index
+}
