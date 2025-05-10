@@ -1,7 +1,8 @@
 use super::list::LinkedList;
 use crate::{
-    LOS_NOK, LOS_OK,
+    LOS_NOK, LOS_OK, container_of,
     mem::{defs::m_aucSysMem0, memory::los_mem_alloc},
+    offset_of,
 };
 
 /// 无效值常量
@@ -48,6 +49,13 @@ impl SortLinkList {
     fn get_sort_index(&self) -> u32 {
         (self.idx_roll_num & OS_TSK_HIGH_BITS_MASK) >> OS_TSK_LOW_BITS
     }
+
+    /// 从当前节点的轮数中减去指定的值，保留索引部分不变
+    #[inline]
+    fn roll_num_sub_value(&mut self, value: u32) {
+        let self_roll_num = self.get_roll_num();
+        self.set_roll_num(self_roll_num - value);
+    }
 }
 
 /// 排序链表属性
@@ -85,4 +93,96 @@ pub extern "C" fn os_sort_link_init(sort_link_header: &mut SortLinkAttribute) ->
     }
 
     LOS_OK
+}
+
+/// 将排序节点添加到排序链表中
+#[unsafe(export_name = "OsAdd2SortLink")]
+pub extern "C" fn os_add_to_sort_link(
+    sort_link_header: &SortLinkAttribute,
+    sort_list: &mut SortLinkList,
+) {
+    // 限制 idxRollNum 的最大值，防止进位影响高位的索引计算
+    if sort_list.idx_roll_num > OS_TSK_MAX_ROLLNUM {
+        sort_list.idx_roll_num = OS_TSK_MAX_ROLLNUM;
+    }
+
+    // 计算超时值和排序索引
+    let timeout = sort_list.idx_roll_num;
+    let mut sort_index = timeout & OS_TSK_SORTLINK_MASK;
+    let mut roll_num = (timeout >> OS_TSK_SORTLINK_LOGLEN) + 1;
+
+    // 特殊情况：当索引为0时，轮数需要减1
+    if sort_index == 0 {
+        roll_num -= 1;
+    }
+
+    // 设置轮数部分(低位)
+    sort_list.set_roll_num(roll_num);
+
+    // 调整排序索引，加上当前游标位置并确保在有效范围内
+    sort_index = (sort_index + sort_link_header.cursor as u32) & OS_TSK_SORTLINK_MASK;
+
+    // 设置排序索引部分(高位)
+    sort_list.set_sort_index(sort_index);
+
+    unsafe {
+        // 获取对应桶的链表头
+        let list_object = sort_link_header.sort_link.add(sort_index as usize);
+
+        // 如果链表为空，直接插入
+        if (*list_object).next == list_object {
+            LinkedList::tail_insert(list_object, &mut sort_list.sort_link_node);
+        } else {
+            // 获取第一个节点并开始查找合适的插入位置
+            let mut current_list = container_of!((*list_object).next, SortLinkList, sort_link_node);
+
+            loop {
+                // 获取当前节点和新节点的轮数值
+                let current_roll_num = (*current_list).get_roll_num();
+                let sort_list_roll_num = sort_list.get_roll_num();
+
+                if current_roll_num <= sort_list_roll_num {
+                    // 当前节点轮数小于等于新节点轮数
+                    // 新节点轮数减去当前节点轮数，表示相对时间差
+                    sort_list.roll_num_sub_value(current_roll_num);
+                } else {
+                    // 当前节点轮数大于新节点轮数
+                    // 当前节点轮数减去新节点轮数，准备在当前节点前插入
+                    (*current_list).roll_num_sub_value(sort_list_roll_num);
+                    break;
+                }
+                // 移动到下一个节点继续比较
+                current_list = container_of!(
+                    (*current_list).sort_link_node.next,
+                    SortLinkList,
+                    sort_link_node
+                );
+
+                // 如果已经到达链表末尾，结束查找
+                if &mut (*current_list).sort_link_node as *mut LinkedList == list_object {
+                    break;
+                }
+            }
+
+            // 在找到的位置插入新节点
+            LinkedList::tail_insert(
+                &mut (*current_list).sort_link_node,
+                &mut sort_list.sort_link_node,
+            );
+        }
+    }
+}
+
+#[inline]
+fn os_check_sort_link(list_head: *mut LinkedList, list_node: *mut LinkedList) {
+    unsafe {
+        let mut tmp = (*list_node).prev;
+        while tmp != list_node {
+            if tmp == list_head {
+                return;
+            }
+            tmp = (*tmp).prev;
+        }
+    }
+    // TODO OsBackTrace
 }
