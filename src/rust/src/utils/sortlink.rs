@@ -276,3 +276,56 @@ pub extern "C" fn os_sort_link_get_next_expire_time(sort_link_header: &SortLinkA
         u32::MAX
     }
 }
+
+/// 更新排序链表中所有节点的到期时间
+///
+/// 当系统休眠或跳过一段时间后，需要调整所有定时器的到期时间
+#[unsafe(export_name = "OsSortLinkUpdateExpireTime")]
+pub extern "C" fn os_sort_link_update_expire_time(
+    sleep_ticks: u32,
+    sort_link_header: &mut SortLinkAttribute,
+) {
+    // 如果跳过的时钟周期为0，直接返回
+    if sleep_ticks == 0 {
+        return;
+    }
+
+    // 计算排序索引和轮数
+    let sort_index = sleep_ticks & OS_TSK_SORTLINK_MASK;
+    let mut roll_num = (sleep_ticks >> OS_TSK_SORTLINK_LOGLEN) + 1;
+    let mut sort_idx = sort_index;
+
+    // 特殊情况处理：索引为0时
+    if sort_index == 0 {
+        roll_num -= 1;
+        sort_idx = OS_TSK_SORTLINK_LEN;
+    }
+
+    // 遍历所有排序桶
+    for i in 0..OS_TSK_SORTLINK_LEN {
+        unsafe {
+            // 获取当前桶的链表头
+            let list_object = sort_link_header
+                .sort_link
+                .add(((sort_link_header.cursor as u32 + i) & OS_TSK_SORTLINK_MASK) as usize);
+
+            // 检查链表是否为空
+            if !LinkedList::is_empty(list_object) {
+                // 获取第一个节点
+                let sort_list = container_of!((*list_object).next, SortLinkList, sort_link_node);
+
+                // 减少轮数，减去(roll_num - 1)
+                (*sort_list).roll_num_sub_value(roll_num - 1);
+
+                // 对于特定范围内的桶，额外减少1个轮数
+                if (i > 0) && (i < sort_idx) {
+                    (*sort_list).roll_num_sub_value(1);
+                }
+            }
+        }
+    }
+
+    // 更新游标位置
+    sort_link_header.cursor =
+        ((sort_link_header.cursor as u32 + sleep_ticks - 1) % OS_TSK_SORTLINK_LEN) as u16;
+}
