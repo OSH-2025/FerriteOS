@@ -26,6 +26,10 @@ pub struct Percpu {
 }
 
 unsafe extern "C" {
-    #[link_name = "g_percpu"]
     static mut g_percpu: Percpu;
+}
+
+#[inline]
+pub fn os_percpu_get() -> &'static mut Percpu {
+    unsafe { &mut g_percpu }
 }
