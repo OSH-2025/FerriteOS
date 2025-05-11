@@ -5,7 +5,6 @@ src/rust/target
 src/arch
 src/build
 src/compat
-src/components
 src/demos
 src/doc
 src/drivers
@@ -23,4 +22,3 @@ src/.config.old
 src/config.mk
 src/Makefile
 src/README.md
-src/README_EN.md
