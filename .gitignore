@@ -5,7 +5,6 @@ src/rust/target
 src/arch
 src/build
 src/compat
-src/components
 src/demos
 src/doc
 src/drivers
