@@ -1,6 +1,9 @@
 use crate::{
     percpu::os_percpu_get,
-    utils::sortlink::{SortLinkList, os_add_to_sort_link},
+    utils::{
+        list::LinkedList,
+        sortlink::{SortLinkList, os_add_to_sort_link},
+    },
 };
 
 pub type SwtmrProcFunc = Option<unsafe extern "C" fn(arg: usize) -> ()>;
@@ -45,6 +48,13 @@ pub struct LosSwtmrCB {
     /// 软件定时器超时处理回调函数
     pub handler: SwtmrProcFunc,
 }
+
+#[unsafe(no_mangle)]
+#[allow(non_upper_case_globals)]
+pub static mut g_swtmrFreeList: LinkedList = LinkedList {
+    prev: core::ptr::null_mut(),
+    next: core::ptr::null_mut(),
+};
 
 #[unsafe(export_name = "OsSwtmrStart")]
 pub extern "C" fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
