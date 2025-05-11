@@ -1,5 +1,7 @@
 use crate::utils::sortlink::SortLinkAttribute;
 
+const LOSCFG_KERNEL_CORE_NUM: usize = 1;
+
 /// 每个CPU核心的特定数据结构
 #[repr(C)]
 pub struct Percpu {
@@ -26,10 +28,10 @@ pub struct Percpu {
 }
 
 unsafe extern "C" {
-    static mut g_percpu: Percpu;
+    static mut g_percpu: [Percpu; LOSCFG_KERNEL_CORE_NUM];
 }
 
 #[inline]
 pub fn os_percpu_get() -> &'static mut Percpu {
-    unsafe { &mut g_percpu }
+    unsafe { &mut g_percpu[0] }
 }
