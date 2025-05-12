@@ -18,15 +18,15 @@ pub const OS_MEM_MIN_POOL_SIZE: usize =
     OS_MULTI_DLNK_HEAD_SIZE + (2 * OS_MEM_NODE_HEAD_SIZE) + OS_MEM_POOL_INFO_SIZE;
 
 unsafe extern "C" {
-    pub static mut g_memSpin: spinlock::Spinlock;
+    pub unsafe static mut g_memSpin: spinlock::Spinlock;
 
-    pub static mut m_aucSysMem0: *mut u8;
+    pub unsafe static mut m_aucSysMem0: *mut u8;
 
-    pub static mut m_aucSysMem1: *mut u8;
+    pub unsafe static mut m_aucSysMem1: *mut u8;
 
-    pub static mut g_sys_mem_addr_end: usize;
+    pub unsafe static mut g_sys_mem_addr_end: usize;
 
-    pub static __heap_start: u8;
+    pub unsafe static __heap_start: u8;
 }
 
 #[inline]

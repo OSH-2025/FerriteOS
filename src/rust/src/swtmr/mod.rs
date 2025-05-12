@@ -1,7 +1,7 @@
 use core::ffi::c_char;
 
 use crate::{
-    LOS_OK, container_of,
+    LOS_OK, container_of, hwi,
     mem::{
         defs::m_aucSysMem0,
         memory::{los_mem_alloc, los_mem_free},
@@ -25,10 +25,16 @@ const KERNEL_TSK_SWTMR_STACK_SIZE: u32 = 24576;
 const LOS_TASK_STATUS_DETACHED: u32 = 0x0100;
 const OS_SWTMR_HANDLE_QUEUE_SIZE: u16 = KERNEL_SWTMR_LIMIT;
 
+pub const LOS_ERRNO_SWTMR_PTR_NULL: u32 = 0x02000300;
+pub const LOS_ERRNO_SWTMR_INTERVAL_NOT_SUITED: u32 = 0x02000301;
+pub const LOS_ERRNO_SWTMR_MODE_INVALID: u32 = 0x02000302;
+pub const LOS_ERRNO_SWTMR_MAXSIZE: u32 = 0x02000304;
 pub const LOS_ERRNO_SWTMR_NO_MEMORY: u32 = 0x02000307;
 pub const LOS_ERRNO_SWTMR_QUEUE_CREATE_FAILED: u32 = 0x0200030b;
 pub const LOS_ERRNO_SWTMR_TASK_CREATE_FAILED: u32 = 0x0200030c;
 pub const LOS_ERRNO_SWTMR_SORTLINK_CREATE_FAILED: u32 = 0x02000311;
+// pub const SWTMR_CREATE: u32 = 0x02000006;
+// pub const LOS_ERRNO_SWTMR_RET_PTR_NULL: u32 = 0x02000303;
 
 pub type SwtmrProcFunc = Option<unsafe extern "C" fn(arg: usize) -> ()>;
 
@@ -134,6 +140,16 @@ unsafe extern "C" {
 
     #[link_name = "OS_TCB_FROM_TID_WRAPPER"]
     unsafe fn os_tcb_from_tid(task_id: u32);
+}
+
+#[inline]
+pub fn swtmr_lock() -> u32 {
+    hwi::los_int_lock()
+}
+
+#[inline]
+pub fn swtmr_unlock(int_save: u32) {
+    hwi::los_int_restore(int_save);
 }
 
 // TODO 删除export_name
@@ -438,4 +454,67 @@ fn os_swtmr_time_get(swtmr: &LosSwtmrCB) -> u32 {
     let sort_link_header = &os_percpu_get().swtmr_sort_link;
     // 获取目标过期时间
     os_sort_link_get_target_expire_time(sort_link_header, &swtmr.sort_list)
+}
+
+#[unsafe(export_name = "LOS_SwtmrCreate")]
+pub extern "C" fn los_swtmr_create(
+    interval: u32,
+    mode: u8,
+    handler: SwtmrProcFunc,
+    swtmr_id: &mut u16,
+    arg: usize,
+) -> u32 {
+    // 参数验证
+    if interval == 0 {
+        return LOS_ERRNO_SWTMR_INTERVAL_NOT_SUITED;
+    }
+
+    // 验证模式是否有效
+    if mode != SwtmrMode::Once as u8
+        && mode != SwtmrMode::Period as u8
+        && mode != SwtmrMode::NoSelfDelete as u8
+    {
+        return LOS_ERRNO_SWTMR_MODE_INVALID;
+    }
+
+    // 验证回调函数指针
+    if handler.is_none() {
+        return LOS_ERRNO_SWTMR_PTR_NULL;
+    }
+
+    let int_save = swtmr_lock();
+
+    // 检查空闲列表是否为空
+    if LinkedList::is_empty(&raw mut SWTMR_FREE_LIST) {
+        swtmr_unlock(int_save);
+        return LOS_ERRNO_SWTMR_MAXSIZE;
+    }
+
+    let free_node = unsafe { SWTMR_FREE_LIST.next };
+
+    // 从空闲列表中获取一个定时器控制块
+    let sort_list = container_of!(free_node, SortLinkList, sort_link_node);
+
+    let swtmr = container_of!(sort_list, LosSwtmrCB, sort_list);
+
+    // 从空闲列表中删除该节点
+    LinkedList::remove(free_node);
+    swtmr_unlock(int_save);
+
+    let swtmr = unsafe { &mut *swtmr };
+    swtmr.handler = handler;
+    swtmr.mode = mode;
+    swtmr.overrun = 0;
+    swtmr.interval = interval;
+    swtmr.expiry = interval;
+    swtmr.arg = arg;
+    swtmr.state = SwtmrState::Created as u8;
+
+    // 设置排序链表值为0
+    swtmr.sort_list.idx_roll_num = 0;
+
+    // 设置输出参数
+    *swtmr_id = swtmr.timer_id;
+
+    LOS_OK
 }
