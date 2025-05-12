@@ -37,7 +37,7 @@ impl SortLinkList {
 
     /// 获取轮数（低位部分）
     #[inline]
-    fn get_roll_num(&self) -> u32 {
+    pub fn get_roll_num(&self) -> u32 {
         self.idx_roll_num & OS_TSK_LOW_BITS_MASK
     }
 
@@ -60,6 +60,11 @@ impl SortLinkList {
         let self_roll_num = self.get_roll_num();
         self.set_roll_num(self_roll_num + value);
     }
+
+    #[inline]
+    pub fn roll_num_dec(&mut self) {
+        self.roll_num_sub_value(1);
+    }
 }
 
 /// 排序链表属性
@@ -70,6 +75,20 @@ pub struct SortLinkAttribute {
     /// 游标
     pub cursor: u16,
     _reserved: u16,
+}
+
+impl SortLinkAttribute {
+    /// 更新排序链表的游标值
+    #[inline]
+    pub fn advance_cursor(&mut self) {
+        self.cursor = (self.cursor + 1) & OS_TSK_SORTLINK_MASK as u16;
+    }
+
+    /// 获取当前游标位置的链表对象
+    #[inline]
+    pub fn list_at_cursor(&self) -> *mut LinkedList {
+        unsafe { self.sort_link.add(self.cursor as usize) }
+    }
 }
 
 #[unsafe(export_name = "OsSortLinkInit")]

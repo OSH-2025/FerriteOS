@@ -1,11 +1,12 @@
 use core::ffi::c_char;
 
 use crate::{
-    LOS_OK,
+    LOS_OK, container_of,
     mem::{
         defs::m_aucSysMem0,
         memory::{los_mem_alloc, los_mem_free},
     },
+    offset_of,
     percpu::os_percpu_get,
     task::{TaskEntryFunc, TaskInitParam, los_task_create},
     utils::{
@@ -104,7 +105,7 @@ pub static mut SWTMR_CB_ARRAY: *mut LosSwtmrCB = core::ptr::null_mut();
 
 unsafe extern "C" {
     #[link_name = "LOS_QueueReadCopy"]
-    fn los_queue_read_copy(
+    unsafe fn los_queue_read_copy(
         queue_id: u32,
         buffer_addr: *mut core::ffi::c_void,
         buffer_size: *mut u32,
@@ -112,7 +113,7 @@ unsafe extern "C" {
     ) -> u32;
 
     #[link_name = "LOS_QueueCreate"]
-    fn los_queue_create(
+    unsafe fn los_queue_create(
         queue_name: *const c_char,
         len: u16,
         queue_id: *mut u32,
@@ -120,8 +121,16 @@ unsafe extern "C" {
         max_msg_size: u16,
     ) -> u32;
 
+    #[link_name = "LOS_QueueWriteCopy"]
+    unsafe fn los_queue_write_copy(
+        queue_id: u32,
+        buffer_addr: *const core::ffi::c_void,
+        buffer_size: u32,
+        timeout: u32,
+    ) -> u32;
+
     #[link_name = "OS_TCB_FROM_TID_WRAPPER"]
-    fn os_tcb_from_tid(task_id: u32);
+    unsafe fn os_tcb_from_tid(task_id: u32);
 }
 
 // TODO 删除export_name
@@ -315,4 +324,96 @@ pub extern "C" fn os_swtmr_init() -> u32 {
     }
 
     LOS_OK
+}
+
+#[unsafe(export_name = "OsSwtmrScan")]
+pub extern "C" fn os_swtmr_scan() {
+    // 获取当前CPU的软件定时器排序链表
+    let swtmr_sort_link = &mut os_percpu_get().swtmr_sort_link;
+
+    // 更新游标并获取当前链表对象
+    swtmr_sort_link.advance_cursor();
+    let list_object = swtmr_sort_link.list_at_cursor();
+
+    // 如果链表为空，返回
+    if LinkedList::is_empty(list_object) {
+        return;
+    }
+
+    unsafe {
+        // 获取第一个节点并减少轮数
+        let mut sort_list = container_of!((*list_object).next, SortLinkList, sort_link_node);
+        (*sort_list).roll_num_dec();
+
+        // 处理所有轮数为0的节点
+        while (*sort_list).get_roll_num() == 0 {
+            // 获取链表的第一个节点
+            sort_list = container_of!((*list_object).next, SortLinkList, sort_link_node);
+
+            // 从链表中删除节点
+            LinkedList::remove(&mut (*sort_list).sort_link_node);
+
+            // 获取对应的定时器控制块
+            let swtmr = container_of!(sort_list, LosSwtmrCB, sort_list);
+            let swtmr = &mut *swtmr;
+
+            #[cfg(feature = "swtmr_in_isr")]
+            {
+                // 保存处理函数和参数
+                let handler = swtmr.handler;
+                let arg = swtmr.arg;
+
+                // 更新定时器
+                os_swtmr_update(swtmr);
+
+                // 如果处理函数非空
+                if let Some(handler_fn) = handler {
+                    // 执行回调
+                    handler_fn(arg);
+                }
+            }
+
+            // 根据编译选项选择不同的处理方式
+            #[cfg(not(feature = "swtmr_in_isr"))]
+            {
+                // 分配处理项内存
+                let swtmr_handler = los_mem_alloc(
+                    m_aucSysMem0 as *mut core::ffi::c_void,
+                    core::mem::size_of::<SwtmrHandlerItem>() as u32,
+                ) as *mut SwtmrHandlerItem;
+
+                if !swtmr_handler.is_null() {
+                    // 设置处理项数据
+                    (*swtmr_handler).handler = swtmr.handler;
+                    (*swtmr_handler).arg = swtmr.arg;
+
+                    // 写入队列
+                    if los_queue_write_copy(
+                        os_percpu_get().swtmr_handler_queue,
+                        &swtmr_handler as *const _ as *const core::ffi::c_void,
+                        core::mem::size_of::<*const SwtmrHandlerItem>() as u32,
+                        0,
+                    ) != LOS_OK
+                    {
+                        // 写入失败，释放内存
+                        los_mem_free(
+                            m_aucSysMem0 as *mut core::ffi::c_void,
+                            swtmr_handler as *mut core::ffi::c_void,
+                        );
+                    }
+                }
+
+                // 更新定时器
+                os_swtmr_update(swtmr);
+            }
+
+            // 检查链表是否为空
+            if LinkedList::is_empty(list_object) {
+                break;
+            }
+
+            // 获取下一个节点
+            sort_list = container_of!((*list_object).next, SortLinkList, sort_link_node);
+        }
+    }
 }
