@@ -1,6 +1,5 @@
 /// 任务入口函数类型
-pub type TaskEntryFunc =
-    Option<unsafe extern "C" fn(param: *mut core::ffi::c_void) -> *mut core::ffi::c_void>;
+pub type TaskEntryFunc = Option<fn(param: *mut core::ffi::c_void) -> *mut core::ffi::c_void>;
 
 /// 任务初始化参数结构体
 #[repr(C)]
@@ -35,4 +34,13 @@ impl Default for TaskInitParam {
             resved: 0,
         }
     }
+}
+
+unsafe extern "C" {
+    #[link_name = "LOS_TaskCreate"]
+    fn los_task_create_wrapper(task_id: &mut u32, init_param: &mut TaskInitParam) -> u32;
+}
+
+pub fn los_task_create(task_id: &mut u32, init_param: &mut TaskInitParam) -> u32 {
+    unsafe { los_task_create_wrapper(task_id, init_param) }
 }
