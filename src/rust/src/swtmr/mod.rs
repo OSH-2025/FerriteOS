@@ -88,6 +88,9 @@ pub static mut SWTMR_FREE_LIST: LinkedList = LinkedList {
     next: core::ptr::null_mut(),
 };
 
+#[unsafe(export_name = "g_swtmrCBArray")]
+pub static mut SWTMR_CB_ARRAY: *mut LosSwtmrCB = core::ptr::null_mut();
+
 // TODO 删除export_name
 #[unsafe(export_name = "OsSwtmrStart")]
 pub extern "C" fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
