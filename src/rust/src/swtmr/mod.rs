@@ -11,7 +11,10 @@ use crate::{
     task::{TaskEntryFunc, TaskInitParam, los_task_create},
     utils::{
         list::LinkedList,
-        sortlink::{SortLinkList, os_add_to_sort_link, os_delete_sort_link, os_sort_link_init},
+        sortlink::{
+            SortLinkList, os_add_to_sort_link, os_delete_sort_link,
+            os_sort_link_get_target_expire_time, os_sort_link_init,
+        },
     },
 };
 
@@ -416,6 +419,7 @@ pub extern "C" fn os_swtmr_scan() {
     }
 }
 
+#[inline]
 fn os_swtmr_stop(swtmr: &mut LosSwtmrCB) {
     let sort_link_header = &os_percpu_get().swtmr_sort_link;
 
@@ -424,6 +428,14 @@ fn os_swtmr_stop(swtmr: &mut LosSwtmrCB) {
 
     // 更新定时器状态为已创建
     swtmr.state = SwtmrState::Created as u8;
+
     // 重置重复计数
     swtmr.overrun = 0;
+}
+
+#[inline]
+fn os_swtmr_time_get(swtmr: &LosSwtmrCB) -> u32 {
+    let sort_link_header = &os_percpu_get().swtmr_sort_link;
+    // 获取目标过期时间
+    os_sort_link_get_target_expire_time(sort_link_header, &swtmr.sort_list)
 }
