@@ -6,6 +6,9 @@ use crate::{
     },
 };
 
+pub const KERNEL_SWTMR_LIMIT: u16 = 1024;
+pub const OS_SWTMR_MAX_TIMERID: u16 = (u16::MAX / KERNEL_SWTMR_LIMIT) * KERNEL_SWTMR_LIMIT;
+
 pub type SwtmrProcFunc = Option<unsafe extern "C" fn(arg: usize) -> ()>;
 
 #[repr(C)]
@@ -15,15 +18,38 @@ pub struct SwtmrHandlerItem {
 }
 
 pub enum SwtmrState {
-    Unused = 0,  // 软件定时器未使用
-    Created = 1, // 软件定时器已创建
-    Ticking = 2, // 软件定时器正在计时
+    Unused = 0,
+    Created = 1,
+    Ticking = 2,
+}
+
+impl SwtmrState {
+    #[allow(dead_code)]
+    fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(SwtmrState::Unused),
+            1 => Some(SwtmrState::Created),
+            2 => Some(SwtmrState::Ticking),
+            _ => None,
+        }
+    }
 }
 
 pub enum SwtmrMode {
     Once = 0,
     Period = 1,
     NoSelfDelete = 2,
+}
+
+impl SwtmrMode {
+    fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(SwtmrMode::Once),
+            1 => Some(SwtmrMode::Period),
+            2 => Some(SwtmrMode::NoSelfDelete),
+            _ => None,
+        }
+    }
 }
 
 /// 软件定时器控制块
@@ -49,13 +75,14 @@ pub struct LosSwtmrCB {
     pub handler: SwtmrProcFunc,
 }
 
-#[unsafe(no_mangle)]
-#[allow(non_upper_case_globals)]
-pub static mut g_swtmrFreeList: LinkedList = LinkedList {
+/// Free list of Software Timers
+#[unsafe(export_name = "g_swtmrFreeList")]
+pub static mut SWTMR_FREE_LIST: LinkedList = LinkedList {
     prev: core::ptr::null_mut(),
     next: core::ptr::null_mut(),
 };
 
+// TODO 删除export_name
 #[unsafe(export_name = "OsSwtmrStart")]
 pub extern "C" fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
     // 根据定时器类型和重复次数选择合适的过期时间
@@ -73,4 +100,39 @@ pub extern "C" fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
     os_add_to_sort_link(&os_percpu_get().swtmr_sort_link, &mut swtmr.sort_list);
     // 更新定时器状态为正在计时
     swtmr.state = SwtmrState::Ticking as u8;
+}
+
+// TODO 删除export_name
+#[unsafe(export_name = "OsSwtmrDelete")]
+pub extern "C" fn os_swtmr_delete(swtmr: &mut LosSwtmrCB) {
+    // 将定时器的排序链表节点插入到空闲链表尾部
+    LinkedList::tail_insert(
+        &raw mut SWTMR_FREE_LIST,
+        &mut swtmr.sort_list.sort_link_node,
+    );
+    // 更新定时器状态为未使用
+    swtmr.state = SwtmrState::Unused as u8;
+}
+
+// TODO 删除export_name
+#[unsafe(export_name = "OsSwtmrUpdate")]
+pub extern "C" fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
+    match SwtmrMode::from_u8(swtmr.mode) {
+        Some(SwtmrMode::Once) => {
+            os_swtmr_delete(swtmr);
+            if swtmr.timer_id < (OS_SWTMR_MAX_TIMERID - KERNEL_SWTMR_LIMIT) {
+                swtmr.timer_id += KERNEL_SWTMR_LIMIT;
+            } else {
+                swtmr.timer_id %= KERNEL_SWTMR_LIMIT;
+            }
+        }
+        Some(SwtmrMode::Period) => {
+            swtmr.overrun += 1;
+            os_swtmr_start(swtmr);
+        }
+        Some(SwtmrMode::NoSelfDelete) => {
+            swtmr.state = SwtmrState::Created as u8;
+        }
+        None => {}
+    }
 }
