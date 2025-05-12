@@ -143,7 +143,7 @@ pub extern "C" fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
     }
 }
 
-// TODO LOSCFG_BASE_CORE_SWTMR_IN_ISR
+#[cfg(not(feature = "swtmr_in_isr"))]
 fn os_swtmr_task() {
     // 读取大小设置为指针大小
     const READ_SIZE: u32 = core::mem::size_of::<*const SwtmrHandlerItem>() as u32;
@@ -188,6 +188,7 @@ fn os_swtmr_task() {
 }
 
 // TODO 删除export_name
+#[cfg(not(feature = "swtmr_in_isr"))]
 #[unsafe(export_name = "OsSwtmrTaskCreate")]
 pub extern "C" fn os_swtmr_task_create() -> u32 {
     let mut swtmr_task_id: u32 = 0;
