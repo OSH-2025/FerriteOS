@@ -2,6 +2,7 @@ use crate::{
     LOS_OK,
     mem::{defs::m_aucSysMem0, memory::los_mem_free},
     percpu::os_percpu_get,
+    task::{TaskEntryFunc, TaskInitParam, los_task_create},
     utils::{
         list::LinkedList,
         sortlink::{SortLinkList, os_add_to_sort_link},
@@ -11,6 +12,8 @@ use crate::{
 const KERNEL_SWTMR_LIMIT: u16 = 1024;
 const OS_SWTMR_MAX_TIMERID: u16 = (u16::MAX / KERNEL_SWTMR_LIMIT) * KERNEL_SWTMR_LIMIT;
 const LOS_WAIT_FOREVER: u32 = u32::MAX;
+const KERNEL_TSK_SWTMR_STACK_SIZE: u32 = 24576;
+const LOS_TASK_STATUS_DETACHED: u32 = 0x0100;
 
 pub type SwtmrProcFunc = Option<unsafe extern "C" fn(arg: usize) -> ()>;
 
@@ -140,8 +143,8 @@ pub extern "C" fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
     }
 }
 
-#[unsafe(export_name = "OsSwtmrTask")]
-pub extern "C" fn os_swtmr_task() {
+// TODO LOSCFG_BASE_CORE_SWTMR_IN_ISR
+fn os_swtmr_task() {
     // 读取大小设置为指针大小
     const READ_SIZE: u32 = core::mem::size_of::<*const SwtmrHandlerItem>() as u32;
 
@@ -184,6 +187,34 @@ pub extern "C" fn os_swtmr_task() {
     }
 }
 
+// TODO 删除export_name
+#[unsafe(export_name = "OsSwtmrTaskCreate")]
+pub extern "C" fn os_swtmr_task_create() -> u32 {
+    let mut swtmr_task_id: u32 = 0;
+
+    // 创建任务参数结构
+    let mut swtmr_task = TaskInitParam {
+        pfn_task_entry: unsafe { core::mem::transmute::<_, TaskEntryFunc>(os_swtmr_task as usize) },
+        stack_size: KERNEL_TSK_SWTMR_STACK_SIZE,
+        name: b"Swt_Task\0".as_ptr(),
+        task_prio: 0,
+        resved: LOS_TASK_STATUS_DETACHED,
+        p_args: core::ptr::null_mut(),
+    };
+
+    // 创建任务
+    let ret = los_task_create(&mut swtmr_task_id, &mut swtmr_task);
+    // 如果创建成功，设置任务属性
+    if ret == LOS_OK {
+        os_percpu_get().swtmr_task_id = swtmr_task_id;
+        unsafe {
+            // 设置系统任务标志
+            os_tcb_from_tid(swtmr_task_id);
+        }
+    }
+    ret
+}
+
 unsafe extern "C" {
     #[link_name = "LOS_QueueReadCopy"]
     fn los_queue_read_copy(
@@ -192,4 +223,7 @@ unsafe extern "C" {
         buffer_size: *mut u32,
         timeout: u32,
     ) -> u32;
+
+    #[link_name = "OS_TCB_FROM_TID_WRAPPER"]
+    fn os_tcb_from_tid(task_id: u32);
 }

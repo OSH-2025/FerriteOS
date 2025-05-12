@@ -3,12 +3,13 @@
 
 use panic_halt as _;
 
+pub mod config;
 pub mod hwi;
 pub mod mem;
-pub mod spinlock;
-pub mod utils;
-pub mod config;
-pub mod swtmr;
 pub mod percpu;
+pub mod spinlock;
+pub mod swtmr;
+pub mod task;
+pub mod utils;
 
 pub use config::*;

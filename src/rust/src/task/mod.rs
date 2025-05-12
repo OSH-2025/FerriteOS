@@ -1,5 +1,6 @@
 /// 任务入口函数类型
-pub type TaskEntryFunc = Option<fn(param: *mut core::ffi::c_void) -> *mut core::ffi::c_void>;
+pub type TaskEntryFunc =
+    Option<extern "C" fn(param: *mut core::ffi::c_void) -> *mut core::ffi::c_void>;
 
 /// 任务初始化参数结构体
 #[repr(C)]
