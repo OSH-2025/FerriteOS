@@ -11,7 +11,7 @@ use crate::{
     task::{TaskEntryFunc, TaskInitParam, los_task_create},
     utils::{
         list::LinkedList,
-        sortlink::{SortLinkList, os_add_to_sort_link, os_sort_link_init},
+        sortlink::{SortLinkList, os_add_to_sort_link, os_delete_sort_link, os_sort_link_init},
     },
 };
 
@@ -165,9 +165,7 @@ pub extern "C" fn os_swtmr_delete(swtmr: &mut LosSwtmrCB) {
     swtmr.state = SwtmrState::Unused as u8;
 }
 
-// TODO 删除export_name
-#[unsafe(export_name = "OsSwtmrUpdate")]
-pub extern "C" fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
+fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
     match SwtmrMode::from_u8(swtmr.mode) {
         Some(SwtmrMode::Once) => {
             os_swtmr_delete(swtmr);
@@ -416,4 +414,16 @@ pub extern "C" fn os_swtmr_scan() {
             sort_list = container_of!((*list_object).next, SortLinkList, sort_link_node);
         }
     }
+}
+
+fn os_swtmr_stop(swtmr: &mut LosSwtmrCB) {
+    let sort_link_header = &os_percpu_get().swtmr_sort_link;
+
+    // 从排序链表中删除定时器
+    os_delete_sort_link(sort_link_header, &mut swtmr.sort_list);
+
+    // 更新定时器状态为已创建
+    swtmr.state = SwtmrState::Created as u8;
+    // 重置重复计数
+    swtmr.overrun = 0;
 }
