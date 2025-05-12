@@ -1,4 +1,6 @@
 use crate::{
+    LOS_OK,
+    mem::{defs::m_aucSysMem0, memory::los_mem_free},
     percpu::os_percpu_get,
     utils::{
         list::LinkedList,
@@ -6,8 +8,9 @@ use crate::{
     },
 };
 
-pub const KERNEL_SWTMR_LIMIT: u16 = 1024;
-pub const OS_SWTMR_MAX_TIMERID: u16 = (u16::MAX / KERNEL_SWTMR_LIMIT) * KERNEL_SWTMR_LIMIT;
+const KERNEL_SWTMR_LIMIT: u16 = 1024;
+const OS_SWTMR_MAX_TIMERID: u16 = (u16::MAX / KERNEL_SWTMR_LIMIT) * KERNEL_SWTMR_LIMIT;
+const LOS_WAIT_FOREVER: u32 = u32::MAX;
 
 pub type SwtmrProcFunc = Option<unsafe extern "C" fn(arg: usize) -> ()>;
 
@@ -135,4 +138,58 @@ pub extern "C" fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
         }
         None => {}
     }
+}
+
+#[unsafe(export_name = "OsSwtmrTask")]
+pub extern "C" fn os_swtmr_task() {
+    // 读取大小设置为指针大小
+    const READ_SIZE: u32 = core::mem::size_of::<*const SwtmrHandlerItem>() as u32;
+
+    let mut read_size = READ_SIZE;
+    // 获取当前CPU的软件定时器队列
+    let swtmr_handler_queue = os_percpu_get().swtmr_handler_queue;
+    let mut swtmr_handler: *mut SwtmrHandlerItem = core::ptr::null_mut();
+
+    // 无限循环处理软件定时器回调
+    loop {
+        // 从队列中读取定时器处理项
+        let ret = unsafe {
+            los_queue_read_copy(
+                swtmr_handler_queue,
+                &mut swtmr_handler as *mut _ as *mut core::ffi::c_void,
+                &mut read_size,
+                LOS_WAIT_FOREVER,
+            )
+        };
+
+        // 检查读取结果和读取大小
+        if ret == LOS_OK && read_size == READ_SIZE {
+            unsafe {
+                // 从处理项中提取处理函数和参数
+                let handler = (*swtmr_handler).handler;
+                let arg = (*swtmr_handler).arg;
+
+                // 释放处理项内存
+                los_mem_free(
+                    m_aucSysMem0 as *mut core::ffi::c_void,
+                    swtmr_handler as *mut core::ffi::c_void,
+                );
+
+                // 如果处理函数有效，则执行处理函数
+                if let Some(handler_fn) = handler {
+                    handler_fn(arg);
+                }
+            }
+        }
+    }
+}
+
+unsafe extern "C" {
+    #[link_name = "LOS_QueueReadCopy"]
+    fn los_queue_read_copy(
+        queue_id: u32,
+        buffer_addr: *mut core::ffi::c_void,
+        buffer_size: *mut u32,
+        timeout: u32,
+    ) -> u32;
 }
