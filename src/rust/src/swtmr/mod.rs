@@ -35,6 +35,7 @@ pub const LOS_ERRNO_SWTMR_NO_MEMORY: u32 = 0x02000307;
 pub const LOS_ERRNO_SWTMR_QUEUE_CREATE_FAILED: u32 = 0x0200030b;
 pub const LOS_ERRNO_SWTMR_TASK_CREATE_FAILED: u32 = 0x0200030c;
 pub const LOS_ERRNO_SWTMR_SORTLINK_CREATE_FAILED: u32 = 0x02000311;
+pub const LOS_ERRNO_SWTMR_NOT_STARTED: u32 = 0x0200030d;
 pub const LOS_ERRNO_SWTMR_STATUS_INVALID: u32 = 0x0200030e;
 // pub const SWTMR_CREATE: u32 = 0x02000006;
 // pub const LOS_ERRNO_SWTMR_RET_PTR_NULL: u32 = 0x02000303;
@@ -546,27 +547,71 @@ pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
     }
 
     // 根据定时器状态执行不同操作
-    let mut ret = LOS_OK;
-    match SwtmrState::from_u8(swtmr.state) {
+    let ret = match swtmr.state {
         // 未使用状态
-        Some(SwtmrState::Unused) => {
-            ret = LOS_ERRNO_SWTMR_NOT_CREATED;
-        }
+        x if x == SwtmrState::Unused as u8 => LOS_ERRNO_SWTMR_NOT_CREATED,
 
-        // 正在计时状态，先停止再启动
-        Some(SwtmrState::Ticking) => {
+        // 正在计时状态，停止定时器
+        x if x == SwtmrState::Ticking as u8 => {
             os_swtmr_stop(swtmr);
             os_swtmr_start(swtmr);
+            LOS_OK
         }
 
-        Some(SwtmrState::Created) => {
+        // 已创建但未启动状态
+        x if x == SwtmrState::Created as u8 => {
             os_swtmr_start(swtmr);
+            LOS_OK
         }
 
         // 其他状态视为无效
-        None => {
-            ret = LOS_ERRNO_SWTMR_STATUS_INVALID;
+        _ => LOS_ERRNO_SWTMR_STATUS_INVALID,
+    };
+    // 解锁
+    swtmr_unlock(int_save);
+
+    ret
+}
+
+#[unsafe(export_name = "LOS_SwtmrStop")]
+pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
+    // 检查定时器ID是否有效
+    if swtmr_id >= OS_SWTMR_MAX_TIMERID {
+        return LOS_ERRNO_SWTMR_ID_INVALID;
+    }
+
+    // 加锁保护访问
+    let int_save = swtmr_lock();
+
+    // 计算实际定时器索引
+    let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
+
+    // 获取对应的定时器控制块
+    let swtmr = unsafe { SWTMR_CB_ARRAY.add(swtmr_cb_id as usize) };
+    let swtmr = unsafe { &mut *swtmr };
+
+    // 再次验证定时器ID
+    if swtmr.timer_id != swtmr_id {
+        swtmr_unlock(int_save);
+        return LOS_ERRNO_SWTMR_ID_INVALID;
+    }
+
+    // 根据定时器状态执行不同操作
+    let ret = match swtmr.state {
+        // 未使用状态
+        x if x == SwtmrState::Unused as u8 => LOS_ERRNO_SWTMR_NOT_CREATED,
+
+        // 已创建但未启动状态
+        x if x == SwtmrState::Created as u8 => LOS_ERRNO_SWTMR_NOT_STARTED,
+
+        // 正在计时状态，停止定时器
+        x if x == SwtmrState::Ticking as u8 => {
+            os_swtmr_stop(&mut *swtmr);
+            LOS_OK
         }
+
+        // 其他状态视为无效
+        _ => LOS_ERRNO_SWTMR_STATUS_INVALID,
     };
 
     // 解锁
