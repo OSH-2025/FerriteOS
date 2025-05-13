@@ -29,10 +29,13 @@ pub const LOS_ERRNO_SWTMR_PTR_NULL: u32 = 0x02000300;
 pub const LOS_ERRNO_SWTMR_INTERVAL_NOT_SUITED: u32 = 0x02000301;
 pub const LOS_ERRNO_SWTMR_MODE_INVALID: u32 = 0x02000302;
 pub const LOS_ERRNO_SWTMR_MAXSIZE: u32 = 0x02000304;
+pub const LOS_ERRNO_SWTMR_ID_INVALID: u32 = 0x02000305;
+pub const LOS_ERRNO_SWTMR_NOT_CREATED: u32 = 0x02000306;
 pub const LOS_ERRNO_SWTMR_NO_MEMORY: u32 = 0x02000307;
 pub const LOS_ERRNO_SWTMR_QUEUE_CREATE_FAILED: u32 = 0x0200030b;
 pub const LOS_ERRNO_SWTMR_TASK_CREATE_FAILED: u32 = 0x0200030c;
 pub const LOS_ERRNO_SWTMR_SORTLINK_CREATE_FAILED: u32 = 0x02000311;
+pub const LOS_ERRNO_SWTMR_STATUS_INVALID: u32 = 0x0200030e;
 // pub const SWTMR_CREATE: u32 = 0x02000006;
 // pub const LOS_ERRNO_SWTMR_RET_PTR_NULL: u32 = 0x02000303;
 
@@ -44,6 +47,7 @@ pub struct SwtmrHandlerItem {
     pub arg: usize,
 }
 
+#[repr(u8)]
 pub enum SwtmrState {
     Unused = 0,
     Created = 1,
@@ -62,6 +66,7 @@ impl SwtmrState {
     }
 }
 
+#[repr(u8)]
 pub enum SwtmrMode {
     Once = 0,
     Period = 1,
@@ -143,18 +148,16 @@ unsafe extern "C" {
 }
 
 #[inline]
-pub fn swtmr_lock() -> u32 {
+fn swtmr_lock() -> u32 {
     hwi::los_int_lock()
 }
 
 #[inline]
-pub fn swtmr_unlock(int_save: u32) {
+fn swtmr_unlock(int_save: u32) {
     hwi::los_int_restore(int_save);
 }
 
-// TODO 删除export_name
-#[unsafe(export_name = "OsSwtmrStart")]
-pub extern "C" fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
+fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
     // 根据定时器类型和重复次数选择合适的过期时间
     let timeout = if (swtmr.overrun == 0)
         && ((swtmr.mode == SwtmrMode::Once as u8) || (swtmr.mode == SwtmrMode::NoSelfDelete as u8))
@@ -517,4 +520,57 @@ pub extern "C" fn los_swtmr_create(
     *swtmr_id = swtmr.timer_id;
 
     LOS_OK
+}
+
+#[unsafe(export_name = "LOS_SwtmrStart")]
+pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
+    // 检查定时器ID是否超出范围
+    if swtmr_id >= OS_SWTMR_MAX_TIMERID {
+        return LOS_ERRNO_SWTMR_ID_INVALID;
+    }
+
+    // 加锁保护访问
+    let int_save = swtmr_lock();
+
+    // 计算实际定时器索引
+    let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
+
+    // 获取对应的定时器控制块
+    let swtmr = unsafe { SWTMR_CB_ARRAY.add(swtmr_cb_id as usize) };
+    let swtmr = unsafe { &mut *swtmr };
+
+    // 二次检查定时器ID是否有效
+    if swtmr.timer_id != swtmr_id {
+        swtmr_unlock(int_save);
+        return LOS_ERRNO_SWTMR_ID_INVALID;
+    }
+
+    // 根据定时器状态执行不同操作
+    let mut ret = LOS_OK;
+    match SwtmrState::from_u8(swtmr.state) {
+        // 未使用状态
+        Some(SwtmrState::Unused) => {
+            ret = LOS_ERRNO_SWTMR_NOT_CREATED;
+        }
+
+        // 正在计时状态，先停止再启动
+        Some(SwtmrState::Ticking) => {
+            os_swtmr_stop(swtmr);
+            os_swtmr_start(swtmr);
+        }
+
+        Some(SwtmrState::Created) => {
+            os_swtmr_start(swtmr);
+        }
+
+        // 其他状态视为无效
+        None => {
+            ret = LOS_ERRNO_SWTMR_STATUS_INVALID;
+        }
+    };
+
+    // 解锁
+    swtmr_unlock(int_save);
+
+    ret
 }
