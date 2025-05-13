@@ -619,3 +619,50 @@ pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
 
     ret
 }
+
+#[unsafe(export_name = "LOS_SwtmrTimeGet")]
+pub extern "C" fn los_swtmr_time_get(swtmr_id: u16, tick: &mut u32) -> u32 {
+    // 检查定时器ID是否超出范围
+    if swtmr_id >= OS_SWTMR_MAX_TIMERID {
+        return LOS_ERRNO_SWTMR_ID_INVALID;
+    }
+
+    // 加锁保护访问
+    let int_save = swtmr_lock();
+
+    // 计算实际定时器索引
+    let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
+
+    // 获取对应的定时器控制块
+    let swtmr = unsafe { SWTMR_CB_ARRAY.add(swtmr_cb_id as usize) };
+    let swtmr = unsafe { &*swtmr };
+
+    // 二次检查定时器ID是否有效
+    if swtmr.timer_id != swtmr_id {
+        swtmr_unlock(int_save);
+        return LOS_ERRNO_SWTMR_ID_INVALID;
+    }
+
+    // 根据定时器状态执行不同操作
+    let ret = match swtmr.state {
+        // 未使用状态
+        x if x == SwtmrState::Unused as u8 => LOS_ERRNO_SWTMR_NOT_CREATED,
+
+        // 已创建但未启动状态
+        x if x == SwtmrState::Created as u8 => LOS_ERRNO_SWTMR_NOT_STARTED,
+
+        // 正在计时状态，获取剩余时间
+        x if x == SwtmrState::Ticking as u8 => {
+            *tick = os_swtmr_time_get(swtmr);
+            LOS_OK
+        }
+
+        // 其他状态视为无效
+        _ => LOS_ERRNO_SWTMR_STATUS_INVALID,
+    };
+
+    // 解锁
+    swtmr_unlock(int_save);
+
+    ret
+}
