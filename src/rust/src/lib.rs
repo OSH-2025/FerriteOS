@@ -11,4 +11,10 @@ pub mod config;
 pub mod swtmr;
 pub mod percpu;
 
+pub mod err;
+pub mod event;
+pub mod task;
+pub mod trace;
+pub mod arch;
+
 pub use config::*;
