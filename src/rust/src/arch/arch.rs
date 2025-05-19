@@ -45,14 +45,16 @@ pub extern "C" fn OsCurrTaskGet() -> *mut c_void {
     unsafe { ArchCurrTaskGet() }
 }
 
+#[unsafe(no_mangle)]
+pub static mut g_runTask: *mut c_void = core::ptr::null_mut();
+
 /// 获取当前任务指针
 #[unsafe(no_mangle)]
 pub extern "C" fn ArchCurrTaskGet() -> *mut c_void {
-    // 使用内联汇编读取ARM系统寄存器
+        // 使用内联汇编读取ARM系统寄存器TPIDRPRW
     let task_ptr: usize;
     unsafe {
-        // 根据芯片架构可能需要调整具体的汇编指令
-        asm!("mrc p15, 0, {}, c13, c0, 3", out(reg) task_ptr);
+        core::arch::asm!("mrc p15, 0, {}, c13, c0, 4", out(reg) task_ptr);
     }
     task_ptr as *mut c_void
 }

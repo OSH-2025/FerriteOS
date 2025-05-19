@@ -37,6 +37,7 @@ pub mod trace_event {
 }
 
 /// 事件钩子类型定义
+#[cfg(feature = "kernel_trace")]
 pub type TraceEventHook = unsafe extern "C" fn(
     event_type: u32,
     identity: usize,
@@ -46,18 +47,36 @@ pub type TraceEventHook = unsafe extern "C" fn(
 
 /// 性能跟踪相关的外部函数
 unsafe extern "C" {
-    pub fn LOS_PerformanceCounterStart(type_id: u32);
-    pub fn LOS_PerformanceCounterStop(type_id: u32);
+    pub fn LOS_PerfStart(type_id: u32);
+    pub fn LOS_PerfStop();
+
+    // 添加条件编译，只有启用kernel_trace特性时才声明这些变量
+    #[cfg(feature = "kernel_trace")]
     pub static mut g_traceEventHook: Option<TraceEventHook>;
+    
+    // 如果需要g_traceDumpHook，也添加它
+    #[cfg(feature = "kernel_trace")]
+    pub static mut g_traceDumpHook: Option<TraceEventDumpHook>;
 }
+
+/// 事件转储钩子函数类型
+/// 用于将收集的跟踪事件数据转储到目标位置（如日志、文件等）
+#[cfg(feature = "kernel_trace")]
+pub type TraceEventDumpHook = unsafe extern "C" fn(
+    addr: *mut c_void,        // 事件数据缓冲区地址
+    size: u32,                // 缓冲区大小
+    event_count: u32,         // 事件计数
+    max_depth: u32,           // 最大跟踪深度
+    options: u32              // 转储选项
+) -> u32;                     // 返回转储结果
 
 /// 性能监测功能
 #[inline]
 pub fn los_perf(type_id: u32) {
     #[cfg(feature = "perf")]
     unsafe {
-        LOS_PerformanceCounterStart(type_id);
-        LOS_PerformanceCounterStop(type_id);
+        LOS_PerfStart(type_id);
+        LOS_PerfStop();
     }
 }
 

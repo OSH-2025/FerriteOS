@@ -30,31 +30,31 @@ macro_rules! container_of {
 }
 
 /// 等待模式：任一事件触发
-pub const LOS_WAITMODE_OR: u32 = 0x01;
+pub const LOS_WAITMODE_OR: u32 = 0x02;
 /// 等待模式：所有事件都触发
-pub const LOS_WAITMODE_AND: u32 = 0x02;
+pub const LOS_WAITMODE_AND: u32 = 0x04;
 /// 等待模式：触发后清除事件
-pub const LOS_WAITMODE_CLR: u32 = 0x04;
+pub const LOS_WAITMODE_CLR: u32 = 0x01;
 
 /// 错误码：事件指针为空
-pub const LOS_ERRNO_EVENT_PTR_NULL: u32 = 0x02001400;
+pub const LOS_ERRNO_EVENT_PTR_NULL: u32 = 0x02001c06;
 /// 错误码：事件掩码无效
-pub const LOS_ERRNO_EVENT_EVENTMASK_INVALID: u32 = 0x02001401;
+pub const LOS_ERRNO_EVENT_EVENTMASK_INVALID: u32 = 0x02001c02;
 /// 错误码：事件设置位无效
-pub const LOS_ERRNO_EVENT_SETBIT_INVALID: u32 = 0x02001402;
+pub const LOS_ERRNO_EVENT_SETBIT_INVALID: u32 = 0x02001c00;
 /// 错误码：事件读取中断
-pub const LOS_ERRNO_EVENT_READ_IN_INTERRUPT: u32 = 0x02001403;
+pub const LOS_ERRNO_EVENT_READ_IN_INTERRUPT: u32 = 0x02001c03;
 /// 错误码：在锁中读取事件
-pub const LOS_ERRNO_EVENT_READ_IN_LOCK: u32 = 0x02001404;
+pub const LOS_ERRNO_EVENT_READ_IN_LOCK: u32 = 0x02001c05;
 /// 错误码：无效的标志
-pub const LOS_ERRNO_EVENT_FLAGS_INVALID: u32 = 0x02001405;
+pub const LOS_ERRNO_EVENT_FLAGS_INVALID: u32 = 0x02001c04;
 /// 错误码：事件读取超时
-pub const LOS_ERRNO_EVENT_READ_TIMEOUT: u32 = 0x02001407;
+pub const LOS_ERRNO_EVENT_READ_TIMEOUT: u32 = 0x02001c01;
 /// 错误码：不应销毁事件
-pub const LOS_ERRNO_EVENT_SHOULD_NOT_DESTORY: u32 = 0x02001408;
+pub const LOS_ERRNO_EVENT_SHOULD_NOT_DESTORY: u32 = 0x02001c08;
 
 /// 错误类型掩码
-pub const LOS_ERRTYPE_ERROR: u32 = 0x80000000;
+pub const LOS_ERRTYPE_ERROR: u32 = 0x02000000;
 
 /// 成功返回码
 pub const LOS_OK: u32 = 0;
@@ -80,20 +80,37 @@ use crate::arch::{ArchIntLock, ArchIntRestore, OsCurrTaskGet, ArchCurrCpuid};
 
 #[repr(C)]
 pub struct Percpu {
-    // 注意：需要添加所有字段，或者至少添加到 schedFlag 字段
-    // 这里只是简化示例，实际结构可能更复杂
-    pub task_lock_cnt: u32,
-    pub sched_flag: u32,
-    // 其他字段...
+    pub task_sort_link: SortLinkAttribute,  // 第一个字段
+    #[cfg(feature = "base_core_swtmr")]
+    pub swtmr_sort_link: SortLinkAttribute,
+    
+    pub idle_task_id: u32,                  // task_lock_cnt前面的字段
+    pub task_lock_cnt: u32,                 // 这才是正确位置的task_lock_cnt
+    pub swtmr_handler_queue: u32,
+    pub swtmr_task_id: u32,
+    
+    pub sched_flag: u32,                    // schedFlag字段
+    #[cfg(feature = "kernel_smp")]
+    pub exc_flag: u32,
+    #[cfg(all(feature = "kernel_smp", feature = "kernel_smp_call"))]
+    pub func_link: LOS_DL_LIST,
 }
+#[repr(C)]
+pub struct SortLinkAttribute {
+    pub sort_link_node_num: u32,
+    pub cursor: u16,
+    pub reserved: u16,
+    pub sort_link: [LOS_DL_LIST; 16], // 假设LIST_SORT_LINK_NUM是16
+}
+
 
 pub const INT_PEND_RESCH: u32 = 1; // 对应 SchedFlag 枚举中的值
 
 // 宏定义替代
-const OS_TASK_STATUS_PEND: u32 = 0x0008;
-const OS_TASK_STATUS_TIMEOUT: u32 = 0x0010;
-const OS_TASK_FLAG_SYSTEM: u32 = 0x0200;
-const OS_MP_CPU_ALL: u32 = 0xFFFFFFFF;
+const OS_TASK_STATUS_PEND: u32 = 0x0080;
+const OS_TASK_STATUS_TIMEOUT: u32 = 0x0040;
+const OS_TASK_FLAG_SYSTEM: u32 = 0x0002;
+const OS_MP_CPU_ALL: u32 = 0x01;
 
 
 /// 初始化双向链表
@@ -242,6 +259,12 @@ fn event_read_check(event_cb: *const EventCB, event_mask: u32, mode: u32) -> u32
     }
 
     // 系统任务警告（这里只是打印警告，不返回错误）
+    let run_task = unsafe { OsCurrTaskGet() as *mut crate::task::LosTaskCB };
+    if unsafe { (*run_task).task_flags_usr_stack & OS_TASK_FLAG_SYSTEM != 0 } {
+        unsafe {
+            printf(b"Warning: DO NOT recommend to use LOS_EventRead or OsEventReadOnce in system tasks.\n\0".as_ptr());
+        }
+    }
     
     LOS_OK
 }
@@ -257,6 +280,11 @@ unsafe fn is_interrupt_active() -> bool {
 #[inline]
 unsafe fn os_preemptable_in_sched() -> bool {
     let percpu = OsPercpuGet();
+
+    unsafe {
+        printf(b"task_lock_cnt = %d\n\0".as_ptr(), (*percpu).task_lock_cnt);
+    }
+
     let preemptable;
     
     // 根据是否启用SMP功能进行不同的检查
@@ -270,6 +298,11 @@ unsafe fn os_preemptable_in_sched() -> bool {
     {
         preemptable = (*percpu).task_lock_cnt == 0;
     }
+
+    // 输出结果
+    unsafe {
+        printf(b"preemptable = %d\n\0".as_ptr(), preemptable as i32);
+    }
     
     if !preemptable {
         // 如果禁用了抢占，则设置调度标志
@@ -277,6 +310,7 @@ unsafe fn os_preemptable_in_sched() -> bool {
     }
     
     preemptable
+    // true
 }
 
 /// 获取当前CPU的Percpu结构
@@ -299,8 +333,23 @@ pub extern "C" fn OsPercpuGet() -> *mut crate::event::Percpu {
     
     unsafe {
         let cpu_id = ArchCurrCpuid();
-        &mut g_percpu[cpu_id as usize] as *mut _
+        let percpu = &mut g_percpu[cpu_id as usize];
+
+        // 添加调试输出
+        let msg = b"g_percpu[%d]\n\0";
+        printf(msg.as_ptr(), cpu_id as i32);
+
+        // 强制初始化task_lock_cnt为0
+        (*percpu).task_lock_cnt = 0;
+        (*percpu).sched_flag = 0;
+        
+        percpu
+
+        // &mut g_percpu[cpu_id as usize] as *mut _
     }
+
+    
+
 }
 
 
@@ -344,9 +393,9 @@ unsafe fn event_read_imp(
         *int_save = LOS_IntLock();
 
         // 检查是否超时
-        if (*run_task).task_status & OS_TASK_STATUS_TIMEOUT != 0 {
+        if (*run_task).task_status & (OS_TASK_STATUS_TIMEOUT as u16) != 0 {
             // 清除超时状态
-            (*run_task).task_status &= !OS_TASK_STATUS_TIMEOUT;
+            (*run_task).task_status &= !(OS_TASK_STATUS_TIMEOUT as u16);
             return LOS_ERRNO_EVENT_READ_TIMEOUT;
         }
 
@@ -531,10 +580,27 @@ pub extern "C" fn event_read_api(
     mode: u32,
     timeout: u32,
 ) -> u32 {
+    // 添加调试输出
+    unsafe {
+        printf(b"LOS_EventRead: mask=0x%x, mode=0x%x, timeout=%u\n\0".as_ptr(), 
+               event_mask, mode, timeout);
+        printf(b"Current event ID: 0x%x\n\0".as_ptr(), (*event_cb).event_id);
+    }
+
     // 添加跟踪调用
     event_trace::trace_event_read(event_cb, unsafe { (*event_cb).event_id }, event_mask, mode, timeout);
     
-    unsafe { event_read(event_cb, event_mask, mode, timeout, false) }
+    // unsafe { event_read(event_cb, event_mask, mode, timeout, false) }
+    
+    // 调用内部实现
+    let result = unsafe { event_read(event_cb, event_mask, mode, timeout, false) };
+    
+    // 添加返回值调试
+    unsafe {
+        printf(b"LOS_EventRead returning: 0x%x\n\0".as_ptr(), result);
+    }
+    
+    result
 }
 
 /// 写入事件
@@ -622,7 +688,7 @@ pub extern "C" fn event_write_once(event_cb: *mut EventCB, events: u32) -> u32 {
 /// * 匹配的事件位
 /// * 错误码
 #[cfg(feature = "compat_posix")]
-#[export_name = "OsEventReadOnce"]
+#[unsafe(export_name = "OsEventReadOnce")]
 pub extern "C" fn event_read_once(
     event_cb: *mut EventCB,
     event_mask: u32,
@@ -647,7 +713,7 @@ pub extern "C" fn event_read_once(
 /// * 匹配的事件位
 /// * 错误码
 #[cfg(feature = "compat_posix")]
-#[export_name = "OsEventReadWithCond"]
+#[unsafe(export_name = "OsEventReadWithCond")]
 pub extern "C" fn event_read_with_cond(
     cond: *const EventCond,
     event_cb: *mut EventCB,
