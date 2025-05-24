@@ -4,6 +4,7 @@
 use panic_halt as _;
 
 pub mod config;
+pub mod event;
 pub mod hwi;
 pub mod mem;
 pub mod percpu;
