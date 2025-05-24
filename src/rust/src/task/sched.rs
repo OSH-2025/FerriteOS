@@ -20,10 +20,8 @@ pub extern "C" fn pri_queue_init() {
 
 /// 将任务节点插入优先级队列头部
 #[unsafe(export_name = "OsPriQueueEnqueueHead")]
-pub extern "C" fn pri_queue_enqueue_head(priqueue_item: *mut LinkedList, priority: u32) {
-    unsafe {
-        assert!((*priqueue_item).next.is_null(), "节点next指针必须为null");
-    }
+pub extern "C" fn priority_queue_insert_at_front(priqueue_item: &mut LinkedList, priority: u32) {
+    assert!(priqueue_item.next.is_null(), "节点next指针必须为null");
 
     // 如果该优先级队列为空，则在位图中设置对应位
     if LinkedList::is_empty(&mut unsafe { PRI_QUEUE_LIST }[priority as usize]) {
@@ -38,21 +36,18 @@ pub extern "C" fn pri_queue_enqueue_head(priqueue_item: *mut LinkedList, priorit
 }
 
 /// 将任务节点插入优先级队列尾部
-// #[unsafe(export_name = "OsPriQueueEnqueue")]
-// pub extern "C" fn priority_queue_insert_at_back(priqueue_item: *mut LinkedList, priority: u32) {
-//     unsafe {
-//         // 断言任务控制块的链表节点已正确初始化为零
-//         assert!((*priqueue_item).next.is_null(), "节点next指针必须为null");
-//     }
+#[unsafe(export_name = "OsPriQueueEnqueue")]
+pub extern "C" fn priority_queue_insert_at_back(priqueue_item: &mut LinkedList, priority: u32) {
+    assert!(priqueue_item.next.is_null(), "节点next指针必须为null");
 
-//     // 如果该优先级队列为空，则在位图中设置对应位
-//     if LinkedList::is_empty(&mut unsafe { PRI_QUEUE_LIST }[priority as usize]) {
-//         PRI_QUEUE_BITMAP.fetch_or(PRIQUEUE_PRIOR0_BIT >> priority, Ordering::Release);
-//     }
+    // 如果该优先级队列为空，则在位图中设置对应位
+    if LinkedList::is_empty(&mut unsafe { PRI_QUEUE_LIST }[priority as usize]) {
+        PRI_QUEUE_BITMAP.fetch_or(PRIQUEUE_PRIOR0_BIT >> priority, Ordering::Release);
+    }
 
-//     // 将节点插入到优先级队列的尾部
-//     LinkedList::tail_insert(
-//         &mut unsafe { PRI_QUEUE_LIST }[priority as usize],
-//         priqueue_item,
-//     );
-// }
+    // 将节点插入到优先级队列的尾部
+    LinkedList::tail_insert(
+        &mut unsafe { PRI_QUEUE_LIST }[priority as usize],
+        priqueue_item,
+    );
+}
