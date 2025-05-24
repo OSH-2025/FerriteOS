@@ -3,11 +3,14 @@ use super::{
     global::{TASK_FREE_LIST, TASK_RECYCLE_LIST},
 };
 use crate::{
+    hwi::{los_int_lock, los_int_restore},
     mem::{defs::m_aucSysMem0, memory::los_mem_free},
     utils::list::LinkedList,
 };
 
-fn os_task_cb_recycle_to_free() {
+#[unsafe(export_name = "LOS_TaskResRecycle")]
+pub extern "C" fn los_task_recycle() {
+    let int_save = los_int_lock();
     while !LinkedList::is_empty(&raw mut TASK_RECYCLE_LIST) {
         // 获取回收列表中的第一个任务控制块
         let first_node = unsafe { TASK_RECYCLE_LIST.next };
@@ -30,4 +33,5 @@ fn os_task_cb_recycle_to_free() {
         // 重置栈顶指针
         task_cb.top_of_stack = core::ptr::null_mut();
     }
+    los_int_restore(int_save);
 }
