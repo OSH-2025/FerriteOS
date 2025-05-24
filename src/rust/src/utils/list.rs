@@ -17,14 +17,6 @@ impl LinkedList {
             (*list).next = list;
         }
     }
-
-    #[inline]
-    pub fn tail_insert(list: *mut LinkedList, node: *mut LinkedList) {
-        unsafe {
-            LinkedList::insert((*list).prev, node);
-        }
-    }
-
     #[inline]
     pub fn insert(list: *mut LinkedList, node: *mut LinkedList) {
         unsafe {
@@ -32,6 +24,18 @@ impl LinkedList {
             (*node).prev = list;
             (*(*list).next).prev = node;
             (*list).next = node;
+        }
+    }
+
+    #[inline]
+    pub fn head_insert(list: *mut LinkedList, node: *mut LinkedList) {
+        LinkedList::insert(list, node);
+    }
+
+    #[inline]
+    pub fn tail_insert(list: *mut LinkedList, node: *mut LinkedList) {
+        unsafe {
+            LinkedList::insert((*list).prev, node);
         }
     }
 
