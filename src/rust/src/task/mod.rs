@@ -1,6 +1,8 @@
 mod types;
+mod idle;
+mod global;
 
-pub use types::{TaskEntryFunc, TaskInitParam};
+pub use types::{TaskCB, TaskEntryFunc, TaskInitParam};
 
 unsafe extern "C" {
     #[link_name = "LOS_TaskCreate"]

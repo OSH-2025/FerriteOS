@@ -1,10 +1,9 @@
-// use crate::task::types::TaskCB;
+use super::types::TaskCB;
 use crate::utils::list::LinkedList;
 
-// /// 任务控制块数组
-// #[unsafe(no_mangle)]
-// #[link_section = ".bss"]
-// pub static mut TASK_CB_ARRAY: *mut TaskCB = core::ptr::null_mut();
+/// 任务控制块数组
+#[unsafe(export_name = "g_taskCBArray")]
+pub static mut TASK_CB_ARRAY: *mut TaskCB = core::ptr::null_mut();
 
 /// 空闲任务列表
 #[unsafe(export_name = "g_losFreeTask")]

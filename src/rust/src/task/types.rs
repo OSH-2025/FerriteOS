@@ -1,6 +1,8 @@
 use crate::event::EventCB;
-use crate::utils::list::LinkedList;
-use crate::utils::sortlink::SortLinkList;
+use crate::{
+    container_of, offset_of,
+    utils::{list::LinkedList, sortlink::SortLinkList},
+};
 
 /// 任务入口函数类型
 pub type TaskEntryFunc =
@@ -63,7 +65,7 @@ pub struct TaskCB {
     pub stack_size: u32,
 
     /// 任务栈顶
-    pub top_of_stack: usize,
+    pub top_of_stack: *mut core::ffi::c_void,
 
     /// 任务ID
     pub task_id: u32,
@@ -118,3 +120,9 @@ pub struct TaskCB {
     pub time_slice: u16,
 }
 
+impl TaskCB {
+    pub fn from_pend_list(ptr: *mut LinkedList) -> &'static mut TaskCB {
+        let task_ptr = container_of!(ptr, TaskCB, pend_list);
+        unsafe { &mut *task_ptr }
+    }
+}

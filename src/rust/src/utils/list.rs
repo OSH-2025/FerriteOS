@@ -6,6 +6,11 @@ pub struct LinkedList {
 }
 
 impl LinkedList {
+    pub const UNINIT: Self = Self {
+        prev: core::ptr::null_mut(),
+        next: core::ptr::null_mut(),
+    };
+
     pub fn init(list: *mut LinkedList) {
         unsafe {
             (*list).prev = list;
