@@ -65,7 +65,6 @@ pub struct EventCB {
 
 // #[unsafe(export_name = "LOS_EventInit")]
 // pub extern "C" fn event_init(event_control_block_ptr: *mut EventControlBlock) -> u32 {
-//     // TODO LOS_TRACE(EVENT_CREATE, (UINTPTR)eventCB);
 //     if event_control_block_ptr.is_null() {
 //         return LOS_ERRNO_EVENT_PTR_NULL;
 //     }
