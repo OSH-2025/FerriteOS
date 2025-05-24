@@ -60,3 +60,19 @@ pub struct LosTaskCB {
     #[cfg(feature = "kernel_smp")]
     pub cpu_affi_mask: u16,            /* CPU affinity mask */
 }
+
+
+/// 根据任务ID获取任务控制块指针
+///
+/// # 安全性
+///
+/// 这个函数是不安全的，调用者必须确保任务ID有效
+#[inline]
+pub unsafe fn OS_TCB_FROM_TID(task_id: u32) -> *mut LosTaskCB {
+    unsafe extern "C" {
+        static g_taskCBArray: LosTaskCB;
+    }
+    
+    let base_addr = &g_taskCBArray as *const LosTaskCB;
+    base_addr.add(task_id as usize) as *mut LosTaskCB
+}

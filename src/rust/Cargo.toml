@@ -2,6 +2,7 @@
 name = "rust"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"  # 添加构建脚本
 
 [dependencies]
 panic-halt = "1.0.0"
@@ -10,7 +11,7 @@ panic-halt = "1.0.0"
 crate-type = ["staticlib"]
 
 [features]
-default = ["LOSCFG_MEM_TASK_STAT", "LOSCFG_BASE_CORE_USE_MULTI_LIST"]
+default = ["LOSCFG_MEM_TASK_STAT", "LOSCFG_BASE_CORE_USE_MULTI_LIST", "compat_posix", "backtrace", "shell_excinfo_dump", "stack_protector"]
 LOSCFG_MEM_TASK_STAT = []
 LOSCFG_BASE_CORE_USE_MULTI_LIST = []
 LOSCFG_BASE_CORE_USE_SINGLE_LIST = []
@@ -18,3 +19,11 @@ kernel_trace = []
 perf = []
 compat_posix = []
 kernel_smp = []
+backtrace = []
+shell = []
+shell_excinfo_dump = []
+exc_interaction = []
+stack_protector = []
+
+[build-dependencies]
+cc = "1.0"  # 用于编译C代码
