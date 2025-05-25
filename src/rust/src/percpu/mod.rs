@@ -27,11 +27,27 @@ pub struct Percpu {
     pub sched_flag: u32,
 }
 
-unsafe extern "C" {
-    static mut g_percpu: [Percpu; LOSCFG_KERNEL_CORE_NUM];
+impl Percpu {
+    pub const UNINIT: Self = Self {
+        task_sort_link: SortLinkAttribute::UNINIT,
+        swtmr_sort_link: SortLinkAttribute::UNINIT,
+        idle_task_id: 0,
+        task_lock_cnt: 0,
+        swtmr_handler_queue: 0,
+        swtmr_task_id: 0,
+        sched_flag: 0,
+    };
 }
+
+pub enum SchedFlag {
+    NotNeeded = 0,
+    Pending = 1,
+}
+
+#[unsafe(export_name = "g_percpu")]
+pub static mut PERCPU: [Percpu; LOSCFG_KERNEL_CORE_NUM] = [Percpu::UNINIT; LOSCFG_KERNEL_CORE_NUM];
 
 #[inline]
 pub fn os_percpu_get() -> &'static mut Percpu {
-    unsafe { &mut g_percpu[0] }
+    unsafe { &mut PERCPU[0] }
 }

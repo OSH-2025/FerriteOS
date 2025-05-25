@@ -78,6 +78,15 @@ pub struct SortLinkAttribute {
 }
 
 impl SortLinkAttribute {
+    /// 未初始化的排序链表属性
+    pub const UNINIT: Self = Self {
+        sort_link: core::ptr::null_mut(),
+        cursor: 0,
+        _reserved: 0,
+    };
+}
+
+impl SortLinkAttribute {
     /// 更新排序链表的游标值
     #[inline]
     pub fn advance_cursor(&mut self) {

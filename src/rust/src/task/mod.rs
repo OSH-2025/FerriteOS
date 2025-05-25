@@ -1,7 +1,7 @@
-mod types;
-mod idle;
 mod global;
+mod idle;
 mod sched;
+mod types;
 
 pub use types::{TaskCB, TaskEntryFunc, TaskInitParam};
 

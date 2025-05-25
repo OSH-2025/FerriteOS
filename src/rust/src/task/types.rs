@@ -127,3 +127,13 @@ impl TaskCB {
         unsafe { &mut *task_ptr }
     }
 }
+
+// 任务状态标志位
+pub const OS_TASK_STATUS_UNUSED: u32 = 0x0001; // 任务控制块未使用
+pub const OS_TASK_STATUS_SUSPEND: u32 = 0x0002; // 任务被挂起
+pub const OS_TASK_STATUS_READY: u32 = 0x0004; // 任务就绪
+pub const OS_TASK_STATUS_PEND: u32 = 0x0008; // 任务阻塞
+pub const OS_TASK_STATUS_RUNNING: u32 = 0x0010; // 任务运行中
+pub const OS_TASK_STATUS_DELAY: u32 = 0x0020; // 任务延时
+pub const OS_TASK_STATUS_TIMEOUT: u32 = 0x0040; // 等待事件超时
+pub const OS_TASK_STATUS_PEND_TIME: u32 = 0x0080; // 任务等待特定时间

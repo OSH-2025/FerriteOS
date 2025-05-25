@@ -17,6 +17,3 @@ pub static mut TASK_RECYCLE_LIST: LinkedList = LinkedList::UNINIT;
 #[unsafe(export_name = "g_taskMaxNum")]
 pub static mut TASK_MAX_NUM: u32 = 0;
 
-// unsafe extern "C" {
-//     static mut g_percpu: [Percpu; LOSCFG_KERNEL_CORE_NUM];
-// }

@@ -1,5 +1,3 @@
-use super::printf::dprintf;
-
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct LinkedList {
@@ -19,14 +17,6 @@ impl LinkedList {
             (*list).prev = list;
             (*list).next = list;
         }
-        unsafe {
-            dprintf(
-                b"list: %p, prev: %p, next: %p\n\0" as *const u8,
-                list,
-                (*list).prev,
-                (*list).next,
-            );
-        }
     }
 
     #[inline]
@@ -41,27 +31,11 @@ impl LinkedList {
 
     #[inline]
     pub fn head_insert(list: *mut LinkedList, node: *mut LinkedList) {
-        // unsafe {
-        //     dprintf(
-        //         b"list: %p, prev: %p, next: %p\n\0" as *const u8,
-        //         list,
-        //         (*list).prev,
-        //         (*list).next,
-        //     );
-        // }
         LinkedList::insert(list, node);
     }
 
     #[inline]
     pub fn tail_insert(list: *mut LinkedList, node: *mut LinkedList) {
-        // unsafe {
-        //     dprintf(
-        //         b"list: %p, prev: %p, next: %p\n\0" as *const u8,
-        //         list,
-        //         (*list).prev,
-        //         (*list).next,
-        //     );
-        // }
         unsafe {
             LinkedList::insert((*list).prev, node);
         }
@@ -69,14 +43,6 @@ impl LinkedList {
 
     #[inline]
     pub fn remove(node: *mut LinkedList) {
-        // unsafe {
-        //     dprintf(
-        //         b"list: %p, prev: %p, next: %p\n\0" as *const u8,
-        //         node,
-        //         (*node).prev,
-        //         (*node).next,
-        //     );
-        // }
         unsafe {
             (*(*node).next).prev = (*node).prev;
             (*(*node).prev).next = (*node).next;
@@ -87,14 +53,6 @@ impl LinkedList {
 
     #[inline]
     pub fn is_empty(list: *mut LinkedList) -> bool {
-        // unsafe {
-        //     dprintf(
-        //         b"list: %p, prev: %p, next: %p\n\0" as *const u8,
-        //         list,
-        //         (*list).prev,
-        //         (*list).next,
-        //     );
-        // }
         unsafe { (*list).next == list }
     }
 }
