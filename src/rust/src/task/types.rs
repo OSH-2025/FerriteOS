@@ -121,6 +121,7 @@ pub struct TaskCB {
 }
 
 impl TaskCB {
+    #[inline]
     pub fn from_pend_list(ptr: *mut LinkedList) -> &'static mut TaskCB {
         let task_ptr = container_of!(ptr, TaskCB, pend_list);
         unsafe { &mut *task_ptr }

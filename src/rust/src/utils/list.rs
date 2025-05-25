@@ -1,3 +1,5 @@
+use super::printf::dprintf;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct LinkedList {
@@ -11,12 +13,22 @@ impl LinkedList {
         next: core::ptr::null_mut(),
     };
 
+    #[inline]
     pub fn init(list: *mut LinkedList) {
         unsafe {
             (*list).prev = list;
             (*list).next = list;
         }
+        unsafe {
+            dprintf(
+                b"list: %p, prev: %p, next: %p\n\0" as *const u8,
+                list,
+                (*list).prev,
+                (*list).next,
+            );
+        }
     }
+
     #[inline]
     pub fn insert(list: *mut LinkedList, node: *mut LinkedList) {
         unsafe {
@@ -29,11 +41,27 @@ impl LinkedList {
 
     #[inline]
     pub fn head_insert(list: *mut LinkedList, node: *mut LinkedList) {
+        // unsafe {
+        //     dprintf(
+        //         b"list: %p, prev: %p, next: %p\n\0" as *const u8,
+        //         list,
+        //         (*list).prev,
+        //         (*list).next,
+        //     );
+        // }
         LinkedList::insert(list, node);
     }
 
     #[inline]
     pub fn tail_insert(list: *mut LinkedList, node: *mut LinkedList) {
+        // unsafe {
+        //     dprintf(
+        //         b"list: %p, prev: %p, next: %p\n\0" as *const u8,
+        //         list,
+        //         (*list).prev,
+        //         (*list).next,
+        //     );
+        // }
         unsafe {
             LinkedList::insert((*list).prev, node);
         }
@@ -41,11 +69,17 @@ impl LinkedList {
 
     #[inline]
     pub fn remove(node: *mut LinkedList) {
+        // unsafe {
+        //     dprintf(
+        //         b"list: %p, prev: %p, next: %p\n\0" as *const u8,
+        //         node,
+        //         (*node).prev,
+        //         (*node).next,
+        //     );
+        // }
         unsafe {
-            // 更新相邻节点的指针，将当前节点从链表中移除
             (*(*node).next).prev = (*node).prev;
             (*(*node).prev).next = (*node).next;
-            // 将节点指针设为 NULL，表示节点不再属于任何链表
             (*node).next = core::ptr::null_mut();
             (*node).prev = core::ptr::null_mut();
         }
@@ -53,6 +87,14 @@ impl LinkedList {
 
     #[inline]
     pub fn is_empty(list: *mut LinkedList) -> bool {
+        // unsafe {
+        //     dprintf(
+        //         b"list: %p, prev: %p, next: %p\n\0" as *const u8,
+        //         list,
+        //         (*list).prev,
+        //         (*list).next,
+        //     );
+        // }
         unsafe { (*list).next == list }
     }
 }
