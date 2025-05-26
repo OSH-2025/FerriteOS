@@ -11,7 +11,7 @@ panic-halt = "1.0.0"
 crate-type = ["staticlib"]
 
 [features]
-default = ["LOSCFG_MEM_TASK_STAT", "LOSCFG_BASE_CORE_USE_MULTI_LIST", "compat_posix", "backtrace", "shell_excinfo_dump", "stack_protector",  "debug_semaphore"]
+default = ["LOSCFG_MEM_TASK_STAT", "LOSCFG_BASE_CORE_USE_MULTI_LIST", "compat_posix", "backtrace", "shell_excinfo_dump", "stack_protector",  "debug_semaphore", "shell_dmesg"]
 LOSCFG_MEM_TASK_STAT = []
 LOSCFG_BASE_CORE_USE_MULTI_LIST = []
 LOSCFG_BASE_CORE_USE_SINGLE_LIST = []
@@ -29,6 +29,7 @@ kernel_lms = []
 debug_semaphore = []
 debug_mutex = []
 debug_queue = []
+shell_dmesg = []
 
 
 [build-dependencies]

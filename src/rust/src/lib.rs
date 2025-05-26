@@ -16,5 +16,7 @@ pub mod event;
 pub mod task;
 pub mod trace;
 pub mod arch;
+pub mod misc;
+pub mod printf;
 
 pub use config::*;
