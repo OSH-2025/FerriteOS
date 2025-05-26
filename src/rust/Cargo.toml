@@ -11,7 +11,7 @@ panic-halt = "1.0.0"
 crate-type = ["staticlib"]
 
 [features]
-default = ["LOSCFG_MEM_TASK_STAT", "LOSCFG_BASE_CORE_USE_MULTI_LIST", "compat_posix", "backtrace", "shell_excinfo_dump", "stack_protector"]
+default = ["LOSCFG_MEM_TASK_STAT", "LOSCFG_BASE_CORE_USE_MULTI_LIST", "compat_posix", "backtrace", "shell_excinfo_dump", "stack_protector",  "debug_semaphore"]
 LOSCFG_MEM_TASK_STAT = []
 LOSCFG_BASE_CORE_USE_MULTI_LIST = []
 LOSCFG_BASE_CORE_USE_SINGLE_LIST = []
@@ -24,6 +24,12 @@ shell = []
 shell_excinfo_dump = []
 exc_interaction = []
 stack_protector = []
+lib_configurable = []
+kernel_lms = []
+debug_semaphore = []
+debug_mutex = []
+debug_queue = []
+
 
 [build-dependencies]
 cc = "1.0"  # 用于编译C代码
