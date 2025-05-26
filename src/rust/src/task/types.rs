@@ -1,8 +1,10 @@
-use crate::event::EventCB;
 use crate::{
-    container_of, offset_of,
+    container_of,
+    event::EventCB,
+    offset_of,
     utils::{list::LinkedList, sortlink::SortLinkList},
 };
+use bitflags::bitflags;
 
 /// 任务入口函数类型
 pub type TaskEntryFunc =
@@ -50,7 +52,7 @@ pub struct TaskCB {
     pub stack_pointer: *mut core::ffi::c_void,
 
     /// 任务状态
-    pub task_status: u16,
+    pub task_status: TaskStatus,
 
     /// 任务优先级
     pub priority: u16,
@@ -128,12 +130,17 @@ impl TaskCB {
     }
 }
 
-// 任务状态标志位
-pub const OS_TASK_STATUS_UNUSED: u32 = 0x0001; // 任务控制块未使用
-pub const OS_TASK_STATUS_SUSPEND: u32 = 0x0002; // 任务被挂起
-pub const OS_TASK_STATUS_READY: u32 = 0x0004; // 任务就绪
-pub const OS_TASK_STATUS_PEND: u32 = 0x0008; // 任务阻塞
-pub const OS_TASK_STATUS_RUNNING: u32 = 0x0010; // 任务运行中
-pub const OS_TASK_STATUS_DELAY: u32 = 0x0020; // 任务延时
-pub const OS_TASK_STATUS_TIMEOUT: u32 = 0x0040; // 等待事件超时
-pub const OS_TASK_STATUS_PEND_TIME: u32 = 0x0080; // 任务等待特定时间
+bitflags! {
+    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+    #[repr(transparent)]
+    pub struct TaskStatus: u16 {
+        const UNUSED = 0x0001;    // 任务控制块未使用
+        const SUSPEND = 0x0002;   // 任务被挂起
+        const READY = 0x0004;     // 任务就绪
+        const PEND = 0x0008;      // 任务阻塞
+        const RUNNING = 0x0010;   // 任务运行中
+        const DELAY = 0x0020;     // 任务延时
+        const TIMEOUT = 0x0040;   // 等待事件超时
+        const PEND_TIME = 0x0080; // 任务等待特定时间
+    }
+}

@@ -29,6 +29,7 @@ impl LosMultipleDlinkHead {
         }
     }
 
+    #[allow(dead_code)]
     pub fn print(head_addr: *mut LosMultipleDlinkHead) {
         let head_addr = unsafe { &*head_addr };
         for (i, list_node_head) in head_addr.list_head.iter().enumerate() {

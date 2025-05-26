@@ -1,7 +1,10 @@
-use crate::{ffi::get_current_task, utils::list::LinkedList};
+use super::{types::TaskCB, types::TaskStatus};
+use crate::{
+    ffi::{curr_task_get, curr_task_set, os_task_schedule},
+    hwi::{int_lock, int_restore},
+    utils::list::LinkedList,
+};
 use core::sync::atomic::{AtomicU32, Ordering};
-
-use super::types::TaskCB;
 
 const OS_PRIORITY_QUEUE_NUM: usize = 32;
 const PRIQUEUE_PRIOR0_BIT: u32 = 0x8000_0000;
@@ -125,9 +128,10 @@ pub extern "C" fn priority_queue_get_top_task() -> *mut TaskCB {
 /// 任务重新调度函数
 #[unsafe(export_name = "OsSchedResched")]
 pub extern "C" fn schedule_reschedule() {
-    // TODO
-    // assert!(crate::arch::core::arch_int_locked());
-
+    assert!(
+        crate::ffi::arch_int_locked(),
+        "调度函数必须在中断关闭状态下调用"
+    );
     // 检查是否可以进行调度
     if !is_preemptable_in_schedule() {
         return;
@@ -135,69 +139,107 @@ pub extern "C" fn schedule_reschedule() {
 
     unsafe {
         // 获取当前运行的任务和最高优先级的就绪任务
-        let run_task = get_current_task();
+        let run_task = curr_task_get();
         let new_task = priority_queue_get_top_task();
 
         // 断言必须能获取到一个任务
         assert!(!new_task.is_null(), "无法获取就绪任务");
 
-        // 将新任务从就绪状态改为非就绪状态
-        (*new_task).task_status &= !crate::task::OS_TASK_STATUS_READY;
-
-        // 如果新任务和当前运行任务相同，直接返回
+        (*new_task).task_status.remove(TaskStatus::READY);
         if run_task == new_task {
             return;
         }
 
         // 更新任务状态
-        (*run_task).taskStatus &= !crate::task::OS_TASK_STATUS_RUNNING;
-        (*new_task).taskStatus |= crate::task::OS_TASK_STATUS_RUNNING;
+        (*run_task).task_status.remove(TaskStatus::RUNNING);
+        (*new_task).task_status.insert(TaskStatus::RUNNING);
+        // TODO
+        // OsTaskTimeUpdateHook(runTask->taskId, LOS_TickCountGet());
+        // OsTaskSwitchCheck(runTask, newTask);
+        // OsSchedStatistics(runTask, newTask);
 
-        // SMP相关配置
-        #[cfg(feature = "kernel_smp")]
-        {
-            // 标记新运行任务的所属处理器
-            (*run_task).currCpu = crate::task::OS_TASK_INVALID_CPUID;
-            (*new_task).currCpu = crate::arch::core::arch_current_cpu_id();
-        }
-
-        // 更新任务时间统计
-        crate::task::hook::task_time_update_hook((*run_task).taskId, crate::tick::get_tick_count());
-
-        // CPU使用率统计
-        #[cfg(feature = "kernel_cpup")]
-        crate::task::cpup::task_cycle_end_start(new_task);
-
-        // 任务切换监控
-        #[cfg(feature = "base_core_tsk_monitor")]
-        crate::task::monitor::task_switch_check(run_task, new_task);
-
-        // 调度统计
-        #[cfg(feature = "debug_sched_statistics")]
-        crate::sched::statistics::sched_statistics(run_task, new_task);
-
-        // 时间片处理
-        #[cfg(feature = "base_core_timeslice")]
-        if (*new_task).timeSlice == 0 {
-            (*new_task).timeSlice = crate::task::KERNEL_TIMESLICE_TIMEOUT;
+        if (*new_task).time_slice == 0 {
+            (*new_task).time_slice = crate::config::KERNEL_TIMESLICE_TIMEOUT;
         }
 
         // 设置当前任务
-        crate::task::current::set_current_task(new_task.cast());
+        curr_task_set(new_task);
 
         // 执行任务上下文切换
-        crate::arch::dispatch::task_schedule(new_task, run_task);
+        os_task_schedule(new_task, run_task);
     }
 }
 
 #[inline]
-pub fn is_preemptable_in_schedule() -> bool {
+fn is_preemptable_in_schedule() -> bool {
     let percpu = crate::percpu::os_percpu_get();
     let preemptable = percpu.task_lock_cnt == 0;
-
     if !preemptable {
         // 如果不可调度，设置调度标志以便之后处理
         percpu.sched_flag = crate::percpu::SchedFlag::Pending as u32;
     }
     preemptable
+}
+
+#[inline]
+fn is_preemptable() -> bool {
+    let int_save = int_lock();
+    let preemptable = is_preemptable_in_schedule();
+    int_restore(int_save);
+    preemptable
+}
+
+#[unsafe(export_name = "OsSchedPreempt")]
+pub extern "C" fn schedule_preempt() {
+    // 检查是否可以进行抢占
+    if !is_preemptable() {
+        return;
+    }
+
+    // 获取调度器锁
+    let int_save = int_lock();
+    unsafe {
+        // 将当前任务添加回就绪队列
+        let run_task = crate::ffi::curr_task_get();
+        (*run_task).task_status.insert(TaskStatus::READY);
+
+        // 根据时间片情况，选择插入队列的方式
+        if (*run_task).time_slice == 0 {
+            priority_queue_insert_at_back(&mut (*run_task).pend_list, (*run_task).priority as u32);
+        } else {
+            priority_queue_insert_at_front(&mut (*run_task).pend_list, (*run_task).priority as u32);
+        }
+        // 调度到新线程
+        crate::task::sched::schedule_reschedule();
+    }
+
+    int_restore(int_save);
+}
+
+#[unsafe(export_name = "OsTimesliceCheck")]
+pub extern "C" fn timeslice_check() {
+    unsafe {
+        // 获取当前运行的任务
+        let run_task = crate::ffi::curr_task_get();
+
+        // 检查时间片是否需要递减
+        if (*run_task).time_slice != 0 {
+            (*run_task).time_slice -= 1;
+            if (*run_task).time_slice == 0 {
+                schedule();
+            }
+        }
+    }
+}
+
+/// 触发任务调度
+#[inline]
+pub(crate) fn schedule() {
+    // 检查是否在中断上下文中
+    if crate::hwi::is_int_active() {
+        let percpu = crate::percpu::os_percpu_get();
+        percpu.sched_flag = crate::percpu::SchedFlag::Pending as u32;
+        return;
+    }
+    schedule_preempt();
 }

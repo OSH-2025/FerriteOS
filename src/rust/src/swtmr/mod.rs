@@ -1,7 +1,9 @@
 use core::ffi::c_char;
 
 use crate::{
-    LOS_OK, container_of, hwi,
+    config::LOS_OK,
+    container_of,
+    hwi::{int_lock, int_restore},
     mem::{
         defs::m_aucSysMem0,
         memory::{los_mem_alloc, los_mem_free},
@@ -144,16 +146,6 @@ unsafe extern "C" {
 
     #[link_name = "OS_TCB_FROM_TID_WRAPPER"]
     unsafe fn os_tcb_from_tid(task_id: u32);
-}
-
-#[inline]
-fn swtmr_lock() -> u32 {
-    hwi::los_int_lock()
-}
-
-#[inline]
-fn swtmr_unlock(int_save: u32) {
-    hwi::los_int_restore(int_save);
 }
 
 fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
@@ -482,11 +474,11 @@ pub extern "C" fn los_swtmr_create(
         return LOS_ERRNO_SWTMR_PTR_NULL;
     }
 
-    let int_save = swtmr_lock();
+    let int_save = int_lock();
 
     // 检查空闲列表是否为空
     if LinkedList::is_empty(&raw mut SWTMR_FREE_LIST) {
-        swtmr_unlock(int_save);
+        int_restore(int_save);
         return LOS_ERRNO_SWTMR_MAXSIZE;
     }
 
@@ -499,7 +491,7 @@ pub extern "C" fn los_swtmr_create(
 
     // 从空闲列表中删除该节点
     LinkedList::remove(free_node);
-    swtmr_unlock(int_save);
+    int_restore(int_save);
 
     let swtmr = unsafe { &mut *swtmr };
     swtmr.handler = handler;
@@ -527,7 +519,7 @@ pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
     }
 
     // 加锁保护访问
-    let int_save = swtmr_lock();
+    let int_save = int_lock();
 
     // 计算实际定时器索引
     let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
@@ -538,7 +530,7 @@ pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
 
     // 二次检查定时器ID是否有效
     if swtmr.timer_id != swtmr_id {
-        swtmr_unlock(int_save);
+        int_restore(int_save);
         return LOS_ERRNO_SWTMR_ID_INVALID;
     }
 
@@ -564,7 +556,7 @@ pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
         _ => LOS_ERRNO_SWTMR_STATUS_INVALID,
     };
     // 解锁
-    swtmr_unlock(int_save);
+    int_restore(int_save);
 
     ret
 }
@@ -577,7 +569,7 @@ pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
     }
 
     // 加锁保护访问
-    let int_save = swtmr_lock();
+    let int_save = int_lock();
 
     // 计算实际定时器索引
     let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
@@ -588,7 +580,7 @@ pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
 
     // 再次验证定时器ID
     if swtmr.timer_id != swtmr_id {
-        swtmr_unlock(int_save);
+        int_restore(int_save);
         return LOS_ERRNO_SWTMR_ID_INVALID;
     }
 
@@ -611,7 +603,7 @@ pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
     };
 
     // 解锁
-    swtmr_unlock(int_save);
+    int_restore(int_save);
 
     ret
 }
@@ -624,7 +616,7 @@ pub extern "C" fn los_swtmr_time_get(swtmr_id: u16, tick: &mut u32) -> u32 {
     }
 
     // 加锁保护访问
-    let int_save = swtmr_lock();
+    let int_save = int_lock();
 
     // 计算实际定时器索引
     let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
@@ -635,7 +627,7 @@ pub extern "C" fn los_swtmr_time_get(swtmr_id: u16, tick: &mut u32) -> u32 {
 
     // 二次检查定时器ID是否有效
     if swtmr.timer_id != swtmr_id {
-        swtmr_unlock(int_save);
+        int_restore(int_save);
         return LOS_ERRNO_SWTMR_ID_INVALID;
     }
 
@@ -658,7 +650,7 @@ pub extern "C" fn los_swtmr_time_get(swtmr_id: u16, tick: &mut u32) -> u32 {
     };
 
     // 解锁
-    swtmr_unlock(int_save);
+    int_restore(int_save);
 
     ret
 }
@@ -671,7 +663,7 @@ pub extern "C" fn los_swtmr_delete(swtmr_id: u16) -> u32 {
     }
 
     // 加锁保护访问
-    let int_save = swtmr_lock();
+    let int_save = int_lock();
 
     // 计算实际定时器索引
     let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
@@ -682,7 +674,7 @@ pub extern "C" fn los_swtmr_delete(swtmr_id: u16) -> u32 {
 
     // 二次检查定时器ID是否有效
     if swtmr.timer_id != swtmr_id {
-        swtmr_unlock(int_save);
+        int_restore(int_save);
         return LOS_ERRNO_SWTMR_ID_INVALID;
     }
 
@@ -709,7 +701,7 @@ pub extern "C" fn los_swtmr_delete(swtmr_id: u16) -> u32 {
     };
 
     // 解锁
-    swtmr_unlock(int_save);
+    int_restore(int_save);
 
     ret
 }

@@ -1,6 +1,7 @@
 use super::list::LinkedList;
 use crate::{
-    LOS_NOK, LOS_OK, container_of,
+    config::{LOS_NOK, LOS_OK},
+    container_of,
     mem::{defs::m_aucSysMem0, memory::los_mem_alloc},
     offset_of,
 };

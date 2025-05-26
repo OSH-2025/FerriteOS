@@ -1,17 +1,19 @@
 #![no_std]
 #![no_main]
 
-use panic_halt as _;
+use semihosting::println;
 
-pub mod config;
-pub mod event;
+mod config;
+mod event;
 mod ffi;
-pub mod hwi;
-pub mod mem;
-pub mod percpu;
-pub mod spinlock;
-pub mod swtmr;
-pub mod task;
-pub mod utils;
+mod hwi;
+mod mem;
+mod percpu;
+mod swtmr;
+mod task;
+mod utils;
 
-pub use config::*;
+#[unsafe(export_name = "HelloRust")]
+pub extern "C" fn hello_rust() {
+    println!("Hello Rust!");
+}

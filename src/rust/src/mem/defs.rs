@@ -1,7 +1,7 @@
 use super::memory::LosMemDynNode;
 use super::mempool::LosMemPoolInfo;
 use super::multiple_dlink_head::LosMultipleDlinkHead;
-use crate::spinlock;
+use crate::hwi::{int_lock, int_restore};
 use crate::utils::list::LinkedList;
 
 pub const OS_MAX_MULTI_DLNK_LOG2: u32 = 29;
@@ -18,8 +18,6 @@ pub const OS_MEM_MIN_POOL_SIZE: usize =
     OS_MULTI_DLNK_HEAD_SIZE + (2 * OS_MEM_NODE_HEAD_SIZE) + OS_MEM_POOL_INFO_SIZE;
 
 unsafe extern "C" {
-    pub unsafe static mut g_memSpin: spinlock::Spinlock;
-
     pub unsafe static mut m_aucSysMem0: *mut u8;
 
     pub unsafe static mut m_aucSysMem1: *mut u8;
@@ -125,11 +123,11 @@ pub fn os_mem_magic_valid(node: *mut LosMemDynNode) -> bool {
 }
 
 #[inline]
-pub fn mem_lock(state: &mut u32) {
-    spinlock::los_spin_lock_save(&raw mut g_memSpin, state);
+pub fn mem_lock(int_save: &mut u32) {
+    *int_save = int_lock();
 }
 
 #[inline]
-pub fn mem_unlock(state: u32) {
-    spinlock::los_spin_unlock_restore(&raw mut g_memSpin, state);
+pub fn mem_unlock(int_save: u32) {
+    int_restore(int_save);
 }
