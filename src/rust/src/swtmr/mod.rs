@@ -14,7 +14,7 @@ use crate::{
     utils::{
         list::LinkedList,
         sortlink::{
-            SortLinkList, os_add_to_sort_link, os_delete_sort_link,
+            SortLinkList, add_to_sort_link, delete_from_sort_link,
             os_sort_link_get_target_expire_time, os_sort_link_init,
         },
     },
@@ -161,7 +161,7 @@ fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
     swtmr.sort_list.idx_roll_num = timeout;
 
     // 获取当前CPU的软件定时器排序链表，并添加定时器
-    os_add_to_sort_link(&os_percpu_get().swtmr_sort_link, &mut swtmr.sort_list);
+    add_to_sort_link(&os_percpu_get().swtmr_sort_link, &mut swtmr.sort_list);
     // 更新定时器状态为正在计时
     swtmr.state = SwtmrState::Ticking as u8;
 }
@@ -432,7 +432,7 @@ fn os_swtmr_stop(swtmr: &mut LosSwtmrCB) {
     let sort_link_header = &os_percpu_get().swtmr_sort_link;
 
     // 从排序链表中删除定时器
-    os_delete_sort_link(sort_link_header, &mut swtmr.sort_list);
+    delete_from_sort_link(sort_link_header, &mut swtmr.sort_list);
 
     // 更新定时器状态为已创建
     swtmr.state = SwtmrState::Created as u8;

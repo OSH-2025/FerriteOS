@@ -16,6 +16,7 @@ pub const OS_TSK_HIGH_BITS_MASK: u32 = OS_TSK_SORTLINK_MASK << OS_TSK_LOW_BITS;
 pub const OS_TSK_LOW_BITS_MASK: u32 = !OS_TSK_HIGH_BITS_MASK;
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct SortLinkList {
     /// 链表节点
     pub sort_link_node: LinkedList,
@@ -24,6 +25,11 @@ pub struct SortLinkList {
 }
 
 impl SortLinkList {
+    #[inline]
+    pub fn set_timeout(&mut self, timeout: u32) {
+        self.idx_roll_num = timeout;
+    }
+
     /// 设置轮数（低位部分）
     #[inline]
     fn set_roll_num(&mut self, value: u32) {
@@ -70,6 +76,7 @@ impl SortLinkList {
 
 /// 排序链表属性
 #[repr(C)]
+#[derive(Debug)]
 pub struct SortLinkAttribute {
     /// 排序链表头
     pub sort_link: *mut LinkedList,
@@ -130,7 +137,7 @@ pub extern "C" fn os_sort_link_init(sort_link_header: &mut SortLinkAttribute) ->
 
 /// 将排序节点添加到排序链表中
 #[unsafe(export_name = "OsAdd2SortLink")]
-pub extern "C" fn os_add_to_sort_link(
+pub extern "C" fn add_to_sort_link(
     sort_link_header: &SortLinkAttribute,
     sort_list: &mut SortLinkList,
 ) {
@@ -221,7 +228,7 @@ fn os_check_sort_link(list_head: *mut LinkedList, list_node: *mut LinkedList) {
 }
 
 #[unsafe(export_name = "OsDeleteSortLink")]
-pub extern "C" fn os_delete_sort_link(
+pub extern "C" fn delete_from_sort_link(
     sort_link_header: &SortLinkAttribute,
     sort_list: &mut SortLinkList,
 ) {

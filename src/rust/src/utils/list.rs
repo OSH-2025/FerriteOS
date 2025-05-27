@@ -1,5 +1,5 @@
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct LinkedList {
     pub prev: *mut LinkedList,
     pub next: *mut LinkedList,
@@ -44,6 +44,28 @@ impl LinkedList {
     #[inline]
     pub fn remove(node: *mut LinkedList) {
         unsafe {
+            // 检查node指针是否4字节对齐
+            assert_eq!(node as usize & 0x3, 0, "节点指针未对齐: {:p}", node);
+            // 检查next和prev指针是否4字节对齐
+            assert_eq!(
+                (*node).next as usize & 0x3,
+                0,
+                "next指针未对齐: {:p} {:p} {:p}",
+                node,
+                (*node).prev,
+                (*node).next,
+            );
+            assert_eq!(
+                (*node).prev as usize & 0x3,
+                0,
+                "prev指针未对齐: {:p} {:p} {:p}",
+                node,
+                (*node).prev,
+                (*node).next,
+            );
+            // 确保next和prev不为空
+            assert!(!(*node).next.is_null(), "next指针为空");
+            assert!(!(*node).prev.is_null(), "prev指针为空");
             (*(*node).next).prev = (*node).prev;
             (*(*node).prev).next = (*node).next;
             (*node).next = core::ptr::null_mut();

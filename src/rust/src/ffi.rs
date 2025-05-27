@@ -18,6 +18,9 @@ unsafe extern "C" {
 
     #[link_name = "OsTaskScheduleWrapper"]
     unsafe fn c_os_task_schedule(new_task: *mut TaskCB, run_task: *mut TaskCB);
+
+    #[link_name = "WfiWrapper"]
+    unsafe fn c_wfi();
 }
 
 #[inline]
@@ -48,4 +51,9 @@ pub(crate) fn arch_int_restore(int_save: u32) {
 #[inline]
 pub(crate) fn os_task_schedule(new_task: *mut TaskCB, run_task: *mut TaskCB) {
     unsafe { crate::ffi::c_os_task_schedule(new_task, run_task) }
+}
+
+#[inline]
+pub(crate) fn wfi() {
+    unsafe { c_wfi() }
 }

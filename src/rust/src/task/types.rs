@@ -47,6 +47,7 @@ impl Default for TaskInitParam {
 
 /// 任务控制块
 #[repr(C)]
+#[derive(Debug)]
 pub struct TaskCB {
     /// 任务栈指针
     pub stack_pointer: *mut core::ffi::c_void,

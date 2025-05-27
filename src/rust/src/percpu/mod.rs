@@ -4,6 +4,7 @@ const LOSCFG_KERNEL_CORE_NUM: usize = 1;
 
 /// 每个CPU核心的特定数据结构
 #[repr(C)]
+#[derive(Debug)]
 pub struct Percpu {
     /// 任务排序链表
     pub task_sort_link: SortLinkAttribute,
