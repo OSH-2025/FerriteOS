@@ -1,5 +1,3 @@
-use core::ffi::c_char;
-
 use crate::{
     config::OK,
     container_of,
@@ -10,10 +8,8 @@ use crate::{
     },
     offset_of,
     percpu::os_percpu_get,
-    task::{
-        los_task_create,
-        types::{TaskAttr, TaskEntryFunc, TaskInitParam},
-    },
+    queue::{los_queue_create, los_queue_write_copy},
+    task::types::{TaskAttr, TaskEntryFunc, TaskInitParam},
     utils::{
         list::LinkedList,
         sortlink::{
@@ -120,36 +116,6 @@ pub static mut SWTMR_FREE_LIST: LinkedList = LinkedList {
 #[unsafe(export_name = "g_swtmrCBArray")]
 pub static mut SWTMR_CB_ARRAY: *mut LosSwtmrCB = core::ptr::null_mut();
 
-unsafe extern "C" {
-    #[link_name = "LOS_QueueReadCopy"]
-    unsafe fn los_queue_read_copy(
-        queue_id: u32,
-        buffer_addr: *mut core::ffi::c_void,
-        buffer_size: *mut u32,
-        timeout: u32,
-    ) -> u32;
-
-    #[link_name = "LOS_QueueCreate"]
-    unsafe fn los_queue_create(
-        queue_name: *const c_char,
-        len: u16,
-        queue_id: *mut u32,
-        flags: u32,
-        max_msg_size: u16,
-    ) -> u32;
-
-    #[link_name = "LOS_QueueWriteCopy"]
-    unsafe fn los_queue_write_copy(
-        queue_id: u32,
-        buffer_addr: *const core::ffi::c_void,
-        buffer_size: u32,
-        timeout: u32,
-    ) -> u32;
-
-    #[link_name = "OS_TCB_FROM_TID_WRAPPER"]
-    unsafe fn os_tcb_from_tid(task_id: u32);
-}
-
 fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
     // 根据定时器类型和重复次数选择合适的过期时间
     let timeout = if (swtmr.overrun == 0)
@@ -201,6 +167,8 @@ fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
 
 #[cfg(not(feature = "swtmr_in_isr"))]
 fn os_swtmr_task() {
+    use crate::queue::los_queue_read_copy;
+
     // 读取大小设置为指针大小
     const READ_SIZE: u32 = core::mem::size_of::<*const SwtmrHandlerItem>() as u32;
 
@@ -212,14 +180,12 @@ fn os_swtmr_task() {
     // 无限循环处理软件定时器回调
     loop {
         // 从队列中读取定时器处理项
-        let ret = unsafe {
-            los_queue_read_copy(
-                swtmr_handler_queue,
-                &mut swtmr_handler as *mut _ as *mut core::ffi::c_void,
-                &mut read_size,
-                LOS_WAIT_FOREVER,
-            )
-        };
+        let ret = los_queue_read_copy(
+            swtmr_handler_queue,
+            &mut swtmr_handler as *mut _ as *mut core::ffi::c_void,
+            &mut read_size,
+            LOS_WAIT_FOREVER,
+        );
 
         // 检查读取结果和读取大小
         if ret == OK && read_size == READ_SIZE {
@@ -245,6 +211,8 @@ fn os_swtmr_task() {
 
 #[cfg(not(feature = "swtmr_in_isr"))]
 pub extern "C" fn os_swtmr_task_create() -> u32 {
+    use crate::task::{global::get_tcb_mut, lifecycle::create::task_create, types::TaskFlags};
+
     let mut swtmr_task_id: u32 = 0;
 
     // 创建任务参数结构
@@ -258,16 +226,20 @@ pub extern "C" fn os_swtmr_task_create() -> u32 {
     };
 
     // 创建任务
-    let ret = los_task_create(&mut swtmr_task_id, &mut swtmr_task);
-    // 如果创建成功，设置任务属性
-    if ret == OK {
-        os_percpu_get().swtmr_task_id = swtmr_task_id;
-        unsafe {
+    match task_create(&mut swtmr_task_id, &mut swtmr_task) {
+        Ok(_) => {
+            os_percpu_get().swtmr_task_id = swtmr_task_id;
             // 设置系统任务标志
-            os_tcb_from_tid(swtmr_task_id);
+            get_tcb_mut(swtmr_task_id)
+                .task_flags
+                .insert(TaskFlags::SYSTEM);
+            return OK;
+        }
+        Err(err) => {
+            // 任务创建失败，返回错误码
+            return err.into();
         }
     }
-    ret
 }
 
 #[unsafe(export_name = "OsSwtmrInit")]
@@ -306,15 +278,13 @@ pub extern "C" fn os_swtmr_init() -> u32 {
     #[cfg(not(feature = "swtmr_in_isr"))]
     {
         // 创建定时器处理队列
-        let ret = unsafe {
-            los_queue_create(
-                core::ptr::null_mut(),
-                OS_SWTMR_HANDLE_QUEUE_SIZE,
-                &mut os_percpu_get().swtmr_handler_queue,
-                0,
-                core::mem::size_of::<*mut SwtmrHandlerItem>() as u16,
-            )
-        };
+        let ret = los_queue_create(
+            core::ptr::null_mut(),
+            OS_SWTMR_HANDLE_QUEUE_SIZE,
+            &mut os_percpu_get().swtmr_handler_queue,
+            0,
+            core::mem::size_of::<*mut SwtmrHandlerItem>() as u16,
+        );
 
         if ret != OK {
             return LOS_ERRNO_SWTMR_QUEUE_CREATE_FAILED;

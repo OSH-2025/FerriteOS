@@ -4,15 +4,16 @@
 use semihosting::println;
 
 mod config;
+mod errno;
 mod event;
 mod ffi;
 mod hwi;
 mod mem;
 mod percpu;
+mod queue;
 mod swtmr;
 mod task;
 mod utils;
-mod errno;
 
 #[unsafe(export_name = "HelloRust")]
 pub extern "C" fn hello_rust() {
