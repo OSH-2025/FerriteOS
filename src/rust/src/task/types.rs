@@ -5,43 +5,51 @@ use crate::{
     utils::{list::LinkedList, sortlink::SortLinkList},
 };
 use bitflags::bitflags;
+use core::ffi::{c_char, c_void};
 
 /// 任务入口函数类型
-pub type TaskEntryFunc =
-    Option<extern "C" fn(param: *mut core::ffi::c_void) -> *mut core::ffi::c_void>;
+pub type TaskEntryFunc = Option<extern "C" fn(*mut c_void) -> *mut c_void>;
 
 /// 任务初始化参数结构体
 #[repr(C)]
+#[derive(Debug)]
 pub struct TaskInitParam {
     /// 任务入口函数
-    pub pfn_task_entry: TaskEntryFunc,
+    pub task_entry: TaskEntryFunc,
 
     /// 任务优先级
-    pub task_prio: u16,
+    pub priority: u16,
 
     /// 任务参数
-    pub p_args: *mut core::ffi::c_void,
+    pub args: *mut c_void,
 
     /// 任务栈大小
     pub stack_size: u32,
 
     /// 任务名称
-    pub name: *const u8,
+    pub name: *const c_char,
 
-    /// 保留字段，用于指定任务是否自动删除
-    pub resved: u32,
+    /// 任务属性标志
+    pub task_attr: TaskAttr,
 }
 
 impl Default for TaskInitParam {
     fn default() -> Self {
         Self {
-            pfn_task_entry: None,
-            task_prio: 0,
-            p_args: core::ptr::null_mut(),
+            task_entry: None,
+            priority: 0,
+            args: core::ptr::null_mut(),
             stack_size: 0,
             name: core::ptr::null(),
-            resved: 0,
+            task_attr: TaskAttr::empty(),
         }
+    }
+}
+
+impl TaskInitParam {
+    #[inline]
+    pub fn is_detached(&self) -> bool {
+        self.task_attr.contains(TaskAttr::DETACHED)
     }
 }
 
@@ -50,7 +58,7 @@ impl Default for TaskInitParam {
 #[derive(Debug)]
 pub struct TaskCB {
     /// 任务栈指针
-    pub stack_pointer: *mut core::ffi::c_void,
+    pub stack_pointer: *mut c_void,
 
     /// 任务状态
     pub task_status: TaskStatus,
@@ -59,7 +67,7 @@ pub struct TaskCB {
     pub priority: u16,
 
     /// 任务扩展标志
-    pub task_flags: u16,
+    pub task_flags: TaskFlags,
 
     /// 用户栈标志
     pub usr_stack: u16,
@@ -68,7 +76,7 @@ pub struct TaskCB {
     pub stack_size: u32,
 
     /// 任务栈顶
-    pub top_of_stack: *mut core::ffi::c_void,
+    pub top_of_stack: *mut c_void,
 
     /// 任务ID
     pub task_id: u32,
@@ -77,22 +85,22 @@ pub struct TaskCB {
     pub task_entry: TaskEntryFunc,
 
     /// 任务持有的信号量
-    pub task_sem: *mut core::ffi::c_void,
+    pub task_sem: *mut c_void,
 
     #[cfg(feature = "compat_posix")]
-    pub thread_join: *mut core::ffi::c_void,
+    pub thread_join: *mut c_void,
 
     #[cfg(feature = "compat_posix")]
-    pub thread_join_retval: *mut core::ffi::c_void,
+    pub thread_join_retval: *mut c_void,
 
     /// 任务持有的互斥锁
-    pub task_mux: *mut core::ffi::c_void,
+    pub task_mux: *mut c_void,
 
     /// 任务参数
-    pub args: *mut core::ffi::c_void,
+    pub args: *mut c_void,
 
     /// 任务名称
-    pub task_name: *mut i8,
+    pub task_name: *const c_char,
 
     /// 任务挂起节点
     pub pend_list: LinkedList,
@@ -110,13 +118,13 @@ pub struct TaskCB {
     pub event_mode: u32,
 
     /// 分配给队列的内存
-    pub msg: *mut core::ffi::c_void,
+    pub msg: *mut c_void,
 
-    /// 优先级位图，用于记录任务优先级的变化，优先级不能大于31
-    pub pri_bit_map: u32,
+    /// 优先级位图
+    pub priority_bitmap: u32,
 
     /// 任务信号
-    pub signal: u32,
+    pub signal: TaskSignal,
 
     /// 剩余时间片
     #[cfg(feature = "timeslice")]
@@ -129,6 +137,74 @@ impl TaskCB {
         let task_ptr = container_of!(ptr, TaskCB, pend_list);
         unsafe { &mut *task_ptr }
     }
+
+    #[inline]
+    pub fn clear_all_flags(&mut self) {
+        self.task_flags = TaskFlags::empty();
+    }
+
+    // #[inline]
+    // pub fn is_detached(&self) -> bool {
+    //     self.task_flags.contains(TaskFlags::DETACHED)
+    // }
+
+    #[inline]
+    pub fn set_detached(&mut self, detached: bool) {
+        if detached {
+            self.task_flags.insert(TaskFlags::DETACHED);
+        } else {
+            self.task_flags.remove(TaskFlags::DETACHED);
+        }
+    }
+
+    // #[inline]
+    // pub fn is_system_task(&self) -> bool {
+    //     self.task_flags.contains(TaskFlags::SYSTEM)
+    // }
+
+    // #[inline]
+    // pub fn set_system_task(&mut self, is_system: bool) {
+    //     if is_system {
+    //         self.task_flags.insert(TaskFlags::SYSTEM);
+    //     } else {
+    //         self.task_flags.remove(TaskFlags::SYSTEM);
+    //     }
+    // }
+
+    // #[inline]
+    // pub fn set_signal(&mut self, signal: TaskSignal) {
+    //     self.signal.insert(signal);
+    // }
+
+    // #[inline]
+    // pub fn clear_signal(&mut self, signal: TaskSignal) {
+    //     self.signal.remove(signal);
+    // }
+
+    #[inline]
+    pub fn clear_all_signals(&mut self) {
+        self.signal = TaskSignal::empty();
+    }
+
+    // #[inline]
+    // pub fn has_kill_signal(&self) -> bool {
+    //     self.signal.contains(TaskSignal::KILL)
+    // }
+
+    // #[inline]
+    // pub fn has_suspend_signal(&self) -> bool {
+    //     self.signal.contains(TaskSignal::SUSPEND)
+    // }
+
+    // #[inline]
+    // pub fn signal_kill(&mut self) {
+    //     self.signal.insert(TaskSignal::KILL);
+    // }
+
+    // #[inline]
+    // pub fn signal_suspend(&mut self) {
+    //     self.signal.insert(TaskSignal::SUSPEND);
+    // }
 }
 
 bitflags! {
@@ -143,5 +219,43 @@ bitflags! {
         const DELAY = 0x0020;     // 任务延时
         const TIMEOUT = 0x0040;   // 等待事件超时
         const PEND_TIME = 0x0080; // 任务等待特定时间
+    }
+}
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+    #[repr(transparent)]
+    pub struct TaskFlags: u16 {
+        /// 任务自动删除标志
+        const DETACHED = 0x0001;
+        /// 系统级任务标志
+        const SYSTEM = 0x0002;
+    }
+}
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+    #[repr(transparent)]
+    pub struct TaskAttr: u32 {
+        /// 任务属性：分离
+        const DETACHED = 0x0100;
+    }
+}
+
+bitflags! {
+    /// 任务信号类型
+    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+    #[repr(transparent)]
+    pub struct TaskSignal: u32 {
+        /// 杀死任务信号
+        const KILL = 1;
+        /// 挂起任务信号
+        const SUSPEND = 2;
+    }
+}
+
+impl From<u32> for TaskAttr {
+    fn from(value: u32) -> Self {
+        Self::from_bits_truncate(value)
     }
 }

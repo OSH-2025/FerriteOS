@@ -1,11 +1,10 @@
-use super::{
-    TaskCB,
-    sched::{priority_queue_insert_at_back, schedule},
-    types::TaskStatus,
-};
 use crate::{
     container_of, offset_of,
     percpu::os_percpu_get,
+    task::{
+        sched::{priority_queue_insert_at_back, schedule},
+        types::{TaskCB, TaskStatus},
+    },
     utils::{
         list::LinkedList,
         sortlink::{SortLinkList, add_to_sort_link, delete_from_sort_link},

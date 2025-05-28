@@ -1,6 +1,6 @@
 use super::{types::TaskCB, types::TaskStatus};
 use crate::{
-    ffi::{curr_task_get, curr_task_set, os_task_schedule},
+    ffi::bindings::{arch_int_locked, curr_task_get, curr_task_set, os_task_schedule},
     hwi::{int_lock, int_restore},
     utils::list::LinkedList,
 };
@@ -22,15 +22,6 @@ pub extern "C" fn priority_queue_init() {
             LinkedList::init(&mut PRI_QUEUE_LIST[priority]);
         }
     }
-    // 打印percpu
-    let percpu = crate::percpu::os_percpu_get();
-    unsafe {
-        crate::utils::printf::dprintf(
-            b"%d %d\n\0" as *const u8,
-            crate::percpu::SchedFlag::Pending as u32,
-            percpu.sched_flag,
-        )
-    };
 }
 
 /// 将任务节点插入优先级队列头部
@@ -86,8 +77,7 @@ pub extern "C" fn priority_queue_remove(priqueue_item: &mut LinkedList) {
 #[unsafe(export_name = "OsPriQueueSize")]
 pub extern "C" fn priority_queue_get_size(priority: u32) -> u32 {
     let mut item_count = 0;
-    // TODO
-    // assert!(crate::arch::core::arch_int_locked());
+    assert!(arch_int_locked());
     unsafe {
         // 获取优先级队列的头节点
         let list_head = &mut PRI_QUEUE_LIST[priority as usize];
@@ -128,10 +118,8 @@ pub extern "C" fn priority_queue_get_top_task() -> *mut TaskCB {
 /// 任务重新调度函数
 #[unsafe(export_name = "OsSchedResched")]
 pub extern "C" fn schedule_reschedule() {
-    assert!(
-        crate::ffi::arch_int_locked(),
-        "调度函数必须在中断关闭状态下调用"
-    );
+    assert!(arch_int_locked());
+
     // 检查是否可以进行调度
     if !is_preemptable_in_schedule() {
         return;
@@ -200,7 +188,7 @@ pub extern "C" fn schedule_preempt() {
     let int_save = int_lock();
     unsafe {
         // 将当前任务添加回就绪队列
-        let run_task = crate::ffi::curr_task_get();
+        let run_task = curr_task_get();
         (*run_task).task_status.insert(TaskStatus::READY);
 
         // 根据时间片情况，选择插入队列的方式
@@ -220,7 +208,7 @@ pub extern "C" fn schedule_preempt() {
 pub extern "C" fn timeslice_check() {
     unsafe {
         // 获取当前运行的任务
-        let run_task = crate::ffi::curr_task_get();
+        let run_task = curr_task_get();
 
         // 检查时间片是否需要递减
         if (*run_task).time_slice != 0 {

@@ -1,4 +1,6 @@
-use crate::task::TaskCB;
+use core::ffi::c_void;
+
+use crate::task::types::TaskCB;
 
 unsafe extern "C" {
     #[link_name = "ArchCurrTaskGetWrapper"]
@@ -21,6 +23,13 @@ unsafe extern "C" {
 
     #[link_name = "WfiWrapper"]
     unsafe fn c_wfi();
+
+    #[link_name = "OsTaskStackInit"]
+    unsafe fn c_task_stack_init(
+        task_id: u32,
+        stack_size: u32,
+        top_stack: *mut c_void,
+    ) -> *mut c_void;
 }
 
 #[inline]
@@ -50,10 +59,19 @@ pub(crate) fn arch_int_restore(int_save: u32) {
 
 #[inline]
 pub(crate) fn os_task_schedule(new_task: *mut TaskCB, run_task: *mut TaskCB) {
-    unsafe { crate::ffi::c_os_task_schedule(new_task, run_task) }
+    unsafe { c_os_task_schedule(new_task, run_task) }
 }
 
 #[inline]
 pub(crate) fn wfi() {
     unsafe { c_wfi() }
+}
+
+#[inline]
+pub(crate) fn task_stack_init(
+    task_id: u32,
+    stack_size: u32,
+    top_stack: *mut c_void,
+) -> *mut c_void {
+    unsafe { c_task_stack_init(task_id, stack_size, top_stack) }
 }

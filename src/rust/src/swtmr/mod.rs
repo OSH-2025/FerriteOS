@@ -1,7 +1,7 @@
 use core::ffi::c_char;
 
 use crate::{
-    config::LOS_OK,
+    config::OK,
     container_of,
     hwi::{int_lock, int_restore},
     mem::{
@@ -10,7 +10,10 @@ use crate::{
     },
     offset_of,
     percpu::os_percpu_get,
-    task::{TaskEntryFunc, TaskInitParam, los_task_create},
+    task::{
+        los_task_create,
+        types::{TaskAttr, TaskEntryFunc, TaskInitParam},
+    },
     utils::{
         list::LinkedList,
         sortlink::{
@@ -24,7 +27,6 @@ const KERNEL_SWTMR_LIMIT: u16 = 1024;
 const OS_SWTMR_MAX_TIMERID: u16 = (u16::MAX / KERNEL_SWTMR_LIMIT) * KERNEL_SWTMR_LIMIT;
 const LOS_WAIT_FOREVER: u32 = u32::MAX;
 const KERNEL_TSK_SWTMR_STACK_SIZE: u32 = 24576;
-const LOS_TASK_STATUS_DETACHED: u32 = 0x0100;
 const OS_SWTMR_HANDLE_QUEUE_SIZE: u16 = KERNEL_SWTMR_LIMIT;
 
 pub const LOS_ERRNO_SWTMR_PTR_NULL: u32 = 0x02000300;
@@ -220,7 +222,7 @@ fn os_swtmr_task() {
         };
 
         // 检查读取结果和读取大小
-        if ret == LOS_OK && read_size == READ_SIZE {
+        if ret == OK && read_size == READ_SIZE {
             unsafe {
                 // 从处理项中提取处理函数和参数
                 let handler = (*swtmr_handler).handler;
@@ -247,18 +249,18 @@ pub extern "C" fn os_swtmr_task_create() -> u32 {
 
     // 创建任务参数结构
     let mut swtmr_task = TaskInitParam {
-        pfn_task_entry: unsafe { core::mem::transmute::<_, TaskEntryFunc>(os_swtmr_task as usize) },
+        task_entry: unsafe { core::mem::transmute::<_, TaskEntryFunc>(os_swtmr_task as usize) },
         stack_size: KERNEL_TSK_SWTMR_STACK_SIZE,
         name: b"Swt_Task\0".as_ptr(),
-        task_prio: 0,
-        resved: LOS_TASK_STATUS_DETACHED,
-        p_args: core::ptr::null_mut(),
+        priority: 0,
+        task_attr: TaskAttr::DETACHED,
+        args: core::ptr::null_mut(),
     };
 
     // 创建任务
     let ret = los_task_create(&mut swtmr_task_id, &mut swtmr_task);
     // 如果创建成功，设置任务属性
-    if ret == LOS_OK {
+    if ret == OK {
         os_percpu_get().swtmr_task_id = swtmr_task_id;
         unsafe {
             // 设置系统任务标志
@@ -314,13 +316,13 @@ pub extern "C" fn os_swtmr_init() -> u32 {
             )
         };
 
-        if ret != LOS_OK {
+        if ret != OK {
             return LOS_ERRNO_SWTMR_QUEUE_CREATE_FAILED;
         }
 
         // 创建定时器任务
         let ret = os_swtmr_task_create();
-        if ret != LOS_OK {
+        if ret != OK {
             return LOS_ERRNO_SWTMR_TASK_CREATE_FAILED;
         }
     }
@@ -328,11 +330,11 @@ pub extern "C" fn os_swtmr_init() -> u32 {
     // 初始化排序链表
     let ret = os_sort_link_init(&mut os_percpu_get().swtmr_sort_link);
 
-    if ret != LOS_OK {
+    if ret != OK {
         return LOS_ERRNO_SWTMR_SORTLINK_CREATE_FAILED;
     }
 
-    LOS_OK
+    OK
 }
 
 #[unsafe(export_name = "OsSwtmrScan")]
@@ -402,7 +404,7 @@ pub extern "C" fn os_swtmr_scan() {
                         &swtmr_handler as *const _ as *const core::ffi::c_void,
                         core::mem::size_of::<*const SwtmrHandlerItem>() as u32,
                         0,
-                    ) != LOS_OK
+                    ) != OK
                     {
                         // 写入失败，释放内存
                         los_mem_free(
@@ -508,7 +510,7 @@ pub extern "C" fn los_swtmr_create(
     // 设置输出参数
     *swtmr_id = swtmr.timer_id;
 
-    LOS_OK
+    OK
 }
 
 #[unsafe(export_name = "LOS_SwtmrStart")]
@@ -543,13 +545,13 @@ pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
         x if x == SwtmrState::Ticking as u8 => {
             os_swtmr_stop(swtmr);
             os_swtmr_start(swtmr);
-            LOS_OK
+            OK
         }
 
         // 已创建但未启动状态
         x if x == SwtmrState::Created as u8 => {
             os_swtmr_start(swtmr);
-            LOS_OK
+            OK
         }
 
         // 其他状态视为无效
@@ -595,7 +597,7 @@ pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
         // 正在计时状态，停止定时器
         x if x == SwtmrState::Ticking as u8 => {
             os_swtmr_stop(&mut *swtmr);
-            LOS_OK
+            OK
         }
 
         // 其他状态视为无效
@@ -642,7 +644,7 @@ pub extern "C" fn los_swtmr_time_get(swtmr_id: u16, tick: &mut u32) -> u32 {
         // 正在计时状态，获取剩余时间
         x if x == SwtmrState::Ticking as u8 => {
             *tick = os_swtmr_time_get(swtmr);
-            LOS_OK
+            OK
         }
 
         // 其他状态视为无效
@@ -687,13 +689,13 @@ pub extern "C" fn los_swtmr_delete(swtmr_id: u16) -> u32 {
         x if x == SwtmrState::Ticking as u8 => {
             os_swtmr_stop(swtmr);
             os_swtmr_delete(swtmr);
-            LOS_OK
+            OK
         }
 
         // 已创建状态，直接删除
         x if x == SwtmrState::Created as u8 => {
             os_swtmr_delete(swtmr);
-            LOS_OK
+            OK
         }
 
         // 其他状态视为无效

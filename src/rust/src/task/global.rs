@@ -1,5 +1,5 @@
-use super::types::TaskCB;
-use crate::utils::list::LinkedList;
+use crate::{task::types::TaskCB, utils::list::LinkedList};
+use core::sync::atomic::{AtomicU32, Ordering};
 
 /// 任务控制块数组
 #[unsafe(export_name = "g_taskCBArray")]
@@ -7,7 +7,7 @@ pub static mut TASK_CB_ARRAY: *mut TaskCB = core::ptr::null_mut();
 
 /// 空闲任务列表
 #[unsafe(export_name = "g_losFreeTask")]
-pub static mut TASK_FREE_LIST: LinkedList = LinkedList::UNINIT;
+pub static mut FREE_TASK_LIST: LinkedList = LinkedList::UNINIT;
 
 /// 回收任务列表
 #[unsafe(export_name = "g_taskRecycleList")]
@@ -17,3 +17,15 @@ pub static mut TASK_RECYCLE_LIST: LinkedList = LinkedList::UNINIT;
 #[unsafe(export_name = "g_taskMaxNum")]
 pub static mut TASK_MAX_NUM: u32 = 0;
 
+pub fn get_tcb_mut(task_id: u32) -> &'static mut TaskCB {
+    unsafe { TASK_CB_ARRAY.add(task_id as usize).as_mut().unwrap() }
+}
+
+#[unsafe(export_name = "g_taskScheduled")]
+pub static TASK_SCHEDULED: AtomicU32 = AtomicU32::new(0);
+
+#[inline]
+pub fn scheduler_active() -> bool {
+    let current_state = TASK_SCHEDULED.load(Ordering::Acquire);
+    current_state & 1 != 0
+}

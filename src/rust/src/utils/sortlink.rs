@@ -1,6 +1,6 @@
 use super::list::LinkedList;
 use crate::{
-    config::{LOS_NOK, LOS_OK},
+    config::{NOK, OK},
     container_of,
     mem::{defs::m_aucSysMem0, memory::los_mem_alloc},
     offset_of,
@@ -117,7 +117,7 @@ pub extern "C" fn os_sort_link_init(sort_link_header: &mut SortLinkAttribute) ->
     let list_object =
         los_mem_alloc(unsafe { m_aucSysMem0 } as *mut core::ffi::c_void, size) as *mut LinkedList;
     if list_object.is_null() {
-        return LOS_NOK;
+        return NOK;
     }
 
     // 设置排序链表头
@@ -132,7 +132,7 @@ pub extern "C" fn os_sort_link_init(sort_link_header: &mut SortLinkAttribute) ->
         }
     }
 
-    LOS_OK
+    OK
 }
 
 /// 将排序节点添加到排序链表中

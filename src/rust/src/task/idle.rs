@@ -1,12 +1,12 @@
-use super::{
-    TaskCB,
-    global::{TASK_FREE_LIST, TASK_RECYCLE_LIST},
-};
 use crate::{
-    ffi::wfi,
+    ffi::bindings::wfi,
     hwi::{int_lock, int_restore},
     mem::{defs::m_aucSysMem0, memory::los_mem_free},
     percpu::os_percpu_get,
+    task::{
+        global::{FREE_TASK_LIST, TASK_RECYCLE_LIST},
+        types::TaskCB,
+    },
     utils::list::LinkedList,
 };
 
@@ -25,7 +25,7 @@ pub extern "C" fn los_task_recycle() {
             let task_cb = TaskCB::from_pend_list(first_node);
 
             // 将任务控制块添加到空闲列表
-            LinkedList::insert(&raw mut TASK_FREE_LIST, &mut task_cb.pend_list);
+            LinkedList::insert(&raw mut FREE_TASK_LIST, &mut task_cb.pend_list);
             los_mem_free(
                 m_aucSysMem0 as *mut core::ffi::c_void,
                 task_cb.top_of_stack as *mut core::ffi::c_void,

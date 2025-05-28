@@ -1,4 +1,4 @@
-use crate::config::{LOS_NOK, LOS_OK, OS_INVALID};
+use crate::config::{NOK, OK, OS_INVALID};
 use crate::utils::list::LinkedList;
 use crate::utils::printf::dprintf;
 use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
@@ -68,17 +68,18 @@ pub fn os_mem_list_add(
 
 #[unsafe(export_name = "OsMemSystemInit")]
 pub extern "C" fn os_mem_system_init(mem_start: usize) -> u32 {
-    unsafe { m_aucSysMem1 = mem_start as *mut u8 };
-    let pool_size = os_sys_mem_size() as u32;
-    let ret = los_mem_init(mem_start as *mut core::ffi::c_void, pool_size);
-    unsafe {
+    let ret = unsafe {
+        m_aucSysMem1 = mem_start as *mut u8;
+        let pool_size = os_sys_mem_size() as u32;
+        let ret = los_mem_init(mem_start as *mut core::ffi::c_void, pool_size);
         dprintf(
             b"LiteOS system heap memory address:%p,size:0x%x\n\0" as *const u8,
             m_aucSysMem1,
             pool_size,
         );
         m_aucSysMem0 = m_aucSysMem1;
-    }
+        ret
+    };
     ret
 }
 
@@ -238,7 +239,7 @@ fn os_mem_info_get(pool_info: *mut LosMemPoolInfo, pool_status: &mut LosMemPoolS
 
         if !os_mem_magic_valid(tmp_node) {
             dprintf(b"Wrong memory pool address: {%p}\n" as *const u8, pool_info);
-            return LOS_NOK;
+            return NOK;
         }
 
         let mut total_used_size = 0;
@@ -272,14 +273,14 @@ fn os_mem_info_get(pool_info: *mut LosMemPoolInfo, pool_status: &mut LosMemPoolS
         {
             pool_status.usage_water_line = (*pool_info).stat.mem_total_peak;
         }
-        LOS_OK
+        OK
     }
 }
 
 #[unsafe(export_name = "OsMemInfoPrint")]
 pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
     let mut status: LosMemPoolStatus = LosMemPoolStatus::default();
-    if os_mem_info_get(pool_info, &mut status) == LOS_NOK {
+    if os_mem_info_get(pool_info, &mut status) == NOK {
         return;
     }
     #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
@@ -465,7 +466,7 @@ fn os_mem_init(pool: *mut core::ffi::c_void, size: u32) -> Result<(), ()> {
 #[unsafe(export_name = "LOS_MemInit")]
 pub fn los_mem_init(pool: *mut core::ffi::c_void, mut size: u32) -> u32 {
     if pool.is_null() || size < OS_MEM_MIN_POOL_SIZE as u32 {
-        return LOS_NOK;
+        return NOK;
     }
     if !is_aligned(size as usize, OS_MEM_ALIGN_SIZE)
         || !is_aligned(pool as usize, OS_MEM_ALIGN_SIZE)
@@ -489,11 +490,11 @@ pub fn los_mem_init(pool: *mut core::ffi::c_void, mut size: u32) -> u32 {
     match os_mem_init(pool, size) {
         Ok(_) => {
             mem_unlock(int_save);
-            return LOS_OK;
+            return OK;
         }
         Err(_) => {
             mem_unlock(int_save);
-            return LOS_NOK;
+            return NOK;
         }
     }
 }
@@ -606,7 +607,7 @@ fn os_mem_free(pool: *mut core::ffi::c_void, ptr: *const core::ffi::c_void) -> u
         os_do_mem_free(pool, node);
         break;
     }
-    LOS_OK
+    OK
 }
 
 #[unsafe(export_name = "LOS_MemFree")]
@@ -621,7 +622,7 @@ pub fn los_mem_free(pool: *mut core::ffi::c_void, ptr: *mut core::ffi::c_void) -
         )
         || !is_aligned(ptr as usize, core::mem::size_of::<*mut core::ffi::c_void>())
     {
-        return LOS_NOK;
+        return NOK;
     }
     // 加锁
     mem_lock(&mut int_save);
@@ -788,7 +789,7 @@ pub fn los_mem_realloc(
 #[unsafe(export_name = "LOS_MemTotalUsedGet")]
 pub fn los_mem_total_used_get(pool: *mut LosMemPoolInfo) -> u32 {
     if pool.is_null() {
-        return LOS_NOK;
+        return NOK;
     }
 
     let mut mem_used: u32 = 0;
@@ -812,7 +813,7 @@ pub fn los_mem_total_used_get(pool: *mut LosMemPoolInfo) -> u32 {
 #[unsafe(export_name = "LOS_MemUsedBlksGet")]
 pub fn los_mem_used_blks_get(pool: *mut LosMemPoolInfo) -> u32 {
     if pool.is_null() {
-        return LOS_NOK;
+        return NOK;
     }
 
     let mut blk_nums: u32 = 0;
@@ -890,7 +891,7 @@ pub fn los_mem_task_id_get(ptr: *const core::ffi::c_void) -> u32 {
 #[unsafe(export_name = "LOS_MemFreeBlksGet")]
 pub fn los_mem_free_blks_get(pool: *mut LosMemPoolInfo) -> u32 {
     if pool.is_null() {
-        return LOS_NOK;
+        return NOK;
     }
 
     let mut blk_nums: u32 = 0;
@@ -914,7 +915,7 @@ pub fn los_mem_free_blks_get(pool: *mut LosMemPoolInfo) -> u32 {
 #[unsafe(export_name = "LOS_MemLastUsedGet")]
 pub fn los_mem_last_used_get(pool: *mut LosMemPoolInfo) -> usize {
     if pool.is_null() {
-        return LOS_NOK as usize;
+        return NOK as usize;
     }
 
     unsafe {
@@ -955,7 +956,7 @@ pub fn os_mem_reset_end_node(pool: *mut LosMemPoolInfo, pre_addr: usize) {
 #[unsafe(export_name = "LOS_MemPoolSizeGet")]
 pub fn los_mem_pool_size_get(pool: *const LosMemPoolInfo) -> u32 {
     if pool.is_null() {
-        return LOS_NOK;
+        return NOK;
     }
     unsafe { (*pool).pool_size }
 }
@@ -965,7 +966,7 @@ pub fn los_mem_info_get(pool: *mut LosMemPoolInfo, pool_status: *mut LosMemPoolS
         unsafe {
             dprintf(b"can't use NULL addr to save info\n\0" as *const u8);
         }
-        return LOS_NOK;
+        return NOK;
     }
     let pool_status = unsafe { &mut *pool_status };
     if pool.is_null() || (pool as usize) != unsafe { (*pool).pool as usize } {
@@ -976,7 +977,7 @@ pub fn los_mem_info_get(pool: *mut LosMemPoolInfo, pool_status: *mut LosMemPoolS
                 line!(),
             );
         }
-        return LOS_NOK;
+        return NOK;
     }
     let mut int_save: u32 = 0;
     mem_lock(&mut int_save);
@@ -1025,7 +1026,7 @@ pub fn los_mem_free_node_show(pool: *mut LosMemPoolInfo) -> u32 {
                 line!(),
             );
         }
-        return LOS_NOK;
+        return NOK;
     }
 
     let mut count_num = [0; OS_MULTI_DLNK_NUM];
@@ -1068,7 +1069,7 @@ pub fn los_mem_free_node_show(pool: *mut LosMemPoolInfo) -> u32 {
                 as *const u8,
         );
     }
-    LOS_OK
+    OK
 }
 
 unsafe extern "C" {

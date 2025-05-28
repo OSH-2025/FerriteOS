@@ -1,10 +1,11 @@
-mod global;
-mod idle;
-mod sched;
-mod types;
-mod timer;
+use types::TaskInitParam;
 
-pub use types::{TaskCB, TaskEntryFunc, TaskInitParam};
+pub mod global;
+pub mod idle;
+pub mod lifecycle;
+pub mod sched;
+pub mod timer;
+pub mod types;
 
 unsafe extern "C" {
     #[link_name = "LOS_TaskCreate"]
