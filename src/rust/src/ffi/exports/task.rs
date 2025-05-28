@@ -1,11 +1,11 @@
 use crate::{
     config::OK,
     task::{
+        idle::idle_task_create,
         lifecycle::create::{
-            TaskCreateError, task_create, task_create_only, task_create_only_static,
-            task_create_static,
+            task_create, task_create_only, task_create_only_static, task_create_static,
         },
-        types::TaskInitParam,
+        types::{TaskError, TaskInitParam},
     },
 };
 use core::ffi::{c_char, c_void};
@@ -51,10 +51,10 @@ impl From<TaskInitParam> for CTaskInitParam {
 #[unsafe(export_name = "LOS_TaskCreate")]
 pub extern "C" fn los_task_create(task_id: *mut u32, c_init_param: *mut CTaskInitParam) -> u32 {
     if task_id.is_null() {
-        return TaskCreateError::InvalidId.into();
+        return TaskError::InvalidId.into();
     }
     if c_init_param.is_null() {
-        return TaskCreateError::ParamNull.into();
+        return TaskError::ParamNull.into();
     }
     unsafe {
         let task_id_ref = &mut *task_id;
@@ -75,10 +75,10 @@ pub extern "C" fn los_task_create_only(
     c_init_param: *mut CTaskInitParam,
 ) -> u32 {
     if task_id.is_null() {
-        return TaskCreateError::InvalidId.into();
+        return TaskError::InvalidId.into();
     }
     if c_init_param.is_null() {
-        return TaskCreateError::ParamNull.into();
+        return TaskError::ParamNull.into();
     }
     unsafe {
         let task_id_ref = &mut *task_id;
@@ -101,10 +101,10 @@ pub extern "C" fn los_task_create_static(
     top_stack: *mut c_void,
 ) -> u32 {
     if task_id.is_null() {
-        return TaskCreateError::InvalidId.into();
+        return TaskError::InvalidId.into();
     }
     if c_init_param.is_null() {
-        return TaskCreateError::ParamNull.into();
+        return TaskError::ParamNull.into();
     }
     unsafe {
         let task_id_ref = &mut *task_id;
@@ -127,10 +127,10 @@ pub extern "C" fn los_task_create_only_static(
     top_stack: *mut c_void,
 ) -> u32 {
     if task_id.is_null() {
-        return TaskCreateError::InvalidId.into();
+        return TaskError::InvalidId.into();
     }
     if c_init_param.is_null() {
-        return TaskCreateError::ParamNull.into();
+        return TaskError::ParamNull.into();
     }
     unsafe {
         let task_id_ref = &mut *task_id;
@@ -141,5 +141,13 @@ pub extern "C" fn los_task_create_only_static(
             Ok(()) => OK,
             Err(err) => err.into(),
         }
+    }
+}
+
+#[unsafe(export_name = "OsIdleTaskCreate")]
+pub extern "C" fn os_idle_task_create() -> u32 {
+    match idle_task_create() {
+        Ok(()) => OK,
+        Err(err) => err.into(),
     }
 }

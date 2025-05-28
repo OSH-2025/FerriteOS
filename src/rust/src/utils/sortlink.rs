@@ -25,6 +25,11 @@ pub struct SortLinkList {
 }
 
 impl SortLinkList {
+    pub const UNINIT: Self = Self {
+        sort_link_node: LinkedList::UNINIT,
+        idx_roll_num: 0,
+    };
+
     #[inline]
     pub fn set_timeout(&mut self, timeout: u32) {
         self.idx_roll_num = timeout;

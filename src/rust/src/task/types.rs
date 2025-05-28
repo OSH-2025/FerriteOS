@@ -1,5 +1,10 @@
 use crate::{
     container_of,
+    errno::{
+        ERRNO_TSK_ENTRY_NULL, ERRNO_TSK_ID_INVALID, ERRNO_TSK_NAME_EMPTY, ERRNO_TSK_NO_MEMORY,
+        ERRNO_TSK_PRIOR_ERROR, ERRNO_TSK_PTR_NULL, ERRNO_TSK_STKSZ_NOT_ALIGN,
+        ERRNO_TSK_STKSZ_TOO_LARGE, ERRNO_TSK_STKSZ_TOO_SMALL, ERRNO_TSK_TCB_UNAVAILABLE,
+    },
     event::EventCB,
     offset_of,
     utils::{list::LinkedList, sortlink::SortLinkList},
@@ -132,6 +137,36 @@ pub struct TaskCB {
 }
 
 impl TaskCB {
+    pub const UNINIT: Self = Self {
+        stack_pointer: core::ptr::null_mut(),
+        task_status: TaskStatus::UNUSED,
+        priority: 0,
+        task_flags: TaskFlags::empty(),
+        usr_stack: 0,
+        stack_size: 0,
+        top_of_stack: core::ptr::null_mut(),
+        task_id: 0,
+        task_entry: None,
+        task_sem: core::ptr::null_mut(),
+        #[cfg(feature = "compat_posix")]
+        thread_join: core::ptr::null_mut(),
+        #[cfg(feature = "compat_posix")]
+        thread_join_retval: core::ptr::null_mut(),
+        task_mux: core::ptr::null_mut(),
+        args: core::ptr::null_mut(),
+        task_name: core::ptr::null(),
+        pend_list: LinkedList::UNINIT,
+        sort_list: SortLinkList::UNINIT,
+        event: EventCB::UNINIT,
+        event_mask: 0,
+        event_mode: 0,
+        msg: core::ptr::null_mut(),
+        priority_bitmap: 0,
+        signal: TaskSignal::empty(),
+        #[cfg(feature = "timeslice")]
+        time_slice: 0,
+    };
+
     #[inline]
     pub fn from_pend_list(ptr: *mut LinkedList) -> &'static mut TaskCB {
         let task_ptr = container_of!(ptr, TaskCB, pend_list);
@@ -257,5 +292,46 @@ bitflags! {
 impl From<u32> for TaskAttr {
     fn from(value: u32) -> Self {
         Self::from_bits_truncate(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TaskError {
+    /// 任务ID指针无效
+    InvalidId,
+    /// 参数指针为空
+    ParamNull,
+    /// 任务名称为空
+    NameEmpty,
+    /// 任务入口函数为空
+    EntryNull,
+    /// 任务优先级错误
+    PriorityError,
+    /// 栈大小过大
+    StackSizeTooLarge,
+    /// 栈大小过小
+    StackSizeTooSmall,
+    /// 内存不足
+    OutOfMemory,
+    /// 没有可用的空闲任务
+    NoFreeTasks,
+    /// 栈未对齐
+    StackNotAligned,
+}
+
+impl From<TaskError> for u32 {
+    fn from(error: TaskError) -> Self {
+        match error {
+            TaskError::InvalidId => ERRNO_TSK_ID_INVALID,
+            TaskError::ParamNull => ERRNO_TSK_PTR_NULL,
+            TaskError::NameEmpty => ERRNO_TSK_NAME_EMPTY,
+            TaskError::EntryNull => ERRNO_TSK_ENTRY_NULL,
+            TaskError::PriorityError => ERRNO_TSK_PRIOR_ERROR,
+            TaskError::StackSizeTooLarge => ERRNO_TSK_STKSZ_TOO_LARGE,
+            TaskError::StackSizeTooSmall => ERRNO_TSK_STKSZ_TOO_SMALL,
+            TaskError::OutOfMemory => ERRNO_TSK_NO_MEMORY,
+            TaskError::NoFreeTasks => ERRNO_TSK_TCB_UNAVAILABLE,
+            TaskError::StackNotAligned => ERRNO_TSK_STKSZ_NOT_ALIGN,
+        }
     }
 }

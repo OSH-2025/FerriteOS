@@ -1,11 +1,6 @@
 use crate::{
     config::{
-        STACK_POINT_ALIGN_SIZE, TASK_MIN_STACK_SIZE, TASK_PRIORITY_LOWEST, TSK_DEFAULT_STACK_SIZE,
-    },
-    errno::{
-        ERRNO_TSK_ENTRY_NULL, ERRNO_TSK_ID_INVALID, ERRNO_TSK_NAME_EMPTY, ERRNO_TSK_NO_MEMORY,
-        ERRNO_TSK_PRIOR_ERROR, ERRNO_TSK_PTR_NULL, ERRNO_TSK_STKSZ_NOT_ALIGN,
-        ERRNO_TSK_STKSZ_TOO_LARGE, ERRNO_TSK_STKSZ_TOO_SMALL, ERRNO_TSK_TCB_UNAVAILABLE,
+        STACK_POINT_ALIGN_SIZE, TASK_MIN_STACK_SIZE, TASK_PRIORITY_LOWEST, TASK_DEFAULT_STACK_SIZE,
     },
     ffi::bindings::task_stack_init,
     hwi::{int_lock, int_restore},
@@ -16,7 +11,7 @@ use crate::{
     task::{
         global::{FREE_TASK_LIST, get_tcb_mut, scheduler_active},
         sched::{priority_queue_insert_at_back, schedule},
-        types::{TaskCB, TaskInitParam, TaskStatus},
+        types::{TaskCB, TaskError, TaskInitParam, TaskStatus},
     },
     utils::{
         align::{align_up, is_aligned},
@@ -25,64 +20,23 @@ use crate::{
 };
 use core::ffi::c_void;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum TaskCreateError {
-    /// 任务ID指针无效
-    InvalidId,
-    /// 参数指针为空
-    ParamNull,
-    /// 任务名称为空
-    NameEmpty,
-    /// 任务入口函数为空
-    EntryNull,
-    /// 任务优先级错误
-    PriorityError,
-    /// 栈大小过大
-    StackSizeTooLarge,
-    /// 栈大小过小
-    StackSizeTooSmall,
-    /// 内存不足
-    OutOfMemory,
-    /// 没有可用的空闲任务
-    NoFreeTasks,
-    /// 栈未对齐
-    StackNotAligned,
-}
-
-impl From<TaskCreateError> for u32 {
-    fn from(error: TaskCreateError) -> Self {
-        match error {
-            TaskCreateError::InvalidId => ERRNO_TSK_ID_INVALID,
-            TaskCreateError::ParamNull => ERRNO_TSK_PTR_NULL,
-            TaskCreateError::NameEmpty => ERRNO_TSK_NAME_EMPTY,
-            TaskCreateError::EntryNull => ERRNO_TSK_ENTRY_NULL,
-            TaskCreateError::PriorityError => ERRNO_TSK_PRIOR_ERROR,
-            TaskCreateError::StackSizeTooLarge => ERRNO_TSK_STKSZ_TOO_LARGE,
-            TaskCreateError::StackSizeTooSmall => ERRNO_TSK_STKSZ_TOO_SMALL,
-            TaskCreateError::OutOfMemory => ERRNO_TSK_NO_MEMORY,
-            TaskCreateError::NoFreeTasks => ERRNO_TSK_TCB_UNAVAILABLE,
-            TaskCreateError::StackNotAligned => ERRNO_TSK_STKSZ_NOT_ALIGN,
-        }
-    }
-}
-
-fn check_task_init_param(init_param: &TaskInitParam) -> Result<(), TaskCreateError> {
+fn check_task_init_param(init_param: &TaskInitParam) -> Result<(), TaskError> {
     // 检查任务名称是否为空
     if init_param.name.is_null() {
-        return Err(TaskCreateError::NameEmpty);
+        return Err(TaskError::NameEmpty);
     }
     // 检查任务入口函数是否为空
     if init_param.task_entry.is_none() {
-        return Err(TaskCreateError::EntryNull);
+        return Err(TaskError::EntryNull);
     }
     // 检查任务优先级是否有效
     if init_param.priority > TASK_PRIORITY_LOWEST {
-        return Err(TaskCreateError::PriorityError);
+        return Err(TaskError::PriorityError);
     }
     Ok(())
 }
 
-fn check_task_create_param_dynamic(init_param: &mut TaskInitParam) -> Result<(), TaskCreateError> {
+fn check_task_create_param_dynamic(init_param: &mut TaskInitParam) -> Result<(), TaskError> {
     // 检查初始化参数
     check_task_init_param(init_param)?;
 
@@ -91,12 +45,12 @@ fn check_task_create_param_dynamic(init_param: &mut TaskInitParam) -> Result<(),
 
     // 检查栈大小是否超过内存池大小
     if init_param.stack_size > pool_size as u32 {
-        return Err(TaskCreateError::StackSizeTooLarge);
+        return Err(TaskError::StackSizeTooLarge);
     }
 
     // 如果栈大小为0，设置默认大小
     if init_param.stack_size == 0 {
-        init_param.stack_size = TSK_DEFAULT_STACK_SIZE;
+        init_param.stack_size = TASK_DEFAULT_STACK_SIZE;
     }
 
     // 对齐栈大小
@@ -104,7 +58,7 @@ fn check_task_create_param_dynamic(init_param: &mut TaskInitParam) -> Result<(),
 
     // 检查栈大小是否太小
     if init_param.stack_size < TASK_MIN_STACK_SIZE {
-        return Err(TaskCreateError::StackSizeTooSmall);
+        return Err(TaskError::StackSizeTooSmall);
     }
 
     Ok(())
@@ -114,46 +68,46 @@ fn check_task_create_param_dynamic(init_param: &mut TaskInitParam) -> Result<(),
 fn check_task_create_param_static(
     init_param: &TaskInitParam,
     top_stack: *mut c_void,
-) -> Result<(), TaskCreateError> {
+) -> Result<(), TaskError> {
     // 基础参数检查
     check_task_init_param(init_param)?;
 
     // 检查栈顶指针
     if top_stack.is_null() {
-        return Err(TaskCreateError::ParamNull);
+        return Err(TaskError::ParamNull);
     }
 
     // 检查栈顶指针是否对齐
     if !is_aligned(top_stack as u32, STACK_POINT_ALIGN_SIZE) {
-        return Err(TaskCreateError::StackNotAligned);
+        return Err(TaskError::StackNotAligned);
     }
 
     // 检查栈大小是否对齐
     if !is_aligned(init_param.stack_size, STACK_POINT_ALIGN_SIZE) {
-        return Err(TaskCreateError::StackNotAligned);
+        return Err(TaskError::StackNotAligned);
     }
 
     // 检查栈大小是否太小
     if init_param.stack_size < TASK_MIN_STACK_SIZE {
-        return Err(TaskCreateError::StackSizeTooSmall);
+        return Err(TaskError::StackSizeTooSmall);
     }
 
     Ok(())
 }
 
-fn allocate_task_stack(stack_size: u32) -> Result<*mut core::ffi::c_void, TaskCreateError> {
+fn allocate_task_stack(stack_size: u32) -> Result<*mut core::ffi::c_void, TaskError> {
     let pool = unsafe { m_aucSysMem0 as *mut core::ffi::c_void };
     let top_stack = los_mem_alloc_align(pool, stack_size, STACK_POINT_ALIGN_SIZE);
     if top_stack.is_null() {
-        return Err(TaskCreateError::OutOfMemory);
+        return Err(TaskError::OutOfMemory);
     }
     Ok(top_stack)
 }
 
-fn get_free_task_cb() -> Result<&'static mut TaskCB, TaskCreateError> {
+fn get_free_task_cb() -> Result<&'static mut TaskCB, TaskError> {
     // 检查空闲任务列表是否为空
     if LinkedList::is_empty(&raw const FREE_TASK_LIST) {
-        return Err(TaskCreateError::NoFreeTasks);
+        return Err(TaskError::NoFreeTasks);
     }
     // 获取第一个空闲任务控制块
     let first_node = LinkedList::first(&raw const FREE_TASK_LIST);
@@ -233,7 +187,7 @@ fn task_create_internal(
     init_param: &mut TaskInitParam,
     top_stack: *mut c_void,
     use_usr_stack: bool,
-) -> Result<(), TaskCreateError> {
+) -> Result<(), TaskError> {
     // 参数检查
     #[cfg(feature = "task_static_allocation")]
     if use_usr_stack {
@@ -310,7 +264,7 @@ pub fn task_create_only_static(
     task_id: &mut u32,
     init_param: &mut TaskInitParam,
     top_stack: *mut c_void,
-) -> Result<(), TaskCreateError> {
+) -> Result<(), TaskError> {
     task_create_internal(task_id, init_param, top_stack, true)
 }
 
@@ -321,7 +275,7 @@ pub fn task_create_static(
     task_id: &mut u32,
     init_param: &mut TaskInitParam,
     top_stack: *mut c_void,
-) -> Result<(), TaskCreateError> {
+) -> Result<(), TaskError> {
     // 首先创建任务
     task_create_only_static(task_id, init_param, top_stack)?;
     task_resume(*task_id);
@@ -332,15 +286,12 @@ pub fn task_create_static(
 pub fn task_create_only(
     task_id: &mut u32,
     init_param: &mut TaskInitParam,
-) -> Result<(), TaskCreateError> {
+) -> Result<(), TaskError> {
     task_create_internal(task_id, init_param, core::ptr::null_mut(), false)
 }
 
 #[inline]
-pub fn task_create(
-    task_id: &mut u32,
-    init_param: &mut TaskInitParam,
-) -> Result<(), TaskCreateError> {
+pub fn task_create(task_id: &mut u32, init_param: &mut TaskInitParam) -> Result<(), TaskError> {
     // 首先创建任务
     task_create_only(task_id, init_param)?;
     // 启动任务

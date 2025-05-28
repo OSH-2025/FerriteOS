@@ -18,6 +18,7 @@ use crate::{
         },
     },
 };
+use core::mem::transmute;
 
 const KERNEL_SWTMR_LIMIT: u16 = 1024;
 const OS_SWTMR_MAX_TIMERID: u16 = (u16::MAX / KERNEL_SWTMR_LIMIT) * KERNEL_SWTMR_LIMIT;
@@ -217,7 +218,7 @@ pub extern "C" fn os_swtmr_task_create() -> u32 {
 
     // 创建任务参数结构
     let mut swtmr_task = TaskInitParam {
-        task_entry: unsafe { core::mem::transmute::<_, TaskEntryFunc>(os_swtmr_task as usize) },
+        task_entry: unsafe { transmute::<_, TaskEntryFunc>(os_swtmr_task as usize) },
         stack_size: KERNEL_TSK_SWTMR_STACK_SIZE,
         name: b"Swt_Task\0".as_ptr(),
         priority: 0,
