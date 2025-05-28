@@ -22,6 +22,15 @@ const UART_WITHOUT_LOCK: bool = false;
 // 默认缓冲区大小
 const SIZEBUF: usize = 256;
 
+// 将VaList结构体定义移到extern块外部
+#[repr(C)]
+pub struct VaList {
+    // 空结构体，作为不透明类型
+    _data: [u8; 0],
+    _marker: core::marker::PhantomData<*mut ()>,
+}
+
+
 // 外部函数声明
 unsafe extern "C" {
     fn UartPuts(str: *const u8, len: u32, is_lock: bool);
@@ -30,13 +39,26 @@ unsafe extern "C" {
     fn ConsoleEnable() -> bool;
     fn LOS_MemAlloc(pool: *mut c_void, size: u32) -> *mut c_void;
     fn LOS_MemFree(pool: *mut c_void, ptr: *mut c_void) -> u32;
-    fn vsnprintf_s(str: *mut u8, size: usize, count: usize, format: *const u8, args: *const va_list) -> i32;
+    fn vsnprintf_s(str: *mut u8, size: usize, count: usize, format: *const u8, args: *const VaList) -> i32;
     fn strlen(s: *const u8) -> usize;
 
-    // 为C语言中的可变参数声明
-    type va_list;
-    fn va_start(ap: *mut va_list, last_arg: *const u8) -> ();
-    fn va_end(ap: *mut va_list) -> ();
+    // // 为C语言中的可变参数声明
+    // type va_list;
+    // fn va_start(ap: *mut va_list, last_arg: *const u8) -> ();
+    // fn va_end(ap: *mut va_list) -> ();
+
+    // #[link_name = "m_aucSysMem0"]
+    // static mut m_aucSysMem0: *mut c_void;
+
+    // #[cfg(feature = "kernel_console")]
+    // fn write(fd: i32, buf: *const c_void, count: usize) -> isize;
+    
+    // #[cfg(feature = "shell_excinfo_dump")]
+    // fn WriteExcBufVa(fmt: *const u8, ap: *const va_list);
+    
+
+    fn va_start(_: *mut VaList, _: *const u8) -> ();
+    fn va_end(_: *mut VaList) -> ();
 
     #[link_name = "m_aucSysMem0"]
     static mut m_aucSysMem0: *mut c_void;
@@ -45,7 +67,23 @@ unsafe extern "C" {
     fn write(fd: i32, buf: *const c_void, count: usize) -> isize;
     
     #[cfg(feature = "shell_excinfo_dump")]
-    fn WriteExcBufVa(fmt: *const u8, ap: *const va_list);
+    fn WriteExcBufVa(fmt: *const u8, ap: *const VaList);
+    
+    // 引用C中实现的变参函数
+    fn UartPrintf(fmt: *const u8, ...) -> ();
+    fn dprintf(fmt: *const u8, ...) -> ();
+    fn ExcPrintf(fmt: *const u8, ...) -> ();
+    fn PrintExcInfo(fmt: *const u8, ...) -> ();
+    fn PrintErrWrapper(fmt: *const u8, ...) -> ();
+    fn PrintkWrapper(fmt: *const u8, ...) -> ();
+    fn printf(fmt: *const u8, ...) -> i32;
+    
+    // va_list版本函数
+    fn UartVprintf(fmt: *const u8, ap: *const VaList);
+    fn ConsoleVprintf(fmt: *const u8, ap: *const VaList);
+    fn LkDprintf(fmt: *const u8, ap: *const VaList);
+    #[cfg(feature = "shell_dmesg")]
+    fn DmesgPrintf(fmt: *const u8, ap: *const VaList);
 }
 
 // 为存储va_list提供足够大小的缓冲区
@@ -115,7 +153,8 @@ unsafe fn os_vprintf_free(buf: *mut u8, buf_len: usize) {
 }
 
 /// 核心打印实现
-unsafe fn os_vprintf(fmt: *const u8, ap: *const va_list, output_type: OutputType) {
+#[unsafe(export_name = "OsVprintf")]
+unsafe fn os_vprintf(fmt: *const u8, ap: *const VaList, output_type: OutputType) {
     let err_msg_malloc = b"OsVprintf, malloc failed!\n\0";
     let err_msg_len = b"OsVprintf, length overflow!\n\0";
     let mut a_buf = [0u8; SIZEBUF];
@@ -163,7 +202,7 @@ unsafe fn os_vprintf(fmt: *const u8, ap: *const va_list, output_type: OutputType
 
 /// UART变参打印
 #[unsafe(export_name = "UartVprintf")]
-pub extern "C" fn uart_vprintf(fmt: *const u8, ap: *const va_list) {
+pub extern "C" fn uart_vprintf(fmt: *const u8, ap: *const VaList) {
     unsafe {
         os_vprintf(fmt, ap, OutputType::UartOutput);
     }
@@ -171,39 +210,39 @@ pub extern "C" fn uart_vprintf(fmt: *const u8, ap: *const va_list) {
 
 /// 控制台变参打印
 #[unsafe(export_name = "ConsoleVprintf")]
-pub extern "C" fn console_vprintf(fmt: *const u8, ap: *const va_list) {
+pub extern "C" fn console_vprintf(fmt: *const u8, ap: *const VaList) {
     unsafe {
         os_vprintf(fmt, ap, OutputType::ConsoleOutput);
     }
 }
 
-/// UART打印
-#[unsafe(export_name = "UartPrintf")]
-pub extern "C" fn uart_printf(fmt: *const u8, ...) {
-    unsafe {
-        let mut va_buf = VaListBuf { data: [0; 32] };
-        let ap = &mut va_buf.data as *mut _ as *mut va_list;
-        va_start(ap, fmt);
-        os_vprintf(fmt, ap, OutputType::UartOutput);
-        va_end(ap);
-    }
-}
+// /// UART打印
+// #[unsafe(export_name = "UartPrintf")]
+// pub extern "C" fn uart_printf(fmt: *const u8, ...) {
+//     unsafe {
+//         let mut va_buf = VaListBuf { data: [0; 32] };
+//         let ap = &mut va_buf.data as *mut _ as *mut va_list;
+//         va_start(ap, fmt);
+//         os_vprintf(fmt, ap, OutputType::UartOutput);
+//         va_end(ap);
+//     }
+// }
 
-/// 调试打印函数
-#[unsafe(export_name = "dprintf")]
-pub extern "C" fn dprintf(fmt: *const u8, ...) {
-    unsafe {
-        let mut va_buf = VaListBuf { data: [0; 32] };
-        let ap = &mut va_buf.data as *mut _ as *mut va_list;
-        va_start(ap, fmt);
-        os_vprintf(fmt, ap, OutputType::ConsoleOutput);
-        va_end(ap);
-    }
-}
+// /// 调试打印函数
+// #[unsafe(export_name = "dprintf")]
+// pub extern "C" fn dprintf(fmt: *const u8, ...) {
+//     unsafe {
+//         let mut va_buf = VaListBuf { data: [0; 32] };
+//         let ap = &mut va_buf.data as *mut _ as *mut va_list;
+//         va_start(ap, fmt);
+//         os_vprintf(fmt, ap, OutputType::ConsoleOutput);
+//         va_end(ap);
+//     }
+// }
 
 /// LK调试打印
 #[unsafe(export_name = "LkDprintf")]
-pub extern "C" fn lk_dprintf(fmt: *const u8, ap: va_list) {
+pub extern "C" fn lk_dprintf(fmt: *const u8, ap: *const VaList) {
     unsafe {
         os_vprintf(fmt, ap, OutputType::ConsoleOutput);
     }
@@ -212,98 +251,8 @@ pub extern "C" fn lk_dprintf(fmt: *const u8, ap: va_list) {
 /// Dmesg打印
 #[cfg(feature = "shell_dmesg")]
 #[unsafe(export_name = "DmesgPrintf")]
-pub extern "C" fn dmesg_printf(fmt: *const u8, ap: va_list) {
+pub extern "C" fn dmesg_printf(fmt: *const u8, ap: *const VaList) {
     unsafe {
         os_vprintf(fmt, ap, OutputType::ConsoleOutput);
     }
-}
-
-/// 异常打印
-#[unsafe(export_name = "ExcPrintf")]
-pub extern "C" fn exc_printf(fmt: *const u8, ...) {
-    unsafe {
-        let mut va_buf = VaListBuf { data: [0; 32] };
-        let ap = &mut va_buf.data as *mut _ as *mut va_list;
-        va_start(ap, fmt);
-        // uart output without print-spinlock
-        os_vprintf(fmt, ap, OutputType::ExcOutput);
-        va_end(ap);
-    }
-}
-
-/// 打印异常信息
-#[unsafe(export_name = "PrintExcInfo")]
-pub extern "C" fn print_exc_info(fmt: *const u8, ...) {
-    unsafe {
-        let mut va_buf = VaListBuf { data: [0; 32] };
-        let ap = &mut va_buf.data as *mut _ as *mut va_list;
-        va_start(ap, fmt);
-        
-        // uart output without print-spinlock
-        os_vprintf(fmt, ap, OutputType::ExcOutput);
-        
-        #[cfg(feature = "shell_excinfo_dump")]
-        {
-            WriteExcBufVa(fmt, ap);
-        }
-        
-        va_end(ap);
-    }
-}
-
-/// 打印错误包装函数
-#[unsafe(export_name = "PrintErrWrapper")]
-pub extern "C" fn print_err_wrapper(fmt: *const u8, ...) {
-    unsafe {
-        let mut va_buf = VaListBuf { data: [0; 32] };
-        let ap = &mut va_buf.data as *mut _ as *mut va_list;
-        va_start(ap, fmt);
-        // 等同于PRINT_ERR宏的实现
-        os_vprintf(fmt, ap, OutputType::UartOutput);
-        va_end(ap);
-    }
-}
-
-/// 打印包装函数
-#[unsafe(export_name = "PrintkWrapper")]
-pub extern "C" fn printk_wrapper(fmt: *const u8, ...) {
-    const LOS_COMMOM_LEVEL: u32 = 1;
-    
-    unsafe {
-        #[cfg(not(feature = "print_level_less_than_common"))]
-        {
-            let mut va_buf = VaListBuf { data: [0; 32] };
-            let ap = &mut va_buf.data as *mut _ as *mut va_list;
-            va_start(ap, fmt);
-            
-            #[cfg(feature = "shell_lk")]
-            {
-                extern "C" {
-                    fn LOS_LkPrint(level: u32, func: *const u8, line: u32, fmt: *const u8, ...);
-                }
-                // 这里简化处理，实际可能需要获取函数名和行号
-                LOS_LkPrint(LOS_COMMOM_LEVEL, b"PrintkWrapper\0".as_ptr(), 0, fmt);
-            }
-            
-            #[cfg(not(feature = "shell_lk"))]
-            {
-                os_vprintf(fmt, ap, OutputType::ConsoleOutput);
-            }
-            
-            va_end(ap);
-        }
-    }
-}
-
-/// 在调用printf函数时使用的标准库函数
-#[unsafe(export_name = "printf")]
-pub extern "C" fn printf(fmt: *const u8, ...) -> i32 {
-    unsafe {
-        let mut va_buf = VaListBuf { data: [0; 32] };
-        let ap = &mut va_buf.data as *mut _ as *mut va_list;
-        va_start(ap, fmt);
-        os_vprintf(fmt, ap, OutputType::ConsoleOutput);
-        va_end(ap);
-    }
-    0 // 返回0表示成功
 }

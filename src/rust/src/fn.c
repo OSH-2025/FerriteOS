@@ -1,5 +1,15 @@
 #include "los_typedef.h"
 #include <stdarg.h>  // 确保包含变参函数支持
+#include "los_printf.h"
+
+// 声明从Rust实现导出的函数
+extern void OsVprintf(const char *fmt, va_list ap, UINT32 type);
+
+// UART_OUTPUT等常量定义，与Rust中的枚举值对应
+#define UART_OUTPUT 1
+#define CONSOLE_OUTPUT 2
+#define EXC_OUTPUT 3
+
 
 VOID ArchHaltCpu(VOID)
 {
@@ -64,4 +74,79 @@ VOID WriteExcInfoToBuf(const CHAR *format, ...)
     va_start(arglist, format);
     WriteExcBufVa(format, arglist);
     va_end(arglist);
+}
+
+
+// 实现所有变参函数
+VOID UartPrintf(const CHAR *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    OsVprintf(fmt, ap, UART_OUTPUT); // 这里假设OsVprintf是内部实现
+    va_end(ap);
+}
+
+VOID dprintf(const CHAR *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    OsVprintf(fmt, ap, CONSOLE_OUTPUT);
+    va_end(ap);
+}
+
+VOID ExcPrintf(const CHAR *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    OsVprintf(fmt, ap, EXC_OUTPUT);
+    va_end(ap);
+}
+
+VOID PrintExcInfo(const CHAR *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    OsVprintf(fmt, ap, EXC_OUTPUT);
+    #ifdef LOSCFG_SHELL_EXCINFO_DUMP
+    WriteExcBufVa(fmt, ap);
+    #endif
+    va_end(ap);
+}
+
+VOID PrintErrWrapper(const CHAR *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    #if PRINT_LEVEL >= LOS_ERR_LEVEL
+        #ifdef LOSCFG_SHELL_LK
+        LOS_LkPrint(LOS_ERR_LEVEL, __FUNCTION__, __LINE__, fmt, ap);
+        #else
+        dprintf("[ERR] ");
+        dprintf(fmt, ap);
+        #endif
+    #endif
+    va_end(ap);
+}
+
+VOID PrintkWrapper(const CHAR *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    #if PRINT_LEVEL >= LOS_COMMOM_LEVEL
+        #ifdef LOSCFG_SHELL_LK
+        LOS_LkPrint(LOS_COMMOM_LEVEL, __FUNCTION__, __LINE__, fmt, ap);
+        #else
+        dprintf(fmt, ap);
+        #endif
+    #endif
+    va_end(ap);
+}
+
+INT32 printf(const CHAR *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    OsVprintf(fmt, ap, CONSOLE_OUTPUT);
+    va_end(ap);
+    return 0;
 }
