@@ -5,15 +5,13 @@ use crate::{
     mem::{defs::m_aucSysMem0, memory::los_mem_free},
     percpu::os_percpu_get,
     task::{
-        global::{FREE_TASK_LIST, TASK_RECYCLE_LIST},
+        global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_mut},
         lifecycle::create::task_create,
-        types::{TaskCB, TaskEntryFunc, TaskError, TaskInitParam},
+        types::{TaskCB, TaskEntryFunc, TaskError, TaskFlags, TaskInitParam},
     },
     utils::list::LinkedList,
 };
 use core::mem::transmute;
-
-use super::{global::get_tcb_mut, types::TaskFlags};
 
 fn los_task_recycle() {
     let int_save = int_lock();

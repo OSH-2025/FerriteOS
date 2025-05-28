@@ -1,5 +1,4 @@
 use super::{defs::*, mempool::LosMemPoolInfo};
-use crate::utils::printf::dprintf;
 
 #[repr(C)]
 pub struct TaskMemUsedInfo {
@@ -42,14 +41,14 @@ pub fn os_memstat_task_used_inc(stat: &mut Memstat, used_size: u32, task_id: u32
 pub fn os_memstat_task_used_dec(stat: &mut Memstat, used_size: u32, task_id: u32) {
     let record = usize::min(task_id as usize, TASK_NUM - 1);
     if stat.task_memstats[record].mem_used < used_size {
-        unsafe {
-            dprintf(
-                b"mem used of task '%d': 0x%x, decrease size: 0x%x\n\0" as *const u8,
-                task_id,
-                stat.task_memstats[record].mem_used,
-                used_size,
-            );
-        }
+        // unsafe {
+        //     dprintf(
+        //         b"mem used of task '%d': 0x%x, decrease size: 0x%x\n\0" as *const u8,
+        //         task_id,
+        //         stat.task_memstats[record].mem_used,
+        //         used_size,
+        //     );
+        // }
         return;
     }
     stat.task_memstats[record].mem_used -= used_size;
@@ -82,13 +81,13 @@ fn os_mem_task_clear(stat: &mut Memstat, task_id: u32) {
     let record = usize::min(task_id as usize, TASK_NUM - 1);
 
     if stat.task_memstats[record].mem_used != 0 {
-        unsafe {
-            dprintf(
-                b"mem used of task '%d' is 0x%x, not zero when task being deleted\n\0" as *const u8,
-                task_id,
-                stat.task_memstats[record].mem_used,
-            );
-        }
+        // unsafe {
+        //     dprintf(
+        //         b"mem used of task '%d' is 0x%x, not zero when task being deleted\n\0" as *const u8,
+        //         task_id,
+        //         stat.task_memstats[record].mem_used,
+        //     );
+        // }
     }
     stat.task_memstats[record].mem_used = 0;
     stat.task_memstats[record].mem_peak = 0;

@@ -1,10 +1,4 @@
-use super::list::LinkedList;
-use crate::{
-    config::{NOK, OK},
-    container_of,
-    mem::{defs::m_aucSysMem0, memory::los_mem_alloc},
-    offset_of,
-};
+use crate::{container_of, offset_of, utils::list::LinkedList};
 
 pub const OS_TSK_HIGH_BITS: u32 = 3;
 pub const OS_TSK_LOW_BITS: u32 = 32 - OS_TSK_HIGH_BITS;
@@ -84,18 +78,16 @@ impl SortLinkList {
 #[derive(Debug)]
 pub struct SortLinkAttribute {
     /// 排序链表头
-    pub sort_link: *mut LinkedList,
+    pub sort_link: [LinkedList; 1 << OS_TSK_SORTLINK_LOGLEN],
     /// 游标
     pub cursor: u16,
-    _reserved: u16,
 }
 
 impl SortLinkAttribute {
     /// 未初始化的排序链表属性
     pub const UNINIT: Self = Self {
-        sort_link: core::ptr::null_mut(),
+        sort_link: [LinkedList::UNINIT; 1 << OS_TSK_SORTLINK_LOGLEN],
         cursor: 0,
-        _reserved: 0,
     };
 }
 
@@ -108,42 +100,24 @@ impl SortLinkAttribute {
 
     /// 获取当前游标位置的链表对象
     #[inline]
-    pub fn list_at_cursor(&self) -> *mut LinkedList {
-        unsafe { self.sort_link.add(self.cursor as usize) }
+    pub fn list_at_cursor(&mut self) -> *mut LinkedList {
+        &raw mut self.sort_link[self.cursor as usize]
     }
 }
 
 #[unsafe(export_name = "OsSortLinkInit")]
-pub extern "C" fn os_sort_link_init(sort_link_header: &mut SortLinkAttribute) -> u32 {
-    // 计算需要分配的内存大小
-    let size = (size_of::<LinkedList>() as u32) << OS_TSK_SORTLINK_LOGLEN;
-
-    // 分配内存
-    let list_object =
-        los_mem_alloc(unsafe { m_aucSysMem0 } as *mut core::ffi::c_void, size) as *mut LinkedList;
-    if list_object.is_null() {
-        return NOK;
-    }
-
-    // 设置排序链表头
-    sort_link_header.sort_link = list_object;
+pub extern "C" fn os_sort_link_init(sort_link_header: &mut SortLinkAttribute) {
     sort_link_header.cursor = 0;
-
     // 初始化每个链表
-    unsafe {
-        for index in 0..OS_TSK_SORTLINK_LEN {
-            let list = list_object.add(index as usize);
-            LinkedList::init(list);
-        }
-    }
-
-    OK
+    sort_link_header.sort_link.iter_mut().for_each(|list| {
+        LinkedList::init(list);
+    });
 }
 
 /// 将排序节点添加到排序链表中
 #[unsafe(export_name = "OsAdd2SortLink")]
 pub extern "C" fn add_to_sort_link(
-    sort_link_header: &SortLinkAttribute,
+    sort_link_header: &mut SortLinkAttribute,
     sort_list: &mut SortLinkList,
 ) {
     // 限制 idxRollNum 的最大值，防止进位影响高位的索引计算
@@ -172,7 +146,7 @@ pub extern "C" fn add_to_sort_link(
 
     unsafe {
         // 获取对应桶的链表头
-        let list_object = sort_link_header.sort_link.add(sort_index as usize);
+        let list_object = &raw mut sort_link_header.sort_link[sort_index as usize];
 
         // 如果链表为空，直接插入
         if LinkedList::is_empty(list_object) {
@@ -234,7 +208,7 @@ fn os_check_sort_link(list_head: *mut LinkedList, list_node: *mut LinkedList) {
 
 #[unsafe(export_name = "OsDeleteSortLink")]
 pub extern "C" fn delete_from_sort_link(
-    sort_link_header: &SortLinkAttribute,
+    sort_link_header: &mut SortLinkAttribute,
     sort_list: &mut SortLinkList,
 ) {
     // 获取排序索引
@@ -242,7 +216,7 @@ pub extern "C" fn delete_from_sort_link(
 
     unsafe {
         // 获取对应的链表对象
-        let list_object = sort_link_header.sort_link.add(sort_index as usize);
+        let list_object = &raw mut sort_link_header.sort_link[sort_index as usize];
 
         // 检查节点是否在正确的链表中
         os_check_sort_link(list_object, &mut sort_list.sort_link_node);
@@ -277,7 +251,9 @@ fn os_calc_expire_time(roll_num: u32, sort_index: u32, cur_sort_index: u16) -> u
 }
 
 #[unsafe(export_name = "OsSortLinkGetNextExpireTime")]
-pub extern "C" fn os_sort_link_get_next_expire_time(sort_link_header: &SortLinkAttribute) -> u32 {
+pub extern "C" fn os_sort_link_get_next_expire_time(
+    sort_link_header: &mut SortLinkAttribute,
+) -> u32 {
     let mut min_sort_index = u32::MAX;
     let mut min_roll_num = OS_TSK_LOW_BITS_MASK;
 
@@ -288,9 +264,8 @@ pub extern "C" fn os_sort_link_get_next_expire_time(sort_link_header: &SortLinkA
     for i in 0..OS_TSK_SORTLINK_LEN {
         unsafe {
             // 获取对应桶的链表头
-            let list_object = sort_link_header
-                .sort_link
-                .add(((cursor as u32 + i) & OS_TSK_SORTLINK_MASK) as usize);
+            let list_object = &raw mut sort_link_header.sort_link
+                [((cursor as u32 + i) & OS_TSK_SORTLINK_MASK) as usize];
 
             // 检查链表是否为空
             if !LinkedList::is_empty(list_object) {
@@ -346,9 +321,8 @@ pub extern "C" fn os_sort_link_update_expire_time(
     for i in 0..OS_TSK_SORTLINK_LEN {
         unsafe {
             // 获取当前桶的链表头
-            let list_object = sort_link_header
-                .sort_link
-                .add(((sort_link_header.cursor as u32 + i) & OS_TSK_SORTLINK_MASK) as usize);
+            let list_object = &raw mut sort_link_header.sort_link
+                [((sort_link_header.cursor as u32 + i) & OS_TSK_SORTLINK_MASK) as usize];
 
             // 检查链表是否为空
             if !LinkedList::is_empty(list_object) {
@@ -376,7 +350,7 @@ pub extern "C" fn os_sort_link_update_expire_time(
 /// 计算从链表头到目标节点的累积轮数，然后转换为过期时间
 #[unsafe(export_name = "OsSortLinkGetTargetExpireTime")]
 pub extern "C" fn os_sort_link_get_target_expire_time(
-    sort_link_header: &SortLinkAttribute,
+    sort_link_header: &mut SortLinkAttribute,
     target_sort_list: &SortLinkList,
 ) -> u32 {
     // 获取目标节点的排序索引和初始轮数
@@ -385,7 +359,7 @@ pub extern "C" fn os_sort_link_get_target_expire_time(
 
     unsafe {
         // 获取对应桶的链表头
-        let list_object = sort_link_header.sort_link.add(sort_index as usize);
+        let list_object = &raw mut sort_link_header.sort_link[sort_index as usize];
 
         // 从链表的第一个节点开始
         let mut list_sorted = container_of!((*list_object).next, SortLinkList, sort_link_node);

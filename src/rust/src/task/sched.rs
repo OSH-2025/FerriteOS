@@ -15,8 +15,7 @@ static mut PRI_QUEUE_LIST: [LinkedList; OS_PRIORITY_QUEUE_NUM] =
 static PRI_QUEUE_BITMAP: AtomicU32 = AtomicU32::new(0);
 
 /// 初始化优先级队列
-#[unsafe(export_name = "OsPriQueueInit")]
-pub extern "C" fn priority_queue_init() {
+pub fn init_priority_queue() {
     for priority in 0..OS_PRIORITY_QUEUE_NUM {
         unsafe {
             LinkedList::init(&mut PRI_QUEUE_LIST[priority]);

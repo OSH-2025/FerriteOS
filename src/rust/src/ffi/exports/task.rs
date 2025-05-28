@@ -2,9 +2,9 @@ use crate::{
     config::OK,
     task::{
         idle::idle_task_create,
-        lifecycle::create::{
+        lifecycle::{create::{
             task_create, task_create_only, task_create_only_static, task_create_static,
-        },
+        }, init::init_task_system},
         types::{TaskError, TaskInitParam},
     },
 };
@@ -150,4 +150,10 @@ pub extern "C" fn os_idle_task_create() -> u32 {
         Ok(()) => OK,
         Err(err) => err.into(),
     }
+}
+
+#[unsafe(export_name = "OsTaskInit")]
+pub extern "C" fn os_task_init() -> u32 {
+    init_task_system();
+    OK
 }

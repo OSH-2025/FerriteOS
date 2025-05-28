@@ -35,7 +35,7 @@ pub const LOS_ERRNO_SWTMR_NOT_CREATED: u32 = 0x02000306;
 pub const LOS_ERRNO_SWTMR_NO_MEMORY: u32 = 0x02000307;
 pub const LOS_ERRNO_SWTMR_QUEUE_CREATE_FAILED: u32 = 0x0200030b;
 pub const LOS_ERRNO_SWTMR_TASK_CREATE_FAILED: u32 = 0x0200030c;
-pub const LOS_ERRNO_SWTMR_SORTLINK_CREATE_FAILED: u32 = 0x02000311;
+// pub const LOS_ERRNO_SWTMR_SORTLINK_CREATE_FAILED: u32 = 0x02000311;
 pub const LOS_ERRNO_SWTMR_NOT_STARTED: u32 = 0x0200030d;
 pub const LOS_ERRNO_SWTMR_STATUS_INVALID: u32 = 0x0200030e;
 
@@ -130,7 +130,7 @@ fn os_swtmr_start(swtmr: &mut LosSwtmrCB) {
     swtmr.sort_list.idx_roll_num = timeout;
 
     // 获取当前CPU的软件定时器排序链表，并添加定时器
-    add_to_sort_link(&os_percpu_get().swtmr_sort_link, &mut swtmr.sort_list);
+    add_to_sort_link(&mut os_percpu_get().swtmr_sort_link, &mut swtmr.sort_list);
     // 更新定时器状态为正在计时
     swtmr.state = SwtmrState::Ticking as u8;
 }
@@ -299,11 +299,7 @@ pub extern "C" fn os_swtmr_init() -> u32 {
     }
 
     // 初始化排序链表
-    let ret = os_sort_link_init(&mut os_percpu_get().swtmr_sort_link);
-
-    if ret != OK {
-        return LOS_ERRNO_SWTMR_SORTLINK_CREATE_FAILED;
-    }
+    os_sort_link_init(&mut os_percpu_get().swtmr_sort_link);
 
     OK
 }
@@ -402,7 +398,7 @@ pub extern "C" fn os_swtmr_scan() {
 
 #[inline]
 fn os_swtmr_stop(swtmr: &mut LosSwtmrCB) {
-    let sort_link_header = &os_percpu_get().swtmr_sort_link;
+    let sort_link_header = &mut os_percpu_get().swtmr_sort_link;
 
     // 从排序链表中删除定时器
     delete_from_sort_link(sort_link_header, &mut swtmr.sort_list);
@@ -416,7 +412,7 @@ fn os_swtmr_stop(swtmr: &mut LosSwtmrCB) {
 
 #[inline]
 fn os_swtmr_time_get(swtmr: &LosSwtmrCB) -> u32 {
-    let sort_link_header = &os_percpu_get().swtmr_sort_link;
+    let sort_link_header = &mut os_percpu_get().swtmr_sort_link;
     // 获取目标过期时间
     os_sort_link_get_target_expire_time(sort_link_header, &swtmr.sort_list)
 }
