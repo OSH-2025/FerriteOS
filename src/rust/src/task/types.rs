@@ -17,7 +17,7 @@ use bitflags::bitflags;
 use core::ffi::{c_char, c_void};
 
 /// 任务入口函数类型
-pub type TaskEntryFunc = Option<extern "C" fn(*mut c_void) -> *mut c_void>;
+pub type TaskEntryFunc = Option<extern "C" fn(*mut c_void)>;
 
 /// 任务初始化参数结构体
 #[repr(C)]

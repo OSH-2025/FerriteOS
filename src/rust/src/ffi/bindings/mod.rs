@@ -15,6 +15,9 @@ unsafe extern "C" {
     #[link_name = "ArchIntLockWrapper"]
     unsafe fn c_arch_int_lock() -> u32;
 
+    #[link_name = "ArchIntUnlockWrapper"]
+    unsafe fn c_arch_int_unlock() -> u32;
+
     #[link_name = "ArchIntRestoreWrapper"]
     unsafe fn c_arch_int_restore(int_save: u32);
 
@@ -38,37 +41,42 @@ pub fn get_current_task() -> &'static mut TaskCB {
 }
 
 #[inline]
-pub(crate) fn curr_task_set(task: *const TaskCB) {
+pub fn curr_task_set(task: *const TaskCB) {
     unsafe { c_curr_task_set(task as *const core::ffi::c_void) }
 }
 
 #[inline]
-pub(crate) fn arch_int_locked() -> bool {
+pub fn arch_int_locked() -> bool {
     unsafe { c_arch_int_locked() != 0 }
 }
 
 #[inline]
-pub(crate) fn arch_int_lock() -> u32 {
+pub fn arch_int_lock() -> u32 {
     unsafe { c_arch_int_lock() }
 }
 
 #[inline]
-pub(crate) fn arch_int_restore(int_save: u32) {
+pub fn arch_int_unlock() -> u32 {
+    unsafe { c_arch_int_unlock() }
+}
+
+#[inline]
+pub fn arch_int_restore(int_save: u32) {
     unsafe { c_arch_int_restore(int_save) }
 }
 
 #[inline]
-pub(crate) fn os_task_schedule(new_task: *mut TaskCB, run_task: *mut TaskCB) {
+pub fn os_task_schedule(new_task: *mut TaskCB, run_task: *mut TaskCB) {
     unsafe { c_os_task_schedule(new_task, run_task) }
 }
 
 #[inline]
-pub(crate) fn wfi() {
+pub fn wfi() {
     unsafe { c_wfi() }
 }
 
 #[inline]
-pub(crate) fn task_stack_init(
+pub fn task_stack_init(
     task_id: u32,
     stack_size: u32,
     top_stack: *mut c_void,

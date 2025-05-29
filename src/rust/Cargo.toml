@@ -14,9 +14,9 @@ crate-type = ["staticlib"]
 default = [
 	"memory_task_statistics",
 	"LOSCFG_BASE_CORE_USE_MULTI_LIST",
-	"compat_posix",
 	"timeslice",
 	"task_static_allocation",
+	"ipc_event",
 ]
 swtmr_in_isr = []
 compat_posix = []
@@ -26,3 +26,4 @@ memory_task_statistics = []
 task_static_allocation = []
 LOSCFG_BASE_CORE_USE_MULTI_LIST = []
 LOSCFG_BASE_CORE_USE_SINGLE_LIST = []
+ipc_event = []

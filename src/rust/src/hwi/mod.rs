@@ -1,8 +1,13 @@
-use crate::ffi::bindings::{arch_int_lock, arch_int_restore};
+use crate::ffi::bindings::{arch_int_lock, arch_int_restore, arch_int_unlock};
 
 #[inline]
 pub fn int_lock() -> u32 {
     arch_int_lock()
+}
+
+#[inline]
+pub fn int_unlock() -> u32 {
+    arch_int_unlock()
 }
 
 #[inline]

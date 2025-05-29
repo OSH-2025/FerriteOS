@@ -1,7 +1,7 @@
 use crate::{
     ffi::bindings::{arch_int_locked, curr_task_set, get_current_task, os_task_schedule},
     hwi::{int_lock, int_restore, is_int_active},
-    percpu::{SchedFlag, can_preempt, can_preempt_in_scheduler, os_percpu_get},
+    percpu::{can_preempt, can_preempt_in_scheduler, os_percpu_get},
     task::{types::TaskCB, types::TaskStatus},
     utils::list::LinkedList,
 };
@@ -204,7 +204,7 @@ pub fn schedule() {
     // 检查是否在中断上下文中
     if is_int_active() {
         let percpu = os_percpu_get();
-        percpu.sched_flag = SchedFlag::Pending as u32;
+        percpu.needs_reschedule = 1;
         return;
     }
     schedule_preempt();

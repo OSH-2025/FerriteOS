@@ -1,6 +1,6 @@
 use crate::{
     hwi::{int_lock, int_restore},
-    percpu::{SchedFlag, os_percpu_get},
+    percpu::os_percpu_get,
     task::{global::is_scheduler_active, sched::schedule},
 };
 
@@ -30,11 +30,11 @@ pub fn task_unlock() {
 
         // 如果任务锁计数为0，且有挂起的调度请求，且调度器处于活动状态
         if percpu.task_lock_cnt == 0
-            && percpu.sched_flag == SchedFlag::Pending as u32
+            && percpu.needs_reschedule == 1
             && is_scheduler_active()
         {
             // 清除挂起标志
-            percpu.sched_flag = SchedFlag::NotNeeded as u32;
+            percpu.needs_reschedule = 0;
 
             // 恢复中断状态
             int_restore(int_save);
@@ -47,4 +47,3 @@ pub fn task_unlock() {
     // 恢复中断状态
     int_restore(int_save);
 }
-

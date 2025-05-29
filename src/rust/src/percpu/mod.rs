@@ -28,7 +28,7 @@ pub struct Percpu {
     pub swtmr_task_id: u32,
 
     /// 调度器标志位
-    pub sched_flag: u32,
+    pub needs_reschedule: u32,
 }
 
 impl Percpu {
@@ -39,13 +39,8 @@ impl Percpu {
         task_lock_cnt: 0,
         swtmr_handler_queue: 0,
         swtmr_task_id: 0,
-        sched_flag: 0,
+        needs_reschedule: 0,
     };
-}
-
-pub enum SchedFlag {
-    NotNeeded = 0,
-    Pending = 1,
 }
 
 #[unsafe(export_name = "g_percpu")]
@@ -61,7 +56,7 @@ pub fn can_preempt_in_scheduler() -> bool {
     let percpu = os_percpu_get();
     let preemptable = percpu.task_lock_cnt == 0;
     if !preemptable {
-        percpu.sched_flag = SchedFlag::Pending as u32;
+        percpu.needs_reschedule = 1;
     }
     preemptable
 }

@@ -1,14 +1,18 @@
 use crate::{
     config::OK,
     task::{
-        idle::idle_task_create, manager::{
+        idle::idle_task_create,
+        manager::{
             create::{task_create, task_create_only, task_create_only_static, task_create_static},
             delay::{task_delay, task_yield},
             delete::task_delete,
             init::init_task_system,
             priority::{get_task_priority, set_current_task_priority, set_task_priority},
             suspend::{task_resume, task_suspend},
-        }, sync::lock::{task_lock, task_unlock}, types::{TaskError, TaskInitParam}
+        },
+        signal::process_task_signals,
+        sync::lock::{task_lock, task_unlock},
+        types::{TaskEntryFunc, TaskError, TaskInitParam},
     },
 };
 use core::ffi::{c_char, c_void};
@@ -16,7 +20,7 @@ use core::ffi::{c_char, c_void};
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct CTaskInitParam {
-    pub task_entry: Option<extern "C" fn(*mut c_void) -> *mut c_void>,
+    pub task_entry: TaskEntryFunc,
     pub priority: u16,
     pub args: *mut c_void,
     pub stack_size: u32,
@@ -230,4 +234,9 @@ pub extern "C" fn los_task_lock() {
 #[unsafe(export_name = "LOS_TaskUnlock")]
 pub extern "C" fn los_task_unlock() {
     task_unlock();
+}
+
+#[unsafe(export_name = "OsTaskProcSignal")]
+pub extern "C" fn os_task_proc_signal() -> u32 {
+    process_task_signals()
 }
