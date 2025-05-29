@@ -7,6 +7,7 @@ use crate::{
             delay::{task_delay, task_yield},
             delete::task_delete,
             init::init_task_system,
+            priority::{get_task_priority, set_current_task_priority, set_task_priority},
             suspend::{task_resume, task_suspend},
         },
         types::{TaskError, TaskInitParam},
@@ -193,6 +194,31 @@ pub extern "C" fn los_task_delay(tick: u32) -> u32 {
 #[unsafe(export_name = "LOS_TaskYield")]
 pub extern "C" fn los_task_yield() -> u32 {
     match task_yield() {
+        Ok(()) => OK,
+        Err(err) => err.into(),
+    }
+}
+
+/// C兼容的任务优先级获取函数
+#[unsafe(export_name = "LOS_TaskPriGet")]
+pub extern "C" fn los_task_pri_get(task_id: u32) -> u16 {
+    match get_task_priority(task_id) {
+        Ok(priority) => priority,
+        Err(_) => u16::MAX,
+    }
+}
+
+#[unsafe(export_name = "LOS_TaskPriSet")]
+pub extern "C" fn los_task_pri_set(task_id: u32, task_prio: u16) -> u32 {
+    match set_task_priority(task_id, task_prio) {
+        Ok(()) => OK,
+        Err(err) => err.into(),
+    }
+}
+
+#[unsafe(export_name = "LOS_CurTaskPriSet")]
+pub extern "C" fn los_cur_task_pri_set(task_prio: u16) -> u32 {
+    match set_current_task_priority(task_prio) {
         Ok(()) => OK,
         Err(err) => err.into(),
     }
