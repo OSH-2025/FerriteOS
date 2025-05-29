@@ -2,10 +2,12 @@ use crate::{
     config::OK,
     task::{
         idle::idle_task_create,
-        lifecycle::{
+        manager::{
             create::{task_create, task_create_only, task_create_only_static, task_create_static},
+            delay::{task_delay, task_yield},
             delete::task_delete,
-            init::init_task_system, suspend::{task_resume, task_suspend},
+            init::init_task_system,
+            suspend::{task_resume, task_suspend},
         },
         types::{TaskError, TaskInitParam},
     },
@@ -49,7 +51,6 @@ impl From<TaskInitParam> for CTaskInitParam {
     }
 }
 
-/// C兼容的任务创建函数
 #[unsafe(export_name = "LOS_TaskCreate")]
 pub extern "C" fn los_task_create(task_id: *mut u32, c_init_param: *mut CTaskInitParam) -> u32 {
     if task_id.is_null() {
@@ -70,7 +71,6 @@ pub extern "C" fn los_task_create(task_id: *mut u32, c_init_param: *mut CTaskIni
     }
 }
 
-/// C兼容的任务创建（仅创建不启动）函数
 #[unsafe(export_name = "LOS_TaskCreateOnly")]
 pub extern "C" fn los_task_create_only(
     task_id: *mut u32,
@@ -94,7 +94,6 @@ pub extern "C" fn los_task_create_only(
     }
 }
 
-/// C兼容的静态任务创建函数
 #[cfg(feature = "task_static_allocation")]
 #[unsafe(export_name = "LOS_TaskCreateStatic")]
 pub extern "C" fn los_task_create_static(
@@ -120,7 +119,6 @@ pub extern "C" fn los_task_create_static(
     }
 }
 
-/// C兼容的静态任务创建（仅创建不启动）函数
 #[cfg(feature = "task_static_allocation")]
 #[unsafe(export_name = "LOS_TaskCreateOnlyStatic")]
 pub extern "C" fn los_task_create_only_static(
@@ -160,7 +158,6 @@ pub extern "C" fn os_task_init() -> u32 {
     OK
 }
 
-/// C兼容的任务删除函数
 #[unsafe(export_name = "LOS_TaskDelete")]
 pub extern "C" fn los_task_delete(task_id: u32) -> u32 {
     match task_delete(task_id) {
@@ -169,7 +166,6 @@ pub extern "C" fn los_task_delete(task_id: u32) -> u32 {
     }
 }
 
-/// C兼容的任务恢复函数
 #[unsafe(export_name = "LOS_TaskResume")]
 pub extern "C" fn los_task_resume(task_id: u32) -> u32 {
     match task_resume(task_id) {
@@ -178,10 +174,25 @@ pub extern "C" fn los_task_resume(task_id: u32) -> u32 {
     }
 }
 
-/// C兼容的任务挂起函数
 #[unsafe(export_name = "LOS_TaskSuspend")]
 pub extern "C" fn los_task_suspend(task_id: u32) -> u32 {
     match task_suspend(task_id) {
+        Ok(()) => OK,
+        Err(err) => err.into(),
+    }
+}
+
+#[unsafe(export_name = "LOS_TaskDelay")]
+pub extern "C" fn los_task_delay(tick: u32) -> u32 {
+    match task_delay(tick) {
+        Ok(()) => OK,
+        Err(err) => err.into(),
+    }
+}
+
+#[unsafe(export_name = "LOS_TaskYield")]
+pub extern "C" fn los_task_yield() -> u32 {
+    match task_yield() {
         Ok(()) => OK,
         Err(err) => err.into(),
     }

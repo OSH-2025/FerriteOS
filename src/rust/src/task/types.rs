@@ -1,11 +1,13 @@
 use crate::{
     container_of,
     errno::{
-        ERRNO_TSK_ALREADY_SUSPENDED, ERRNO_TSK_DELETE_LOCKED, ERRNO_TSK_ENTRY_NULL,
-        ERRNO_TSK_ID_INVALID, ERRNO_TSK_NAME_EMPTY, ERRNO_TSK_NO_MEMORY, ERRNO_TSK_NOT_CREATED,
-        ERRNO_TSK_NOT_SUSPENDED, ERRNO_TSK_OPERATE_SYSTEM_TASK, ERRNO_TSK_PRIOR_ERROR,
-        ERRNO_TSK_PTR_NULL, ERRNO_TSK_STKSZ_NOT_ALIGN, ERRNO_TSK_STKSZ_TOO_LARGE,
-        ERRNO_TSK_STKSZ_TOO_SMALL, ERRNO_TSK_SUSPEND_LOCKED, ERRNO_TSK_TCB_UNAVAILABLE,
+        ERRNO_TSK_ALREADY_SUSPENDED, ERRNO_TSK_DELAY_IN_INT, ERRNO_TSK_DELAY_IN_LOCK,
+        ERRNO_TSK_DELETE_LOCKED, ERRNO_TSK_ENTRY_NULL, ERRNO_TSK_ID_INVALID, ERRNO_TSK_NAME_EMPTY,
+        ERRNO_TSK_NO_MEMORY, ERRNO_TSK_NOT_CREATED, ERRNO_TSK_NOT_SUSPENDED,
+        ERRNO_TSK_OPERATE_SYSTEM_TASK, ERRNO_TSK_PRIOR_ERROR, ERRNO_TSK_PTR_NULL,
+        ERRNO_TSK_STKSZ_NOT_ALIGN, ERRNO_TSK_STKSZ_TOO_LARGE, ERRNO_TSK_STKSZ_TOO_SMALL,
+        ERRNO_TSK_SUSPEND_LOCKED, ERRNO_TSK_TCB_UNAVAILABLE, ERRNO_TSK_YIELD_IN_INT,
+        ERRNO_TSK_YIELD_IN_LOCK, ERRNO_TSK_YIELD_NOT_ENOUGH_TASK,
     },
     event::EventCB,
     offset_of,
@@ -334,6 +336,16 @@ pub enum TaskError {
     AlreadySuspended,
     /// 任务被锁定无法挂起
     SuspendLocked,
+    /// 在中断中尝试延时
+    DelayInInterrupt,
+    /// 在锁定状态下尝试延时
+    DelayInLock,
+    /// 在中断中尝试让出CPU
+    YieldInInterrupt,
+    /// 在锁定状态下尝试让出CPU
+    YieldInLock,
+    /// 没有足够的同优先级任务进行让出操作
+    YieldNotEnoughTask,
 }
 
 impl From<TaskError> for u32 {
@@ -355,6 +367,11 @@ impl From<TaskError> for u32 {
             TaskError::NotSuspended => ERRNO_TSK_NOT_SUSPENDED,
             TaskError::AlreadySuspended => ERRNO_TSK_ALREADY_SUSPENDED,
             TaskError::SuspendLocked => ERRNO_TSK_SUSPEND_LOCKED,
+            TaskError::DelayInInterrupt => ERRNO_TSK_DELAY_IN_INT,
+            TaskError::DelayInLock => ERRNO_TSK_DELAY_IN_LOCK,
+            TaskError::YieldInInterrupt => ERRNO_TSK_YIELD_IN_INT,
+            TaskError::YieldInLock => ERRNO_TSK_YIELD_IN_LOCK,
+            TaskError::YieldNotEnoughTask => ERRNO_TSK_YIELD_NOT_ENOUGH_TASK,
         }
     }
 }

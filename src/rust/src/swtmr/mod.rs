@@ -9,7 +9,11 @@ use crate::{
     offset_of,
     percpu::os_percpu_get,
     queue::{los_queue_create, los_queue_write_copy},
-    task::types::{TaskAttr, TaskEntryFunc, TaskInitParam},
+    task::{
+        global::get_tcb_from_id,
+        manager::create::task_create,
+        types::{TaskAttr, TaskEntryFunc, TaskFlags, TaskInitParam},
+    },
     utils::{
         list::LinkedList,
         sortlink::{
@@ -212,8 +216,6 @@ fn os_swtmr_task() {
 
 #[cfg(not(feature = "swtmr_in_isr"))]
 pub extern "C" fn os_swtmr_task_create() -> u32 {
-    use crate::task::{global::get_tcb_from_id, lifecycle::create::task_create, types::TaskFlags};
-
     let mut swtmr_task_id: u32 = 0;
 
     // 创建任务参数结构

@@ -76,8 +76,7 @@ pub extern "C" fn priority_queue_remove(priqueue_item: &mut LinkedList) {
     }
 }
 
-#[unsafe(export_name = "OsPriQueueSize")]
-pub extern "C" fn priority_queue_get_size(priority: u32) -> u32 {
+pub fn priority_queue_get_size(priority: u16) -> u32 {
     let mut item_count = 0;
     assert!(arch_int_locked());
     unsafe {

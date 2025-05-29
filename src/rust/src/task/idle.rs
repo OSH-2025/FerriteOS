@@ -6,7 +6,7 @@ use crate::{
     percpu::os_percpu_get,
     task::{
         global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
-        lifecycle::create::task_create,
+        manager::create::task_create,
         types::{TaskCB, TaskEntryFunc, TaskError, TaskFlags, TaskInitParam},
     },
     utils::list::LinkedList,
