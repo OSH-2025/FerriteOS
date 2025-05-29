@@ -4,7 +4,7 @@ use crate::{
     percpu::can_preempt,
     task::{
         sched::{priority_queue_get_size, priority_queue_insert_at_back, schedule_reschedule},
-        timer::add_task_to_timer_list,
+        timer::add_to_timer_list,
         types::{TaskError, TaskFlags, TaskStatus},
     },
 };
@@ -39,7 +39,7 @@ pub fn task_delay(tick: u32) -> Result<(), TaskError> {
     let int_save = int_lock();
 
     // 将任务添加到定时器列表
-    add_task_to_timer_list(run_task, tick);
+    add_to_timer_list(run_task, tick);
 
     // 设置任务状态为延时
     run_task.task_status.insert(TaskStatus::DELAY);

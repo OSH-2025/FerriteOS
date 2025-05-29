@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[unsafe(export_name = "OsTaskAdd2TimerList")]
-pub extern "C" fn add_task_to_timer_list(task_cb: &mut TaskCB, timeout: u32) {
+pub extern "C" fn add_to_timer_list(task_cb: &mut TaskCB, timeout: u32) {
     // 设置排序链表值
     task_cb.sort_list.set_timeout(timeout);
     let sort_link_header = &mut os_percpu_get().task_sort_link;

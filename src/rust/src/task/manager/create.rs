@@ -9,7 +9,7 @@ use crate::{
         memory::los_mem_alloc_align,
     },
     task::{
-        global::{FREE_TASK_LIST, get_tcb_from_id, scheduler_active},
+        global::{FREE_TASK_LIST, get_tcb_from_id, is_scheduler_active},
         sched::{priority_queue_insert_at_back, schedule},
         types::{TaskCB, TaskError, TaskInitParam, TaskStatus},
     },
@@ -252,7 +252,7 @@ fn task_resume(task_id: u32) {
 
     int_restore(int_save);
 
-    if scheduler_active() {
+    if is_scheduler_active() {
         schedule();
     }
 }

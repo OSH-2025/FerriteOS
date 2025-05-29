@@ -3,6 +3,6 @@ pub mod global;
 pub mod idle;
 pub mod manager;
 pub mod sched;
-// pub mod scheduling;
+pub mod sync;
 pub mod timer;
 pub mod types;

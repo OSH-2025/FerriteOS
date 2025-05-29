@@ -22,7 +22,7 @@ pub fn get_tcb_from_id(task_id: u32) -> &'static mut TaskCB {
 pub static TASK_SCHEDULED: AtomicU32 = AtomicU32::new(0);
 
 #[inline]
-pub fn scheduler_active() -> bool {
+pub fn is_scheduler_active() -> bool {
     let current_state = TASK_SCHEDULED.load(Ordering::Acquire);
     current_state & 1 != 0
 }

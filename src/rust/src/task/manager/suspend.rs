@@ -4,7 +4,7 @@ use crate::{
     hwi::{int_lock, int_restore, is_int_active},
     percpu::can_preempt_in_scheduler,
     task::{
-        global::{get_tcb_from_id, scheduler_active},
+        global::{get_tcb_from_id, is_scheduler_active},
         sched::{
             priority_queue_insert_at_back, priority_queue_remove, schedule, schedule_reschedule,
         },
@@ -54,7 +54,7 @@ pub fn task_resume(task_id: u32) -> Result<(), TaskError> {
         priority_queue_insert_at_back(&mut task_cb.pend_list, task_cb.priority as u32);
 
         // 检查调度器是否活动
-        if scheduler_active() {
+        if is_scheduler_active() {
             need_sched = true;
         }
     }

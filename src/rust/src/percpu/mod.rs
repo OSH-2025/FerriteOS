@@ -44,7 +44,6 @@ impl Percpu {
 }
 
 pub enum SchedFlag {
-    #[allow(dead_code)]
     NotNeeded = 0,
     Pending = 1,
 }
