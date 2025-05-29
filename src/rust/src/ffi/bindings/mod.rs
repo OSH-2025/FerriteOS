@@ -33,8 +33,8 @@ unsafe extern "C" {
 }
 
 #[inline]
-pub(crate) fn curr_task_get() -> *mut TaskCB {
-    unsafe { c_curr_task_get() }
+pub fn get_current_task() -> &'static mut TaskCB {
+    unsafe { c_curr_task_get().as_mut().expect("Current task is null") }
 }
 
 #[inline]

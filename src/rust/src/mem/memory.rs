@@ -5,7 +5,7 @@ use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
 
 use super::defs::*;
 use super::mempool::{LosMemPoolInfo, LosMemPoolStatus};
-#[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+#[cfg(feature = "task_static_allocation")]
 use super::memstat;
 use super::multiple_dlink_head;
 use super::multiple_dlink_head::LosMultipleDlinkHead;
@@ -173,7 +173,7 @@ fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut LosMemPoolInfo) {
     unsafe {
         let first_node = os_mem_first_node(pool) as *const core::ffi::c_void;
         // 更新内存统计信息
-        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+        #[cfg(feature = "task_static_allocation")]
         memstat::os_memstat_task_used_dec(
             &mut (*pool).stat,
             os_mem_node_get_size((*node).self_node.size_and_flag),
@@ -269,7 +269,7 @@ fn os_mem_info_get(pool_info: *mut LosMemPoolInfo, pool_status: &mut LosMemPoolS
         pool_status.max_free_node_size = max_free_node_size;
         pool_status.used_node_num = used_node_num;
         pool_status.free_node_num = free_node_num;
-        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+        #[cfg(feature = "task_static_allocation")]
         {
             pool_status.usage_water_line = (*pool_info).stat.mem_total_peak;
         }
@@ -283,7 +283,7 @@ pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
     if os_mem_info_get(pool_info, &mut status) == NOK {
         return;
     }
-    #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+    #[cfg(feature = "task_static_allocation")]
     unsafe {
         dprintf(
             b"pool addr          pool size    used size     free size    \
@@ -308,7 +308,7 @@ pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
             status.usage_water_line,
         );
     }
-    #[cfg(not(feature = "LOSCFG_MEM_TASK_STAT"))]
+    #[cfg(not(feature = "task_static_allocation"))]
     unsafe {
         dprintf(
             b"pool addr          pool size    used size     free size    \
@@ -356,7 +356,7 @@ fn os_mem_alloc_with_check(pool: *mut LosMemPoolInfo, size: u32) -> *mut core::f
         );
         os_mem_set_magic_num_and_task_id(alloc_node);
         os_mem_node_set_used_flag(&mut (*alloc_node).self_node.size_and_flag);
-        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+        #[cfg(feature = "task_static_allocation")]
         memstat::os_memstat_task_used_inc(
             &mut (*pool).stat,
             os_mem_node_get_size((*alloc_node).self_node.size_and_flag),
@@ -378,7 +378,7 @@ fn os_mem_realloc_smaller(
             (*node).self_node.size_and_flag = node_size;
             os_mem_split_node(pool as *mut core::ffi::c_void, node, alloc_size);
             os_mem_node_set_used_flag(&mut (*node).self_node.size_and_flag);
-            #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+            #[cfg(feature = "task_static_allocation")]
             memstat::os_memstat_task_used_dec(
                 &mut (*pool).stat,
                 node_size - alloc_size,
@@ -409,7 +409,7 @@ fn os_mem_merge_node_for_realloc_bigger(
         {
             os_mem_split_node(pool as *mut core::ffi::c_void, node, alloc_size);
         }
-        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+        #[cfg(feature = "task_static_allocation")]
         memstat::os_memstat_task_used_inc(
             &mut (*pool).stat,
             (*node).self_node.size_and_flag - node_size,
@@ -451,7 +451,7 @@ fn os_mem_init(pool: *mut core::ffi::c_void, size: u32) -> Result<(), ()> {
         os_mem_node_set_used_flag(&mut (*end_node).self_node.size_and_flag);
         os_mem_set_magic_num_and_task_id(end_node);
         // 初始化内存统计信息
-        #[cfg(feature = "LOSCFG_MEM_TASK_STAT")]
+        #[cfg(feature = "task_static_allocation")]
         {
             let zeroed_struct = core::mem::zeroed();
             (*pool_info).stat = zeroed_struct;

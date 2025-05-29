@@ -1,4 +1,7 @@
-use crate::utils::sortlink::SortLinkAttribute;
+use crate::{
+    hwi::{int_lock, int_restore},
+    utils::sortlink::SortLinkAttribute,
+};
 
 const LOSCFG_KERNEL_CORE_NUM: usize = 1;
 
@@ -52,4 +55,22 @@ pub static mut PERCPU: [Percpu; LOSCFG_KERNEL_CORE_NUM] = [Percpu::UNINIT; LOSCF
 #[inline]
 pub fn os_percpu_get() -> &'static mut Percpu {
     unsafe { &mut PERCPU[0] }
+}
+
+#[inline]
+pub fn can_preempt_in_scheduler() -> bool {
+    let percpu = os_percpu_get();
+    let preemptable = percpu.task_lock_cnt == 0;
+    if !preemptable {
+        percpu.sched_flag = SchedFlag::Pending as u32;
+    }
+    preemptable
+}
+
+#[inline]
+pub fn can_preempt() -> bool {
+    let int_save = int_lock();
+    let preemptable = can_preempt_in_scheduler();
+    int_restore(int_save);
+    preemptable
 }

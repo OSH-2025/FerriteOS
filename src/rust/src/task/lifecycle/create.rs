@@ -9,7 +9,7 @@ use crate::{
         memory::los_mem_alloc_align,
     },
     task::{
-        global::{FREE_TASK_LIST, get_tcb_mut, scheduler_active},
+        global::{FREE_TASK_LIST, get_tcb_from_id, scheduler_active},
         sched::{priority_queue_insert_at_back, schedule},
         types::{TaskCB, TaskError, TaskInitParam, TaskStatus},
     },
@@ -241,7 +241,7 @@ fn task_create_internal(
 
 fn task_resume(task_id: u32) {
     // 根据任务ID获取任务控制块
-    let task_cb = get_tcb_mut(task_id);
+    let task_cb = get_tcb_from_id(task_id);
     // 加锁进行原子操作
     let int_save = int_lock();
 

@@ -2,7 +2,7 @@ use crate::{
     config::TASK_LIMIT,
     percpu::os_percpu_get,
     task::{
-        global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_mut},
+        global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         sched::init_priority_queue,
     },
     utils::{list::LinkedList, sortlink::os_sort_link_init},
@@ -16,8 +16,8 @@ pub fn init_task_system() {
 
     // 初始化每个任务控制块并添加到空闲列表
     for index in 0..TASK_LIMIT {
-        let task_cb = get_tcb_mut(index as u32);
-        task_cb.task_id = index as u32;
+        let task_cb = get_tcb_from_id(index);
+        task_cb.task_id = index;
         LinkedList::tail_insert(&raw mut FREE_TASK_LIST, &mut task_cb.pend_list);
     }
 

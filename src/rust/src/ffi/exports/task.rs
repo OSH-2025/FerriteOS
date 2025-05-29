@@ -2,9 +2,11 @@ use crate::{
     config::OK,
     task::{
         idle::idle_task_create,
-        lifecycle::{create::{
-            task_create, task_create_only, task_create_only_static, task_create_static,
-        }, init::init_task_system},
+        lifecycle::{
+            create::{task_create, task_create_only, task_create_only_static, task_create_static},
+            delete::task_delete,
+            init::init_task_system, suspend::{task_resume, task_suspend},
+        },
         types::{TaskError, TaskInitParam},
     },
 };
@@ -156,4 +158,31 @@ pub extern "C" fn os_idle_task_create() -> u32 {
 pub extern "C" fn os_task_init() -> u32 {
     init_task_system();
     OK
+}
+
+/// C兼容的任务删除函数
+#[unsafe(export_name = "LOS_TaskDelete")]
+pub extern "C" fn los_task_delete(task_id: u32) -> u32 {
+    match task_delete(task_id) {
+        Ok(()) => OK,
+        Err(err) => err.into(),
+    }
+}
+
+/// C兼容的任务恢复函数
+#[unsafe(export_name = "LOS_TaskResume")]
+pub extern "C" fn los_task_resume(task_id: u32) -> u32 {
+    match task_resume(task_id) {
+        Ok(()) => OK,
+        Err(err) => err.into(),
+    }
+}
+
+/// C兼容的任务挂起函数
+#[unsafe(export_name = "LOS_TaskSuspend")]
+pub extern "C" fn los_task_suspend(task_id: u32) -> u32 {
+    match task_suspend(task_id) {
+        Ok(()) => OK,
+        Err(err) => err.into(),
+    }
 }

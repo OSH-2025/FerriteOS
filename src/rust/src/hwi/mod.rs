@@ -16,6 +16,6 @@ unsafe extern "C" {
 }
 
 #[inline]
-pub(crate) fn is_int_active() -> bool {
+pub fn is_int_active() -> bool {
     unsafe { c_int_active() != 0 }
 }

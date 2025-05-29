@@ -5,7 +5,7 @@ use crate::{
     mem::{defs::m_aucSysMem0, memory::los_mem_free},
     percpu::os_percpu_get,
     task::{
-        global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_mut},
+        global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         lifecycle::create::task_create,
         types::{TaskCB, TaskEntryFunc, TaskError, TaskFlags, TaskInitParam},
     },
@@ -72,7 +72,7 @@ pub fn idle_task_create() -> Result<(), TaskError> {
     task_create(idle_task_id, &mut task_init_param)?;
 
     // 如果创建成功，设置系统任务标志
-    let task_cb = get_tcb_mut(*idle_task_id);
+    let task_cb = get_tcb_from_id(*idle_task_id);
     task_cb.task_flags.insert(TaskFlags::SYSTEM);
 
     Ok(())

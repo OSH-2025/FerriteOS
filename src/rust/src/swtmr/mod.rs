@@ -212,7 +212,7 @@ fn os_swtmr_task() {
 
 #[cfg(not(feature = "swtmr_in_isr"))]
 pub extern "C" fn os_swtmr_task_create() -> u32 {
-    use crate::task::{global::get_tcb_mut, lifecycle::create::task_create, types::TaskFlags};
+    use crate::task::{global::get_tcb_from_id, lifecycle::create::task_create, types::TaskFlags};
 
     let mut swtmr_task_id: u32 = 0;
 
@@ -231,7 +231,7 @@ pub extern "C" fn os_swtmr_task_create() -> u32 {
         Ok(_) => {
             os_percpu_get().swtmr_task_id = swtmr_task_id;
             // 设置系统任务标志
-            get_tcb_mut(swtmr_task_id)
+            get_tcb_from_id(swtmr_task_id)
                 .task_flags
                 .insert(TaskFlags::SYSTEM);
             return OK;

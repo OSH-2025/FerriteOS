@@ -100,7 +100,6 @@ fn os_mem_task_clear(stat: &mut Memstat, task_id: u32) {
 }
 
 pub fn os_memstat_task_clear(task_id: u32) {
-    // TODO LOSCFG_MEM_MUL_POOL
     unsafe {
         let pool = os_sys_mem_addr() as *mut LosMemPoolInfo;
         let stat = &mut (*pool).stat;
@@ -108,7 +107,6 @@ pub fn os_memstat_task_clear(task_id: u32) {
     }
 }
 
-// 为 C 代码提供的外部接口
 #[unsafe(no_mangle)]
 pub extern "C" fn OsMemstatTaskClear(task_id: u32) {
     os_memstat_task_clear(task_id);

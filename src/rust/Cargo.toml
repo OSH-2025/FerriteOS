@@ -11,12 +11,18 @@ bitflags = "2.9.1"
 crate-type = ["staticlib"]
 
 [features]
-default = ["LOSCFG_MEM_TASK_STAT", "LOSCFG_BASE_CORE_USE_MULTI_LIST", "compat_posix", "timeslice", "task_static_allocation"]
+default = [
+	"memory_task_statistics",
+	"LOSCFG_BASE_CORE_USE_MULTI_LIST",
+	"compat_posix",
+	"timeslice",
+	"task_static_allocation",
+]
 swtmr_in_isr = []
 compat_posix = []
-task_static_allocation = []
 timeslice = []
 debug_sched_statistics = []
-LOSCFG_MEM_TASK_STAT = []
+memory_task_statistics = []
+task_static_allocation = []
 LOSCFG_BASE_CORE_USE_MULTI_LIST = []
 LOSCFG_BASE_CORE_USE_SINGLE_LIST = []

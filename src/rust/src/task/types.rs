@@ -1,9 +1,11 @@
 use crate::{
     container_of,
     errno::{
-        ERRNO_TSK_ENTRY_NULL, ERRNO_TSK_ID_INVALID, ERRNO_TSK_NAME_EMPTY, ERRNO_TSK_NO_MEMORY,
-        ERRNO_TSK_PRIOR_ERROR, ERRNO_TSK_PTR_NULL, ERRNO_TSK_STKSZ_NOT_ALIGN,
-        ERRNO_TSK_STKSZ_TOO_LARGE, ERRNO_TSK_STKSZ_TOO_SMALL, ERRNO_TSK_TCB_UNAVAILABLE,
+        ERRNO_TSK_ALREADY_SUSPENDED, ERRNO_TSK_DELETE_LOCKED, ERRNO_TSK_ENTRY_NULL,
+        ERRNO_TSK_ID_INVALID, ERRNO_TSK_NAME_EMPTY, ERRNO_TSK_NO_MEMORY, ERRNO_TSK_NOT_CREATED,
+        ERRNO_TSK_NOT_SUSPENDED, ERRNO_TSK_OPERATE_SYSTEM_TASK, ERRNO_TSK_PRIOR_ERROR,
+        ERRNO_TSK_PTR_NULL, ERRNO_TSK_STKSZ_NOT_ALIGN, ERRNO_TSK_STKSZ_TOO_LARGE,
+        ERRNO_TSK_STKSZ_TOO_SMALL, ERRNO_TSK_SUSPEND_LOCKED, ERRNO_TSK_TCB_UNAVAILABLE,
     },
     event::EventCB,
     offset_of,
@@ -254,6 +256,9 @@ bitflags! {
         const DELAY = 0x0020;     // 任务延时
         const TIMEOUT = 0x0040;   // 等待事件超时
         const PEND_TIME = 0x0080; // 任务等待特定时间
+
+        /// 任务阻塞状态掩码
+        const BLOCKED = Self::DELAY.bits() | Self::PEND.bits() | Self::SUSPEND.bits();
     }
 }
 
@@ -317,6 +322,18 @@ pub enum TaskError {
     NoFreeTasks,
     /// 栈未对齐
     StackNotAligned,
+    /// 任务被锁定无法删除
+    DeleteLocked,
+    /// 尝试操作系统任务
+    OperateSystemTask,
+    /// 任务未创建
+    NotCreated,
+    /// 任务未被挂起
+    NotSuspended,
+    /// 任务已经被挂起
+    AlreadySuspended,
+    /// 任务被锁定无法挂起
+    SuspendLocked,
 }
 
 impl From<TaskError> for u32 {
@@ -332,6 +349,12 @@ impl From<TaskError> for u32 {
             TaskError::OutOfMemory => ERRNO_TSK_NO_MEMORY,
             TaskError::NoFreeTasks => ERRNO_TSK_TCB_UNAVAILABLE,
             TaskError::StackNotAligned => ERRNO_TSK_STKSZ_NOT_ALIGN,
+            TaskError::DeleteLocked => ERRNO_TSK_DELETE_LOCKED,
+            TaskError::OperateSystemTask => ERRNO_TSK_OPERATE_SYSTEM_TASK,
+            TaskError::NotCreated => ERRNO_TSK_NOT_CREATED,
+            TaskError::NotSuspended => ERRNO_TSK_NOT_SUSPENDED,
+            TaskError::AlreadySuspended => ERRNO_TSK_ALREADY_SUSPENDED,
+            TaskError::SuspendLocked => ERRNO_TSK_SUSPEND_LOCKED,
         }
     }
 }
