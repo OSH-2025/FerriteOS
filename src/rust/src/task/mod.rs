@@ -1,9 +1,20 @@
 pub mod entry;
+
 pub mod global;
+
 pub mod idle;
+
 pub mod manager;
+
+#[cfg(feature = "task_monitor")]
+pub mod monitor;
+
 pub mod sched;
+
 pub mod signal;
+
 pub mod sync;
+
 pub mod timer;
+
 pub mod types;

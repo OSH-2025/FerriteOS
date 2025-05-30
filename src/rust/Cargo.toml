@@ -13,10 +13,10 @@ crate-type = ["staticlib"]
 [features]
 default = [
 	"memory_task_statistics",
-	"LOSCFG_BASE_CORE_USE_MULTI_LIST",
 	"timeslice",
 	"task_static_allocation",
 	"ipc_event",
+	"task_monitor",
 ]
 swtmr_in_isr = []
 compat_posix = []
@@ -24,6 +24,5 @@ timeslice = []
 debug_sched_statistics = []
 memory_task_statistics = []
 task_static_allocation = []
-LOSCFG_BASE_CORE_USE_MULTI_LIST = []
-LOSCFG_BASE_CORE_USE_SINGLE_LIST = []
 ipc_event = []
+task_monitor = []

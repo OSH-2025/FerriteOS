@@ -10,11 +10,13 @@ use crate::{
             priority::{get_task_priority, set_current_task_priority, set_task_priority},
             suspend::{task_resume, task_suspend},
         },
+        monitor::{TaskSwitchHook, init_task_monitor, register_task_switch_hook},
         signal::process_task_signals,
         sync::lock::{task_lock, task_unlock},
         types::{TaskEntryFunc, TaskError, TaskInitParam},
     },
 };
+
 use core::ffi::{c_char, c_void};
 
 #[repr(C)]
@@ -239,4 +241,16 @@ pub extern "C" fn los_task_unlock() {
 #[unsafe(export_name = "OsTaskProcSignal")]
 pub extern "C" fn os_task_proc_signal() -> u32 {
     process_task_signals()
+}
+
+#[cfg(feature = "task_monitor")]
+#[unsafe(export_name = "OsTaskMonInit")]
+pub extern "C" fn os_task_mon_init() {
+    init_task_monitor();
+}
+
+#[cfg(feature = "task_monitor")]
+#[unsafe(export_name = "LOS_TaskSwitchHookReg")]
+pub extern "C" fn los_task_switch_hook_reg(hook: TaskSwitchHook) {
+    register_task_switch_hook(hook);
 }

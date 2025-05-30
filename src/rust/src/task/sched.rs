@@ -2,7 +2,10 @@ use crate::{
     ffi::bindings::{arch_int_locked, curr_task_set, get_current_task, os_task_schedule},
     hwi::{int_lock, int_restore, is_int_active},
     percpu::{can_preempt, can_preempt_in_scheduler, os_percpu_get},
-    task::{types::TaskCB, types::TaskStatus},
+    task::{
+        monitor::check_task_switch,
+        types::{TaskCB, TaskStatus},
+    },
     utils::list::LinkedList,
 };
 use core::sync::atomic::{AtomicU32, Ordering};
@@ -142,7 +145,10 @@ pub extern "C" fn schedule_reschedule() {
         // 更新任务状态
         run_task.task_status.remove(TaskStatus::RUNNING);
         (*new_task).task_status.insert(TaskStatus::RUNNING);
+
         // TODO
+        #[cfg(feature = "task_monitor")]
+        check_task_switch(run_task, &mut *new_task);
         // OsTaskTimeUpdateHook(runTask->taskId, LOS_TickCountGet());
         // OsTaskSwitchCheck(runTask, newTask);
         // OsSchedStatistics(runTask, newTask);
