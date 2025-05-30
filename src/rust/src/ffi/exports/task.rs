@@ -2,6 +2,7 @@ use crate::{
     config::OK,
     task::{
         idle::idle_task_create,
+        info::get_current_task_id,
         manager::{
             create::{task_create, task_create_only, task_create_only_static, task_create_static},
             delay::{task_delay, task_yield},
@@ -253,4 +254,10 @@ pub extern "C" fn os_task_mon_init() {
 #[unsafe(export_name = "LOS_TaskSwitchHookReg")]
 pub extern "C" fn los_task_switch_hook_reg(hook: TaskSwitchHook) {
     register_task_switch_hook(hook);
+}
+
+/// C兼容的当前任务ID获取函数
+#[unsafe(export_name = "LOS_CurTaskIDGet")]
+pub extern "C" fn los_cur_task_idget() -> u32 {
+    get_current_task_id()
 }
