@@ -1,5 +1,5 @@
 use crate::{
-    hwi::{int_lock, int_restore},
+    interrupt::{int_lock, int_restore},
     utils::sortlink::SortLinkAttribute,
 };
 

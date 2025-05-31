@@ -1,19 +1,20 @@
 use crate::{
     config::TASK_PRIORITY_LOWEST,
+    error::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
-    hwi::{int_lock, int_restore},
+    interrupt::{int_lock, int_restore},
     task::{
         global::get_tcb_from_id,
         sched::{priority_queue_insert_at_back, priority_queue_remove, schedule},
-        types::{TaskError, TaskFlags, TaskStatus},
+        types::{TaskCB, TaskFlags, TaskStatus},
     },
 };
 
 /// 获取指定任务的优先级
-pub fn get_task_priority(task_id: u32) -> Result<u16, TaskError> {
+pub fn get_task_priority(task_id: u32) -> SystemResult<u16> {
     // 检查任务ID是否有效
     if task_id >= crate::config::TASK_LIMIT {
-        return Err(TaskError::InvalidId);
+        return Err(SystemError::Task(TaskError::InvalidId));
     }
 
     // 获取任务控制块
@@ -25,7 +26,7 @@ pub fn get_task_priority(task_id: u32) -> Result<u16, TaskError> {
     // 检查任务是否已创建
     let result = {
         if task_cb.task_status.contains(TaskStatus::UNUSED) {
-            Err(TaskError::NotCreated)
+            Err(SystemError::Task(TaskError::NotCreated))
         } else {
             // 获取优先级
             let priority = task_cb.priority;
@@ -40,15 +41,15 @@ pub fn get_task_priority(task_id: u32) -> Result<u16, TaskError> {
 }
 
 /// 设置指定任务的优先级
-pub fn set_task_priority(task_id: u32, priority: u16) -> Result<(), TaskError> {
+pub fn set_task_priority(task_id: u32, priority: u16) -> SystemResult<()> {
     // 检查优先级是否有效
     if priority > TASK_PRIORITY_LOWEST {
-        return Err(TaskError::PriorityError);
+        return Err(SystemError::Task(TaskError::PriorityError));
     }
 
     // 检查任务ID是否有效
     if task_id >= crate::config::TASK_LIMIT {
-        return Err(TaskError::InvalidId);
+        return Err(SystemError::Task(TaskError::InvalidId));
     }
 
     // 获取任务控制块
@@ -56,7 +57,7 @@ pub fn set_task_priority(task_id: u32, priority: u16) -> Result<(), TaskError> {
 
     // 检查是否为系统任务
     if task_cb.task_flags.contains(TaskFlags::SYSTEM) {
-        return Err(TaskError::OperateSystemTask);
+        return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
 
     // 锁定调度器
@@ -66,7 +67,7 @@ pub fn set_task_priority(task_id: u32, priority: u16) -> Result<(), TaskError> {
     let temp_status = task_cb.task_status;
     if temp_status.contains(TaskStatus::UNUSED) {
         int_restore(int_save);
-        return Err(TaskError::NotCreated);
+        return Err(SystemError::Task(TaskError::NotCreated));
     }
 
     // 标记是否需要重新调度
@@ -104,8 +105,35 @@ pub fn set_task_priority(task_id: u32, priority: u16) -> Result<(), TaskError> {
     Ok(())
 }
 
-pub fn set_current_task_priority(priority: u16) -> Result<(), TaskError> {
+pub fn set_current_task_priority(priority: u16) -> SystemResult<()> {
     let current_task = get_current_task();
     let task_id = current_task.task_id;
     set_task_priority(task_id, priority)
+}
+
+/// 直接修改任务优先级，无需额外检查
+///
+/// 这是一个低级别函数，供内部使用，不执行ID验证或其他安全检查
+///
+/// # Arguments
+/// * `task_cb` - 任务控制块引用
+/// * `priority` - 新的优先级值
+///
+/// # Safety
+/// 调用者必须确保任务控制块有效且优先级值合法
+#[unsafe(export_name = "OsTaskPriModify")]
+pub extern "C" fn modify_task_priority_raw(task_cb: &mut TaskCB, priority: u16) {
+    if task_cb.task_status.contains(TaskStatus::READY) {
+        // 从就绪队列中移除任务
+        priority_queue_remove(&mut task_cb.pend_list);
+
+        // 更新优先级
+        task_cb.priority = priority;
+
+        // 将任务重新加入就绪队列
+        priority_queue_insert_at_back(&mut task_cb.pend_list, task_cb.priority as u32);
+    } else {
+        // 直接更新优先级
+        task_cb.priority = priority;
+    }
 }

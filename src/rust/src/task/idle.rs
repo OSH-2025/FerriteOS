@@ -1,13 +1,14 @@
 use crate::{
     config::{TASK_IDLE_STACK_SIZE, TASK_PRIORITY_LOWEST},
+    error::SystemResult,
     ffi::bindings::wfi,
-    hwi::{int_lock, int_restore},
+    interrupt::{int_lock, int_restore},
     mem::{defs::m_aucSysMem0, memory::los_mem_free},
     percpu::os_percpu_get,
     task::{
         global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         manager::create::task_create,
-        types::{TaskCB, TaskEntryFunc, TaskError, TaskFlags, TaskInitParam},
+        types::{TaskCB, TaskEntryFunc, TaskFlags, TaskInitParam},
     },
     utils::list::LinkedList,
 };
@@ -54,7 +55,7 @@ pub extern "C" fn get_idle_task_id() -> u32 {
     percpu.idle_task_id
 }
 
-pub fn idle_task_create() -> Result<(), TaskError> {
+pub fn idle_task_create() -> SystemResult<()> {
     // 初始化任务参数
     let mut task_init_param = TaskInitParam {
         task_entry: unsafe { transmute::<_, TaskEntryFunc>(idle_task as usize) },

@@ -1,22 +1,23 @@
 use crate::{
     config::TASK_LIMIT,
+    error::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
-    hwi::{int_lock, int_restore, is_int_active},
+    interrupt::{int_lock, int_restore, is_int_active},
     percpu::can_preempt_in_scheduler,
     task::{
         global::{get_tcb_from_id, is_scheduler_active},
         sched::{
             priority_queue_insert_at_back, priority_queue_remove, schedule, schedule_reschedule,
         },
-        types::{TaskCB, TaskError, TaskFlags, TaskSignal, TaskStatus},
+        types::{TaskCB, TaskFlags, TaskSignal, TaskStatus},
     },
 };
 
 /// 恢复一个被挂起的任务
-pub fn task_resume(task_id: u32) -> Result<(), TaskError> {
+pub fn task_resume(task_id: u32) -> SystemResult<()> {
     // 检查任务ID是否有效
     if task_id >= TASK_LIMIT {
-        return Err(TaskError::InvalidId);
+        return Err(SystemError::Task(TaskError::InvalidId));
     }
 
     // 获取任务控制块
@@ -34,13 +35,13 @@ pub fn task_resume(task_id: u32) -> Result<(), TaskError> {
     // 检查任务是否已创建
     if temp_status.contains(TaskStatus::UNUSED) {
         int_restore(int_save);
-        return Err(TaskError::NotCreated);
+        return Err(SystemError::Task(TaskError::NotCreated));
     }
 
     // 检查任务是否已挂起
     if !temp_status.contains(TaskStatus::SUSPEND) {
         int_restore(int_save);
-        return Err(TaskError::NotSuspended);
+        return Err(SystemError::Task(TaskError::NotSuspended));
     }
 
     // 清除挂起状态
@@ -71,11 +72,11 @@ pub fn task_resume(task_id: u32) -> Result<(), TaskError> {
 }
 
 /// 检查是否可以挂起正在运行的任务
-fn can_suspend_running_task(task_cb: &mut TaskCB) -> Result<bool, TaskError> {
+fn can_suspend_running_task(task_cb: &mut TaskCB) -> SystemResult<bool> {
     // 检查调度器是否可抢占
     if !can_preempt_in_scheduler() {
         // 当前核心的运行任务无法挂起
-        return Err(TaskError::SuspendLocked);
+        return Err(SystemError::Task(TaskError::SuspendLocked));
     }
 
     // 检查是否在中断上下文
@@ -97,10 +98,10 @@ fn can_suspend_running_task(task_cb: &mut TaskCB) -> Result<bool, TaskError> {
 /// # Returns
 /// * `Ok(())` - 成功挂起任务
 /// * `Err(TaskError)` - 挂起任务失败，包含具体错误原因
-pub fn task_suspend(task_id: u32) -> Result<(), TaskError> {
+pub fn task_suspend(task_id: u32) -> SystemResult<()> {
     // 检查任务ID是否有效
     if task_id >= TASK_LIMIT {
-        return Err(TaskError::InvalidId);
+        return Err(SystemError::Task(TaskError::InvalidId));
     }
 
     // 获取任务控制块
@@ -108,7 +109,7 @@ pub fn task_suspend(task_id: u32) -> Result<(), TaskError> {
 
     // 检查是否为系统任务
     if task_cb.task_flags.contains(TaskFlags::SYSTEM) {
-        return Err(TaskError::OperateSystemTask);
+        return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
 
     // 锁定调度器
@@ -120,13 +121,13 @@ pub fn task_suspend(task_id: u32) -> Result<(), TaskError> {
     // 检查任务是否已创建
     if temp_status.contains(TaskStatus::UNUSED) {
         int_restore(int_save);
-        return Err(TaskError::NotCreated);
+        return Err(SystemError::Task(TaskError::NotCreated));
     }
 
     // 检查任务是否已挂起
     if temp_status.contains(TaskStatus::SUSPEND) {
         int_restore(int_save);
-        return Err(TaskError::AlreadySuspended);
+        return Err(SystemError::Task(TaskError::AlreadySuspended));
     }
 
     // 如果任务正在运行，检查是否可以挂起

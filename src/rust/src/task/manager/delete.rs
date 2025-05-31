@@ -1,13 +1,14 @@
 use crate::{
     config::TASK_LIMIT,
-    hwi::{int_lock, int_restore, is_int_active},
+    error::{SystemError, SystemResult, TaskError},
+    interrupt::{int_lock, int_restore, is_int_active},
     mem::{defs::m_aucSysMem1, memory::los_mem_free, memstat::os_memstat_task_clear},
     percpu::can_preempt_in_scheduler,
     task::{
         global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         sched::{priority_queue_remove, schedule_reschedule},
         timer::delete_from_timer_list,
-        types::{TaskCB, TaskError, TaskFlags, TaskSignal, TaskStatus},
+        types::{TaskCB, TaskFlags, TaskSignal, TaskStatus},
     },
     utils::list::LinkedList,
 };
@@ -67,11 +68,11 @@ fn perform_task_deletion(task_cb: &mut TaskCB, use_usr_stack: bool) -> bool {
 }
 
 /// 检查是否可以删除运行中的任务
-fn can_delete_running_task(task_cb: &mut TaskCB) -> Result<bool, TaskError> {
+fn can_delete_running_task(task_cb: &mut TaskCB) -> SystemResult<bool> {
     // 检查调度器是否可抢占
     if !can_preempt_in_scheduler() {
         // 如果任务正在运行且调度器被锁定，则不能删除
-        return Err(TaskError::DeleteLocked);
+        return Err(SystemError::Task(TaskError::DeleteLocked));
     }
     // 检查是否在中断上下文
     if is_int_active() {
@@ -83,17 +84,17 @@ fn can_delete_running_task(task_cb: &mut TaskCB) -> Result<bool, TaskError> {
 }
 
 /// 删除任务
-pub fn task_delete(task_id: u32) -> Result<(), TaskError> {
+pub fn task_delete(task_id: u32) -> SystemResult<()> {
     // 检查任务ID是否有效
     if task_id >= TASK_LIMIT {
-        return Err(TaskError::InvalidId);
+        return Err(SystemError::Task(TaskError::InvalidId));
     }
 
     // 获取任务控制块
     let task_cb = get_tcb_from_id(task_id);
 
     if task_cb.task_flags.contains(TaskFlags::SYSTEM) {
-        return Err(TaskError::OperateSystemTask);
+        return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
 
     // 锁定调度器
@@ -105,7 +106,7 @@ pub fn task_delete(task_id: u32) -> Result<(), TaskError> {
     // 检查任务是否未创建
     if temp_status.contains(TaskStatus::UNUSED) {
         int_restore(int_save);
-        return Err(TaskError::NotCreated);
+        return Err(SystemError::Task(TaskError::NotCreated));
     }
 
     // 如果任务正在运行

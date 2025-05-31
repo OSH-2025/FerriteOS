@@ -1,6 +1,6 @@
 use crate::{
     config::TASK_LIMIT,
-    hwi::{int_lock, int_restore, int_unlock},
+    interrupt::{int_lock, int_restore, int_unlock},
     percpu::os_percpu_get,
     task::{global::get_tcb_from_id, manager::delete::task_delete},
 };

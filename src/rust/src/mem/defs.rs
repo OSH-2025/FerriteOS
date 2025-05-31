@@ -1,7 +1,7 @@
 use super::memory::LosMemDynNode;
 use super::mempool::LosMemPoolInfo;
 use super::multiple_dlink_head::LosMultipleDlinkHead;
-use crate::hwi::{int_lock, int_restore};
+use crate::interrupt::{int_lock, int_restore};
 use crate::utils::list::LinkedList;
 
 pub const OS_MAX_MULTI_DLNK_LOG2: u32 = 29;

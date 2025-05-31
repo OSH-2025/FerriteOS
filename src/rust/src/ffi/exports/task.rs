@@ -1,5 +1,6 @@
 use crate::{
     config::OK,
+    error::{SystemError, TaskError},
     task::{
         idle::idle_task_create,
         info::get_current_task_id,
@@ -14,7 +15,7 @@ use crate::{
         monitor::{TaskSwitchHook, init_task_monitor, register_task_switch_hook},
         signal::process_task_signals,
         sync::lock::{task_lock, task_unlock},
-        types::{TaskEntryFunc, TaskError, TaskInitParam},
+        types::{TaskEntryFunc, TaskInitParam},
     },
 };
 
@@ -60,10 +61,10 @@ impl From<TaskInitParam> for CTaskInitParam {
 #[unsafe(export_name = "LOS_TaskCreate")]
 pub extern "C" fn los_task_create(task_id: *mut u32, c_init_param: *mut CTaskInitParam) -> u32 {
     if task_id.is_null() {
-        return TaskError::InvalidId.into();
+        return SystemError::Task(TaskError::InvalidId).into();
     }
     if c_init_param.is_null() {
-        return TaskError::ParamNull.into();
+        return SystemError::Task(TaskError::ParamNull).into();
     }
     unsafe {
         let task_id_ref = &mut *task_id;
@@ -83,10 +84,10 @@ pub extern "C" fn los_task_create_only(
     c_init_param: *mut CTaskInitParam,
 ) -> u32 {
     if task_id.is_null() {
-        return TaskError::InvalidId.into();
+        return SystemError::Task(TaskError::InvalidId).into();
     }
     if c_init_param.is_null() {
-        return TaskError::ParamNull.into();
+        return SystemError::Task(TaskError::ParamNull).into();
     }
     unsafe {
         let task_id_ref = &mut *task_id;
@@ -108,10 +109,10 @@ pub extern "C" fn los_task_create_static(
     top_stack: *mut c_void,
 ) -> u32 {
     if task_id.is_null() {
-        return TaskError::InvalidId.into();
+        return SystemError::Task(TaskError::InvalidId).into();
     }
     if c_init_param.is_null() {
-        return TaskError::ParamNull.into();
+        return SystemError::Task(TaskError::ParamNull).into();
     }
     unsafe {
         let task_id_ref = &mut *task_id;
@@ -133,10 +134,10 @@ pub extern "C" fn los_task_create_only_static(
     top_stack: *mut c_void,
 ) -> u32 {
     if task_id.is_null() {
-        return TaskError::InvalidId.into();
+        return SystemError::Task(TaskError::InvalidId).into();
     }
     if c_init_param.is_null() {
-        return TaskError::ParamNull.into();
+        return SystemError::Task(TaskError::ParamNull).into();
     }
     unsafe {
         let task_id_ref = &mut *task_id;

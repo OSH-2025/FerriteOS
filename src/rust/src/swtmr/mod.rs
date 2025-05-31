@@ -1,7 +1,7 @@
 use crate::{
     config::OK,
     container_of,
-    hwi::{int_lock, int_restore},
+    interrupt::{int_lock, int_restore},
     mem::{
         defs::m_aucSysMem0,
         memory::{los_mem_alloc, los_mem_free},

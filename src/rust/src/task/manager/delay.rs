@@ -1,19 +1,20 @@
 use crate::{
+    error::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
-    hwi::{int_lock, int_restore, is_int_active},
+    interrupt::{int_lock, int_restore, is_int_active},
     percpu::can_preempt,
     task::{
         sched::{priority_queue_get_size, priority_queue_insert_at_back, schedule_reschedule},
         timer::add_to_timer_list,
-        types::{TaskError, TaskFlags, TaskStatus},
+        types::{TaskFlags, TaskStatus},
     },
 };
 
 /// 使当前任务延时指定的tick数
-pub fn task_delay(tick: u32) -> Result<(), TaskError> {
+pub fn task_delay(tick: u32) -> SystemResult<()> {
     // 检查是否在中断上下文
     if is_int_active() {
-        return Err(TaskError::DelayInInterrupt);
+        return Err(SystemError::Task(TaskError::DelayInInterrupt));
     }
 
     // 获取当前运行的任务
@@ -21,12 +22,12 @@ pub fn task_delay(tick: u32) -> Result<(), TaskError> {
 
     // 检查是否是系统任务
     if run_task.task_flags.contains(TaskFlags::SYSTEM) {
-        return Err(TaskError::OperateSystemTask);
+        return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
 
     // 检查是否可以抢占
     if !can_preempt() {
-        return Err(TaskError::DelayInLock);
+        return Err(SystemError::Task(TaskError::DelayInLock));
     }
 
     // 如果tick为0，则调用task_yield函数让出CPU
@@ -54,15 +55,15 @@ pub fn task_delay(tick: u32) -> Result<(), TaskError> {
 }
 
 /// 让当前任务让出CPU，允许同优先级的其他任务运行
-pub fn task_yield() -> Result<(), TaskError> {
+pub fn task_yield() -> SystemResult<()> {
     // 检查是否在中断上下文
     if is_int_active() {
-        return Err(TaskError::YieldInInterrupt);
+        return Err(SystemError::Task(TaskError::YieldInInterrupt));
     }
 
     // 检查是否可以抢占
     if !can_preempt() {
-        return Err(TaskError::YieldInLock);
+        return Err(SystemError::Task(TaskError::YieldInLock));
     }
 
     // 获取当前运行的任务
@@ -94,6 +95,6 @@ pub fn task_yield() -> Result<(), TaskError> {
     } else {
         // 没有其他同优先级任务，解锁并返回错误
         int_restore(int_save);
-        Err(TaskError::YieldNotEnoughTask)
+        Err(SystemError::Task(TaskError::YieldNotEnoughTask))
     }
 }

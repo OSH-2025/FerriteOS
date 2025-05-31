@@ -1,6 +1,6 @@
 use crate::{
     ffi::bindings::{arch_int_locked, curr_task_set, get_current_task, os_task_schedule},
-    hwi::{int_lock, int_restore, is_int_active},
+    interrupt::{int_lock, int_restore, is_int_active},
     percpu::{can_preempt, can_preempt_in_scheduler, os_percpu_get},
     task::{
         monitor::check_task_switch,

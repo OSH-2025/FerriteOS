@@ -1,5 +1,7 @@
 use crate::ffi::bindings::{arch_int_lock, arch_int_restore, arch_int_unlock};
 
+pub mod types;
+
 #[inline]
 pub fn int_lock() -> u32 {
     arch_int_lock()

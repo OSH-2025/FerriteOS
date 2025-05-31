@@ -1,5 +1,5 @@
 use crate::{
-    hwi::{int_lock, int_restore},
+    interrupt::{int_lock, int_restore},
     percpu::os_percpu_get,
     task::{global::is_scheduler_active, sched::schedule},
 };

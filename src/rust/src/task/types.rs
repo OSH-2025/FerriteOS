@@ -1,14 +1,5 @@
 use crate::{
     container_of,
-    errno::{
-        ERRNO_TSK_ALREADY_SUSPENDED, ERRNO_TSK_DELAY_IN_INT, ERRNO_TSK_DELAY_IN_LOCK,
-        ERRNO_TSK_DELETE_LOCKED, ERRNO_TSK_ENTRY_NULL, ERRNO_TSK_ID_INVALID, ERRNO_TSK_NAME_EMPTY,
-        ERRNO_TSK_NO_MEMORY, ERRNO_TSK_NOT_CREATED, ERRNO_TSK_NOT_SUSPENDED,
-        ERRNO_TSK_OPERATE_SYSTEM_TASK, ERRNO_TSK_PRIOR_ERROR, ERRNO_TSK_PTR_NULL,
-        ERRNO_TSK_STKSZ_NOT_ALIGN, ERRNO_TSK_STKSZ_TOO_LARGE, ERRNO_TSK_STKSZ_TOO_SMALL,
-        ERRNO_TSK_SUSPEND_LOCKED, ERRNO_TSK_TCB_UNAVAILABLE, ERRNO_TSK_YIELD_IN_INT,
-        ERRNO_TSK_YIELD_IN_LOCK, ERRNO_TSK_YIELD_NOT_ENOUGH_TASK,
-    },
     event::EventCB,
     offset_of,
     utils::{list::LinkedList, sortlink::SortLinkList},
@@ -299,79 +290,5 @@ bitflags! {
 impl From<u32> for TaskAttr {
     fn from(value: u32) -> Self {
         Self::from_bits_truncate(value)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TaskError {
-    /// 任务ID指针无效
-    InvalidId,
-    /// 参数指针为空
-    ParamNull,
-    /// 任务名称为空
-    NameEmpty,
-    /// 任务入口函数为空
-    EntryNull,
-    /// 任务优先级错误
-    PriorityError,
-    /// 栈大小过大
-    StackSizeTooLarge,
-    /// 栈大小过小
-    StackSizeTooSmall,
-    /// 内存不足
-    OutOfMemory,
-    /// 没有可用的空闲任务
-    NoFreeTasks,
-    /// 栈未对齐
-    StackNotAligned,
-    /// 任务被锁定无法删除
-    DeleteLocked,
-    /// 尝试操作系统任务
-    OperateSystemTask,
-    /// 任务未创建
-    NotCreated,
-    /// 任务未被挂起
-    NotSuspended,
-    /// 任务已经被挂起
-    AlreadySuspended,
-    /// 任务被锁定无法挂起
-    SuspendLocked,
-    /// 在中断中尝试延时
-    DelayInInterrupt,
-    /// 在锁定状态下尝试延时
-    DelayInLock,
-    /// 在中断中尝试让出CPU
-    YieldInInterrupt,
-    /// 在锁定状态下尝试让出CPU
-    YieldInLock,
-    /// 没有足够的同优先级任务进行让出操作
-    YieldNotEnoughTask,
-}
-
-impl From<TaskError> for u32 {
-    fn from(error: TaskError) -> Self {
-        match error {
-            TaskError::InvalidId => ERRNO_TSK_ID_INVALID,
-            TaskError::ParamNull => ERRNO_TSK_PTR_NULL,
-            TaskError::NameEmpty => ERRNO_TSK_NAME_EMPTY,
-            TaskError::EntryNull => ERRNO_TSK_ENTRY_NULL,
-            TaskError::PriorityError => ERRNO_TSK_PRIOR_ERROR,
-            TaskError::StackSizeTooLarge => ERRNO_TSK_STKSZ_TOO_LARGE,
-            TaskError::StackSizeTooSmall => ERRNO_TSK_STKSZ_TOO_SMALL,
-            TaskError::OutOfMemory => ERRNO_TSK_NO_MEMORY,
-            TaskError::NoFreeTasks => ERRNO_TSK_TCB_UNAVAILABLE,
-            TaskError::StackNotAligned => ERRNO_TSK_STKSZ_NOT_ALIGN,
-            TaskError::DeleteLocked => ERRNO_TSK_DELETE_LOCKED,
-            TaskError::OperateSystemTask => ERRNO_TSK_OPERATE_SYSTEM_TASK,
-            TaskError::NotCreated => ERRNO_TSK_NOT_CREATED,
-            TaskError::NotSuspended => ERRNO_TSK_NOT_SUSPENDED,
-            TaskError::AlreadySuspended => ERRNO_TSK_ALREADY_SUSPENDED,
-            TaskError::SuspendLocked => ERRNO_TSK_SUSPEND_LOCKED,
-            TaskError::DelayInInterrupt => ERRNO_TSK_DELAY_IN_INT,
-            TaskError::DelayInLock => ERRNO_TSK_DELAY_IN_LOCK,
-            TaskError::YieldInInterrupt => ERRNO_TSK_YIELD_IN_INT,
-            TaskError::YieldInLock => ERRNO_TSK_YIELD_IN_LOCK,
-            TaskError::YieldNotEnoughTask => ERRNO_TSK_YIELD_NOT_ENOUGH_TASK,
-        }
     }
 }
