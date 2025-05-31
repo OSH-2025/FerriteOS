@@ -1,6 +1,6 @@
 use crate::{
     container_of,
-    event::EventCB,
+    event::types::EventCB,
     offset_of,
     utils::{list::LinkedList, sortlink::SortLinkList},
 };

@@ -7,6 +7,8 @@ pub enum SystemError {
     Task(TaskError),
     /// 中断相关错误
     Interrupt(InterruptError),
+    /// 未知错误码
+    Unknown(u32),
 }
 
 /// 任务管理错误
@@ -84,6 +86,7 @@ impl From<SystemError> for u32 {
         match error {
             SystemError::Task(err) => u32::from(err),
             SystemError::Interrupt(err) => u32::from(err),
+            SystemError::Unknown(errno) => errno,
         }
     }
 }
@@ -152,3 +155,68 @@ impl From<InterruptError> for u32 {
 pub const ERRNO_HWI_NUM_INVALID: u32 = 0x02000900;
 pub const ERRNO_HWI_PROC_FUNC_NULL: u32 = 0x02000901;
 pub const ERRNO_HWI_ALREADY_CREATED: u32 = 0x02000904;
+
+/// 从u32错误码转换为TaskError
+impl TryFrom<u32> for TaskError {
+    type Error = ();
+
+    fn try_from(errno: u32) -> Result<Self, Self::Error> {
+        match errno {
+            ERRNO_TSK_ID_INVALID => Ok(TaskError::InvalidId),
+            ERRNO_TSK_PTR_NULL => Ok(TaskError::ParamNull),
+            ERRNO_TSK_NAME_EMPTY => Ok(TaskError::NameEmpty),
+            ERRNO_TSK_ENTRY_NULL => Ok(TaskError::EntryNull),
+            ERRNO_TSK_PRIOR_ERROR => Ok(TaskError::PriorityError),
+            ERRNO_TSK_STKSZ_TOO_LARGE => Ok(TaskError::StackSizeTooLarge),
+            ERRNO_TSK_STKSZ_TOO_SMALL => Ok(TaskError::StackSizeTooSmall),
+            ERRNO_TSK_NO_MEMORY => Ok(TaskError::OutOfMemory),
+            ERRNO_TSK_TCB_UNAVAILABLE => Ok(TaskError::NoFreeTasks),
+            ERRNO_TSK_STKSZ_NOT_ALIGN => Ok(TaskError::StackNotAligned),
+            ERRNO_TSK_DELETE_LOCKED => Ok(TaskError::DeleteLocked),
+            ERRNO_TSK_OPERATE_SYSTEM_TASK => Ok(TaskError::OperateSystemTask),
+            ERRNO_TSK_NOT_CREATED => Ok(TaskError::NotCreated),
+            ERRNO_TSK_NOT_SUSPENDED => Ok(TaskError::NotSuspended),
+            ERRNO_TSK_ALREADY_SUSPENDED => Ok(TaskError::AlreadySuspended),
+            ERRNO_TSK_SUSPEND_LOCKED => Ok(TaskError::SuspendLocked),
+            ERRNO_TSK_DELAY_IN_INT => Ok(TaskError::DelayInInterrupt),
+            ERRNO_TSK_DELAY_IN_LOCK => Ok(TaskError::DelayInLock),
+            ERRNO_TSK_YIELD_IN_INT => Ok(TaskError::YieldInInterrupt),
+            ERRNO_TSK_YIELD_IN_LOCK => Ok(TaskError::YieldInLock),
+            ERRNO_TSK_YIELD_NOT_ENOUGH_TASK => Ok(TaskError::YieldNotEnoughTask),
+            _ => Err(()),
+        }
+    }
+}
+
+/// 从u32错误码转换为InterruptError
+impl TryFrom<u32> for InterruptError {
+    type Error = ();
+
+    fn try_from(errno: u32) -> Result<Self, Self::Error> {
+        match errno {
+            ERRNO_HWI_PROC_FUNC_NULL => Ok(InterruptError::ProcFuncNull),
+            ERRNO_HWI_ALREADY_CREATED => Ok(InterruptError::AlreadyCreated),
+            ERRNO_HWI_NUM_INVALID => Ok(InterruptError::NumInvalid),
+            _ => Err(()),
+        }
+    }
+}
+
+pub struct ErrorCode(pub u32);
+
+impl From<ErrorCode> for SystemResult<()> {
+    fn from(code: ErrorCode) -> Self {
+        let errno = code.0;
+        if errno == 0 {
+            Ok(())
+        } else {
+            if let Ok(task_error) = TaskError::try_from(errno) {
+                Err(SystemError::Task(task_error))
+            } else if let Ok(interrupt_error) = InterruptError::try_from(errno) {
+                Err(SystemError::Interrupt(interrupt_error))
+            } else {
+                Err(SystemError::Unknown(errno))
+            }
+        }
+    }
+}

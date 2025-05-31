@@ -4,8 +4,10 @@
 use semihosting::println;
 
 mod config;
+mod err;
 mod error;
 mod event;
+mod exc;
 mod ffi;
 mod interrupt;
 mod mem;

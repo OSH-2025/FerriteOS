@@ -17,6 +17,8 @@ default = [
 	"task_static_allocation",
 	"ipc_event",
 	"task_monitor",
+	"backtrace",
+	"shell"
 ]
 swtmr_in_isr = []
 compat_posix = []
@@ -26,3 +28,8 @@ memory_task_statistics = []
 task_static_allocation = []
 ipc_event = []
 task_monitor = []
+shell_excinfo_dump = []
+shell_dmesg = []
+backtrace = []
+exc_interaction = []
+shell = []

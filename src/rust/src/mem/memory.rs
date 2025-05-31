@@ -36,7 +36,6 @@ pub struct LosMemDynNode {
 }
 
 impl LosMemDynNode {
-    #[allow(dead_code)]
     fn get_task_id(&self) -> u32 {
         unsafe { self.self_node.node_info.used_node_info.task_id as u32 }
     }

@@ -1,13 +1,15 @@
 use core::ffi::c_char;
 
-use crate::error::{InterruptError, SystemError, SystemResult};
+use crate::error::{ErrorCode, InterruptError, SystemError, SystemResult};
+
+pub type InterruptHandlerFn = Option<extern "C" fn()>;
 
 /// 中断处理信息结构体
 #[repr(C)]
 #[derive(Debug)]
 pub struct InterruptHandler {
     /// 用户注册的回调函数
-    pub hook: Option<extern "C" fn()>,
+    pub hook: InterruptHandlerFn,
     /// 中断响应计数
     pub resp_count: u32,
 }
@@ -22,20 +24,17 @@ impl InterruptHandler {
     }
 
     /// 重置中断处理信息
-    #[allow(dead_code)]
     pub fn reset(&mut self) {
         self.hook = None;
         self.resp_count = 0;
     }
 
     /// 增加响应计数
-    #[allow(dead_code)]
     pub fn increment_count(&mut self) {
         self.resp_count = self.resp_count.saturating_add(1);
     }
 
     /// 检查是否已注册处理函数
-    #[allow(dead_code)]
     pub fn is_registered(&self) -> bool {
         self.hook.is_some()
     }
@@ -72,53 +71,47 @@ pub struct InterruptController {
 
 impl InterruptController {
     /// 安全触发中断
-    #[allow(dead_code)]
-    pub fn safe_trigger_irq(&self, hwi_num: u32) -> SystemResult<u32> {
+    pub fn trigger_irq_with_check(&self, hwi_num: u32) -> SystemResult<()> {
         match self.trigger_irq {
-            Some(func) => Ok(func(hwi_num)),
+            Some(func) => ErrorCode(func(hwi_num)).into(),
             None => Err(SystemError::Interrupt(InterruptError::ProcFuncNull)),
         }
     }
 
     /// 安全清除中断
-    #[allow(dead_code)]
-    pub fn safe_clear_irq(&self, hwi_num: u32) -> SystemResult<u32> {
+    pub fn clear_irq_with_check(&self, hwi_num: u32) -> SystemResult<()> {
         match self.clear_irq {
-            Some(func) => Ok(func(hwi_num)),
+            Some(func) => ErrorCode(func(hwi_num)).into(),
             None => Err(SystemError::Interrupt(InterruptError::ProcFuncNull)),
         }
     }
 
     /// 安全使能中断
-    #[allow(dead_code)]
-    pub fn safe_enable_irq(&self, hwi_num: u32) -> SystemResult<u32> {
+    pub fn enable_irq_with_check(&self, hwi_num: u32) -> SystemResult<()> {
         match self.enable_irq {
-            Some(func) => Ok(func(hwi_num)),
+            Some(func) => ErrorCode(func(hwi_num)).into(),
             None => Err(SystemError::Interrupt(InterruptError::ProcFuncNull)),
         }
     }
 
     /// 安全禁用中断
-    #[allow(dead_code)]
-    pub fn safe_disable_irq(&self, hwi_num: u32) -> SystemResult<u32> {
+    pub fn disable_irq_with_check(&self, hwi_num: u32) -> SystemResult<()> {
         match self.disable_irq {
-            Some(func) => Ok(func(hwi_num)),
+            Some(func) => ErrorCode(func(hwi_num)).into(),
             None => Err(SystemError::Interrupt(InterruptError::ProcFuncNull)),
         }
     }
 
     /// 安全设置中断优先级
-    #[allow(dead_code)]
-    pub fn safe_set_irq_priority(&self, hwi_num: u32, priority: u8) -> SystemResult<u32> {
+    pub fn set_irq_priority_with_check(&self, hwi_num: u32, priority: u8) -> SystemResult<()> {
         match self.set_irq_priority {
-            Some(func) => Ok(func(hwi_num, priority)),
+            Some(func) => ErrorCode(func(hwi_num, priority)).into(),
             None => Err(SystemError::Interrupt(InterruptError::ProcFuncNull)),
         }
     }
 
     /// 安全获取当前中断号
-    #[allow(dead_code)]
-    pub fn safe_get_cur_irq_num(&self) -> SystemResult<u32> {
+    pub fn get_cur_irq_num_with_check(&self) -> SystemResult<u32> {
         match self.get_cur_irq_num {
             Some(func) => Ok(func()),
             None => Err(SystemError::Interrupt(InterruptError::ProcFuncNull)),
@@ -126,8 +119,7 @@ impl InterruptController {
     }
 
     /// 安全获取中断版本
-    #[allow(dead_code)]
-    pub fn safe_get_irq_version(&self) -> SystemResult<*const c_char> {
+    pub fn get_irq_version_with_check(&self) -> SystemResult<*const c_char> {
         match self.get_irq_version {
             Some(func) => Ok(func()),
             None => Err(SystemError::Interrupt(InterruptError::ProcFuncNull)),
@@ -135,8 +127,7 @@ impl InterruptController {
     }
 
     /// 获取中断处理表单
-    #[allow(dead_code)]
-    pub fn get_handle_form(&self, hwi_num: u32) -> SystemResult<&mut InterruptHandler> {
+    pub fn get_handle_form_with_check(&self, hwi_num: u32) -> SystemResult<&mut InterruptHandler> {
         match self.get_handle_form {
             Some(func) => match unsafe { func(hwi_num).as_mut() } {
                 Some(handle_form) => Ok(handle_form),
@@ -147,14 +138,12 @@ impl InterruptController {
     }
 
     /// 安全处理中断
-    #[allow(dead_code)]
-    pub fn safe_handle_irq(&self) -> SystemResult<()> {
+    pub fn handle_irq_with_check(&self) {
         match self.handle_irq {
             Some(func) => {
                 func();
-                Ok(())
             }
-            None => Err(SystemError::Interrupt(InterruptError::ProcFuncNull)),
+            None => {}
         }
     }
 }
