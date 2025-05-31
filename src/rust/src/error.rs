@@ -5,8 +5,6 @@ pub type SystemResult<T> = Result<T, SystemError>;
 pub enum SystemError {
     /// 任务相关错误
     Task(TaskError),
-    /// 内存管理错误
-    Memory(MemoryError),
     /// 中断相关错误
     Interrupt(InterruptError),
 }
@@ -58,38 +56,20 @@ pub enum TaskError {
     YieldNotEnoughTask,
 }
 
-/// 内存管理错误
-#[derive(Debug, Clone, PartialEq)]
-pub enum MemoryError {
-    OutOfMemory,
-    InvalidAddress,
-    AlignmentError,
-    PermissionDenied,
-    FragmentationError,
-    PoolFull,
-    InvalidSize,
-}
-
 /// 中断管理错误
 #[derive(Debug, Clone, PartialEq)]
 pub enum InterruptError {
-    InvalidNumber,
-    AlreadyRegistered,
-    NotRegistered,
-    PriorityInvalid,
-    HandlerNull,
-    ControllerNotReady,
+    /// 中断处理函数为空
+    ProcFuncNull,
+    /// 中断已经被创建/注册
+    AlreadyCreated,
+    /// 无效的中断号
+    NumInvalid,
 }
 
 impl From<TaskError> for SystemError {
     fn from(err: TaskError) -> Self {
         SystemError::Task(err)
-    }
-}
-
-impl From<MemoryError> for SystemError {
-    fn from(err: MemoryError) -> Self {
-        SystemError::Memory(err)
     }
 }
 
@@ -103,8 +83,7 @@ impl From<SystemError> for u32 {
     fn from(error: SystemError) -> Self {
         match error {
             SystemError::Task(err) => u32::from(err),
-            SystemError::Memory(_err) => todo!(),
-            SystemError::Interrupt(_err) => todo!(),
+            SystemError::Interrupt(err) => u32::from(err),
         }
     }
 }
@@ -159,3 +138,17 @@ pub const ERRNO_TSK_OPERATE_SYSTEM_TASK: u32 = 0x02000214;
 pub const ERRNO_TSK_SUSPEND_LOCKED: u32 = 0x03000215;
 pub const ERRNO_TSK_STKSZ_TOO_LARGE: u32 = 0x02000220;
 pub const ERRNO_TSK_YIELD_IN_INT: u32 = 0x02000224;
+
+impl From<InterruptError> for u32 {
+    fn from(error: InterruptError) -> Self {
+        match error {
+            InterruptError::ProcFuncNull => ERRNO_HWI_PROC_FUNC_NULL,
+            InterruptError::AlreadyCreated => ERRNO_HWI_ALREADY_CREATED,
+            InterruptError::NumInvalid => ERRNO_HWI_NUM_INVALID,
+        }
+    }
+}
+
+pub const ERRNO_HWI_NUM_INVALID: u32 = 0x02000900;
+pub const ERRNO_HWI_PROC_FUNC_NULL: u32 = 0x02000901;
+pub const ERRNO_HWI_ALREADY_CREATED: u32 = 0x02000904;
