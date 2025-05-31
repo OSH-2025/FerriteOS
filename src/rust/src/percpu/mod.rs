@@ -1,5 +1,5 @@
 use crate::{
-    interrupt::{int_lock, int_restore},
+    interrupt::{disable_interrupts, restore_interrupt_state},
     utils::sortlink::SortLinkAttribute,
 };
 
@@ -63,8 +63,8 @@ pub fn can_preempt_in_scheduler() -> bool {
 
 #[inline]
 pub fn can_preempt() -> bool {
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
     let preemptable = can_preempt_in_scheduler();
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
     preemptable
 }

@@ -2,7 +2,7 @@ use crate::{
     config::TASK_PRIORITY_LOWEST,
     error::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
-    interrupt::{int_lock, int_restore},
+    interrupt::{disable_interrupts, restore_interrupt_state},
     task::{
         global::get_tcb_from_id,
         sched::{priority_queue_insert_at_back, priority_queue_remove, schedule},
@@ -21,7 +21,7 @@ pub fn get_task_priority(task_id: u32) -> SystemResult<u16> {
     let task_cb = get_tcb_from_id(task_id);
 
     // 锁定调度器
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 检查任务是否已创建
     let result = {
@@ -35,7 +35,7 @@ pub fn get_task_priority(task_id: u32) -> SystemResult<u16> {
     };
 
     // 解锁调度器
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     result
 }
@@ -61,12 +61,12 @@ pub fn set_task_priority(task_id: u32, priority: u16) -> SystemResult<()> {
     }
 
     // 锁定调度器
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 检查任务是否已创建
     let temp_status = task_cb.task_status;
     if temp_status.contains(TaskStatus::UNUSED) {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return Err(SystemError::Task(TaskError::NotCreated));
     }
 
@@ -95,7 +95,7 @@ pub fn set_task_priority(task_id: u32, priority: u16) -> SystemResult<()> {
     };
 
     // 解锁调度器
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     // 如果需要重新调度，触发调度
     if needs_reschedule {

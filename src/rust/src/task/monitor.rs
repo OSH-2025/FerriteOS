@@ -5,7 +5,6 @@ use core::ffi::CStr;
 pub type TaskSwitchHook = Option<extern "C" fn()>;
 
 /// 用户定义的任务切换钩子
-#[cfg(feature = "task_monitor")]
 static mut USER_TASK_SWITCH_HOOK: TaskSwitchHook = None;
 
 #[inline]
@@ -15,7 +14,6 @@ fn stack_magic_check(top_stack: *const usize) -> bool {
 }
 
 /// 检查任务栈是否溢出或栈指针是否有效
-#[cfg(feature = "task_monitor")]
 fn check_task_stack(old_task: &TaskCB, new_task: &TaskCB) {
     unsafe {
         if !stack_magic_check(old_task.top_of_stack as *const usize) {
@@ -43,17 +41,14 @@ fn check_task_stack(old_task: &TaskCB, new_task: &TaskCB) {
 }
 
 /// 初始化任务监控模块
-#[cfg(feature = "task_monitor")]
 pub fn init_task_monitor() {}
 
 /// 注册任务切换钩子函数
-#[cfg(feature = "task_monitor")]
 pub fn register_task_switch_hook(hook: TaskSwitchHook) {
     unsafe { USER_TASK_SWITCH_HOOK = hook };
 }
 
 /// 执行任务切换检查
-#[cfg(feature = "task_monitor")]
 pub fn check_task_switch(old_task: &TaskCB, new_task: &TaskCB) {
     // 检查任务栈
     check_task_stack(old_task, new_task);

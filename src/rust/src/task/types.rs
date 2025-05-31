@@ -1,7 +1,7 @@
+#[cfg(feature = "ipc_event")]
+use crate::event::types::EventCB;
 use crate::{
-    container_of,
-    event::types::EventCB,
-    offset_of,
+    container_of, offset_of,
     utils::{list::LinkedList, sortlink::SortLinkList},
 };
 use bitflags::bitflags;
@@ -109,12 +109,15 @@ pub struct TaskCB {
     pub sort_list: SortLinkList,
 
     /// 事件控制块
+    #[cfg(feature = "ipc_event")]
     pub event: EventCB,
 
     /// 事件掩码
+    #[cfg(feature = "ipc_event")]
     pub event_mask: u32,
 
     /// 事件模式
+    #[cfg(feature = "ipc_event")]
     pub event_mode: u32,
 
     /// 分配给队列的内存
@@ -127,10 +130,11 @@ pub struct TaskCB {
     pub signal: TaskSignal,
 
     /// 剩余时间片
-    #[cfg(feature = "timeslice")]
+    #[cfg(feature = "time_slice")]
     pub time_slice: u16,
 }
 
+// event::types::EventCB,
 impl TaskCB {
     pub const UNINIT: Self = Self {
         stack_pointer: core::ptr::null_mut(),
@@ -152,13 +156,16 @@ impl TaskCB {
         task_name: core::ptr::null(),
         pend_list: LinkedList::UNINIT,
         sort_list: SortLinkList::UNINIT,
+        #[cfg(feature = "ipc_event")]
         event: EventCB::UNINIT,
+        #[cfg(feature = "ipc_event")]
         event_mask: 0,
+        #[cfg(feature = "ipc_event")]
         event_mode: 0,
         msg: core::ptr::null_mut(),
         priority_bitmap: 0,
         signal: TaskSignal::empty(),
-        #[cfg(feature = "timeslice")]
+        #[cfg(feature = "time_slice")]
         time_slice: 0,
     };
 

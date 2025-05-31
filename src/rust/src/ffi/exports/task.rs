@@ -1,3 +1,5 @@
+#[cfg(feature = "task_monitor")]
+use crate::task::monitor::{TaskSwitchHook, init_task_monitor, register_task_switch_hook};
 use crate::{
     config::OK,
     error::{SystemError, TaskError},
@@ -12,7 +14,6 @@ use crate::{
             priority::{get_task_priority, set_current_task_priority, set_task_priority},
             suspend::{task_resume, task_suspend},
         },
-        monitor::{TaskSwitchHook, init_task_monitor, register_task_switch_hook},
         signal::process_task_signals,
         sync::lock::{task_lock, task_unlock},
         types::{TaskEntryFunc, TaskInitParam},

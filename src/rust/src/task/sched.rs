@@ -1,11 +1,10 @@
+#[cfg(feature = "task_monitor")]
+use crate::task::monitor::check_task_switch;
 use crate::{
     ffi::bindings::{arch_int_locked, curr_task_set, get_current_task, os_task_schedule},
-    interrupt::{int_lock, int_restore, is_int_active},
+    interrupt::{disable_interrupts, is_int_active, restore_interrupt_state},
     percpu::{can_preempt, can_preempt_in_scheduler, os_percpu_get},
-    task::{
-        monitor::check_task_switch,
-        types::{TaskCB, TaskStatus},
-    },
+    task::types::{TaskCB, TaskStatus},
     utils::list::LinkedList,
 };
 use core::sync::atomic::{AtomicU32, Ordering};
@@ -150,9 +149,9 @@ pub extern "C" fn schedule_reschedule() {
         #[cfg(feature = "task_monitor")]
         check_task_switch(run_task, &mut *new_task);
         // OsTaskTimeUpdateHook(runTask->taskId, LOS_TickCountGet());
-        // OsTaskSwitchCheck(runTask, newTask);
         // OsSchedStatistics(runTask, newTask);
 
+        #[cfg(feature = "time_slice")]
         if (*new_task).time_slice == 0 {
             (*new_task).time_slice = crate::config::KERNEL_TIMESLICE_TIMEOUT;
         }
@@ -173,32 +172,39 @@ pub extern "C" fn schedule_preempt() {
     }
 
     // 获取调度器锁
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
     // 将当前任务添加回就绪队列
     let run_task = get_current_task();
     run_task.task_status.insert(TaskStatus::READY);
 
     // 根据时间片情况，选择插入队列的方式
-    if run_task.time_slice == 0 {
-        priority_queue_insert_at_back(&mut run_task.pend_list, run_task.priority as u32);
-    } else {
+    #[cfg(feature = "time_slice")]
+    {
+        if run_task.time_slice == 0 {
+            priority_queue_insert_at_back(&mut run_task.pend_list, run_task.priority as u32);
+        } else {
+            priority_queue_insert_at_front(&mut run_task.pend_list, run_task.priority as u32);
+        }
+    }
+    #[cfg(not(feature = "time_slice"))]
+    {
         priority_queue_insert_at_front(&mut run_task.pend_list, run_task.priority as u32);
     }
+
     // 调度到新线程
     schedule_reschedule();
 
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 }
 
-#[unsafe(export_name = "OsTimesliceCheck")]
-pub extern "C" fn timeslice_check() {
+#[cfg(feature = "time_slice")]
+pub fn timeslice_check() {
     // 获取当前运行的任务
     let run_task = get_current_task();
-
     // 检查时间片是否需要递减
-    if (*run_task).time_slice != 0 {
-        (*run_task).time_slice -= 1;
-        if (*run_task).time_slice == 0 {
+    if run_task.time_slice != 0 {
+        run_task.time_slice -= 1;
+        if run_task.time_slice == 0 {
             schedule();
         }
     }

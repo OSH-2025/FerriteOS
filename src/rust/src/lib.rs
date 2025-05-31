@@ -6,6 +6,7 @@ use semihosting::println;
 mod config;
 mod err;
 mod error;
+#[cfg(feature = "ipc_event")]
 mod event;
 mod exc;
 mod ffi;
@@ -15,6 +16,7 @@ mod percpu;
 mod queue;
 mod swtmr;
 mod task;
+mod tick;
 mod utils;
 
 #[unsafe(export_name = "HelloRust")]

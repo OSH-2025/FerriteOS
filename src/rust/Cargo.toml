@@ -13,21 +13,24 @@ crate-type = ["staticlib"]
 [features]
 default = [
 	"memory_task_statistics",
-	"timeslice",
+	"time_slice",
 	"task_static_allocation",
 	"ipc_event",
 	"task_monitor",
 	"backtrace",
-	"shell"
+	"shell",
+	"software_timer",
 ]
-swtmr_in_isr = []
+software_timer = []
+software_timer_in_isr = []
+time_slice = []
+task_monitor = []
+ipc_event = []
+
 compat_posix = []
-timeslice = []
 debug_sched_statistics = []
 memory_task_statistics = []
 task_static_allocation = []
-ipc_event = []
-task_monitor = []
 shell_excinfo_dump = []
 shell_dmesg = []
 backtrace = []

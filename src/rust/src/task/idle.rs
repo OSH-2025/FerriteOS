@@ -2,7 +2,7 @@ use crate::{
     config::{TASK_IDLE_STACK_SIZE, TASK_PRIORITY_LOWEST},
     error::SystemResult,
     ffi::bindings::wfi,
-    interrupt::{int_lock, int_restore},
+    interrupt::{disable_interrupts, restore_interrupt_state},
     mem::{defs::m_aucSysMem0, memory::los_mem_free},
     percpu::os_percpu_get,
     task::{
@@ -15,7 +15,7 @@ use crate::{
 use core::mem::transmute;
 
 fn los_task_recycle() {
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
     while !LinkedList::is_empty(&raw mut TASK_RECYCLE_LIST) {
         // 获取回收列表中的第一个任务控制块
         unsafe {
@@ -37,7 +37,7 @@ fn los_task_recycle() {
             task_cb.top_of_stack = core::ptr::null_mut();
         }
     }
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 }
 
 fn idle_task() {

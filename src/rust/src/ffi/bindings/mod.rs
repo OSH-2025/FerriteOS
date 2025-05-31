@@ -1,6 +1,5 @@
-use core::ffi::c_void;
-
 use crate::task::types::TaskCB;
+use core::ffi::c_void;
 
 unsafe extern "C" {
     #[link_name = "ArchCurrTaskGetWrapper"]
@@ -42,6 +41,38 @@ unsafe extern "C" {
 
     #[link_name = "ArchIrqInit"]
     unsafe fn c_arch_irq_init();
+
+    #[link_name = "HalClockInit"]
+    unsafe fn c_hal_clock_init();
+
+    #[link_name = "HalClockStart"]
+    unsafe fn c_hal_clock_start();
+
+    #[link_name = "HalClockGetCycles"]
+    unsafe fn c_hal_clock_get_cycles() -> u64;
+
+    #[link_name = "HalDelayUs"]
+    unsafe fn c_hal_delay_us(usecs: u32);
+}
+
+#[inline]
+pub fn hal_clock_init() {
+    unsafe { c_hal_clock_init() }
+}
+
+#[inline]
+pub fn hal_clock_start() {
+    unsafe { c_hal_clock_start() }
+}
+
+#[inline]
+pub fn hal_clock_get_cycles() -> u64 {
+    unsafe { c_hal_clock_get_cycles() }
+}
+
+#[inline]
+pub fn hal_delay_us(usecs: u32) {
+    unsafe { c_hal_delay_us(usecs) }
 }
 
 #[inline]

@@ -2,7 +2,7 @@ use crate::{
     config::TASK_LIMIT,
     error::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
-    interrupt::{int_lock, int_restore, is_int_active},
+    interrupt::{disable_interrupts, restore_interrupt_state, is_int_active},
     percpu::can_preempt_in_scheduler,
     task::{
         global::{get_tcb_from_id, is_scheduler_active},
@@ -24,7 +24,7 @@ pub fn task_resume(task_id: u32) -> SystemResult<()> {
     let task_cb = get_tcb_from_id(task_id);
 
     // 锁定调度器
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 清除挂起信号
     task_cb.signal.remove(TaskSignal::SUSPEND);
@@ -34,13 +34,13 @@ pub fn task_resume(task_id: u32) -> SystemResult<()> {
 
     // 检查任务是否已创建
     if temp_status.contains(TaskStatus::UNUSED) {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return Err(SystemError::Task(TaskError::NotCreated));
     }
 
     // 检查任务是否已挂起
     if !temp_status.contains(TaskStatus::SUSPEND) {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return Err(SystemError::Task(TaskError::NotSuspended));
     }
 
@@ -61,7 +61,7 @@ pub fn task_resume(task_id: u32) -> SystemResult<()> {
     }
 
     // 解锁调度器
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     // 如果需要调度，则触发调度
     if need_sched {
@@ -113,20 +113,20 @@ pub fn task_suspend(task_id: u32) -> SystemResult<()> {
     }
 
     // 锁定调度器
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 获取当前任务状态
     let temp_status = task_cb.task_status;
 
     // 检查任务是否已创建
     if temp_status.contains(TaskStatus::UNUSED) {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return Err(SystemError::Task(TaskError::NotCreated));
     }
 
     // 检查任务是否已挂起
     if temp_status.contains(TaskStatus::SUSPEND) {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return Err(SystemError::Task(TaskError::AlreadySuspended));
     }
 
@@ -135,11 +135,11 @@ pub fn task_suspend(task_id: u32) -> SystemResult<()> {
         match can_suspend_running_task(task_cb) {
             Ok(true) => {}
             Ok(false) => {
-                int_restore(int_save);
+                restore_interrupt_state(int_save);
                 return Ok(());
             }
             Err(err) => {
-                int_restore(int_save);
+                restore_interrupt_state(int_save);
                 return Err(err);
             }
         }
@@ -163,7 +163,7 @@ pub fn task_suspend(task_id: u32) -> SystemResult<()> {
     }
 
     // 解锁调度器
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     Ok(())
 }

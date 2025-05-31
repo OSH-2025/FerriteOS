@@ -1,7 +1,7 @@
 use super::memory::LosMemDynNode;
 use super::mempool::LosMemPoolInfo;
 use super::multiple_dlink_head::LosMultipleDlinkHead;
-use crate::interrupt::{int_lock, int_restore};
+use crate::interrupt::{disable_interrupts, restore_interrupt_state};
 use crate::utils::list::LinkedList;
 
 pub const OS_MAX_MULTI_DLNK_LOG2: u32 = 29;
@@ -124,10 +124,10 @@ pub fn os_mem_magic_valid(node: *mut LosMemDynNode) -> bool {
 
 #[inline]
 pub fn mem_lock(int_save: &mut u32) {
-    *int_save = int_lock();
+    *int_save = disable_interrupts();
 }
 
 #[inline]
 pub fn mem_unlock(int_save: u32) {
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 }

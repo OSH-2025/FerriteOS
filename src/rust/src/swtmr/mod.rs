@@ -1,7 +1,7 @@
 use crate::{
     config::OK,
     container_of,
-    interrupt::{int_lock, int_restore},
+    interrupt::{disable_interrupts, restore_interrupt_state},
     mem::{
         defs::m_aucSysMem0,
         memory::{los_mem_alloc, los_mem_free},
@@ -170,7 +170,7 @@ fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
     }
 }
 
-#[cfg(not(feature = "swtmr_in_isr"))]
+#[cfg(not(feature = "software_timer_in_isr"))]
 fn os_swtmr_task() {
     use crate::queue::los_queue_read_copy;
 
@@ -214,7 +214,7 @@ fn os_swtmr_task() {
     }
 }
 
-#[cfg(not(feature = "swtmr_in_isr"))]
+#[cfg(not(feature = "software_timer_in_isr"))]
 pub extern "C" fn os_swtmr_task_create() -> u32 {
     let mut swtmr_task_id: u32 = 0;
 
@@ -278,7 +278,7 @@ pub extern "C" fn os_swtmr_init() -> u32 {
     }
 
     // 非ISR模式下的初始化
-    #[cfg(not(feature = "swtmr_in_isr"))]
+    #[cfg(not(feature = "software_timer_in_isr"))]
     {
         // 创建定时器处理队列
         let ret = los_queue_create(
@@ -306,8 +306,7 @@ pub extern "C" fn os_swtmr_init() -> u32 {
     OK
 }
 
-#[unsafe(export_name = "OsSwtmrScan")]
-pub extern "C" fn os_swtmr_scan() {
+pub fn swtmr_scan() {
     // 获取当前CPU的软件定时器排序链表
     let swtmr_sort_link = &mut os_percpu_get().swtmr_sort_link;
 
@@ -337,7 +336,7 @@ pub extern "C" fn os_swtmr_scan() {
             let swtmr = container_of!(sort_list, LosSwtmrCB, sort_list);
             let swtmr = &mut *swtmr;
 
-            #[cfg(feature = "swtmr_in_isr")]
+            #[cfg(feature = "software_timer_in_isr")]
             {
                 // 保存处理函数和参数
                 let handler = swtmr.handler;
@@ -354,7 +353,7 @@ pub extern "C" fn os_swtmr_scan() {
             }
 
             // 根据编译选项选择不同的处理方式
-            #[cfg(not(feature = "swtmr_in_isr"))]
+            #[cfg(not(feature = "software_timer_in_isr"))]
             {
                 // 分配处理项内存
                 let swtmr_handler = los_mem_alloc(
@@ -445,11 +444,11 @@ pub extern "C" fn los_swtmr_create(
         return LOS_ERRNO_SWTMR_PTR_NULL;
     }
 
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 检查空闲列表是否为空
     if LinkedList::is_empty(&raw mut SWTMR_FREE_LIST) {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return LOS_ERRNO_SWTMR_MAXSIZE;
     }
 
@@ -462,7 +461,7 @@ pub extern "C" fn los_swtmr_create(
 
     // 从空闲列表中删除该节点
     LinkedList::remove(free_node);
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     let swtmr = unsafe { &mut *swtmr };
     swtmr.handler = handler;
@@ -490,7 +489,7 @@ pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
     }
 
     // 加锁保护访问
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 计算实际定时器索引
     let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
@@ -501,7 +500,7 @@ pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
 
     // 二次检查定时器ID是否有效
     if swtmr.timer_id != swtmr_id {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return LOS_ERRNO_SWTMR_ID_INVALID;
     }
 
@@ -527,7 +526,7 @@ pub extern "C" fn los_swtmr_start(swtmr_id: u16) -> u32 {
         _ => LOS_ERRNO_SWTMR_STATUS_INVALID,
     };
     // 解锁
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     ret
 }
@@ -540,7 +539,7 @@ pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
     }
 
     // 加锁保护访问
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 计算实际定时器索引
     let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
@@ -551,7 +550,7 @@ pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
 
     // 再次验证定时器ID
     if swtmr.timer_id != swtmr_id {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return LOS_ERRNO_SWTMR_ID_INVALID;
     }
 
@@ -574,7 +573,7 @@ pub extern "C" fn los_swtmr_stop(swtmr_id: u16) -> u32 {
     };
 
     // 解锁
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     ret
 }
@@ -587,7 +586,7 @@ pub extern "C" fn los_swtmr_time_get(swtmr_id: u16, tick: &mut u32) -> u32 {
     }
 
     // 加锁保护访问
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 计算实际定时器索引
     let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
@@ -598,7 +597,7 @@ pub extern "C" fn los_swtmr_time_get(swtmr_id: u16, tick: &mut u32) -> u32 {
 
     // 二次检查定时器ID是否有效
     if swtmr.timer_id != swtmr_id {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return LOS_ERRNO_SWTMR_ID_INVALID;
     }
 
@@ -621,7 +620,7 @@ pub extern "C" fn los_swtmr_time_get(swtmr_id: u16, tick: &mut u32) -> u32 {
     };
 
     // 解锁
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     ret
 }
@@ -634,7 +633,7 @@ pub extern "C" fn los_swtmr_delete(swtmr_id: u16) -> u32 {
     }
 
     // 加锁保护访问
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 计算实际定时器索引
     let swtmr_cb_id = swtmr_id % KERNEL_SWTMR_LIMIT;
@@ -645,7 +644,7 @@ pub extern "C" fn los_swtmr_delete(swtmr_id: u16) -> u32 {
 
     // 二次检查定时器ID是否有效
     if swtmr.timer_id != swtmr_id {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return LOS_ERRNO_SWTMR_ID_INVALID;
     }
 
@@ -672,7 +671,7 @@ pub extern "C" fn los_swtmr_delete(swtmr_id: u16) -> u32 {
     };
 
     // 解锁
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     ret
 }

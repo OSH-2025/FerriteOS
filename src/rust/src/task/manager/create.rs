@@ -4,7 +4,7 @@ use crate::{
     },
     error::{SystemError, SystemResult, TaskError},
     ffi::bindings::task_stack_init,
-    interrupt::{int_lock, int_restore},
+    interrupt::{disable_interrupts, restore_interrupt_state},
     mem::{
         defs::{m_aucSysMem0, os_sys_mem_size},
         memory::los_mem_alloc_align,
@@ -147,9 +147,12 @@ fn init_task_cb(
     task_cb.priority_bitmap = 0;
     task_cb.task_entry = init_param.task_entry;
 
-    LinkedList::init(&raw mut task_cb.event.event_list);
-    task_cb.event.event_id = 0;
-    task_cb.event_mask = 0;
+    #[cfg(feature = "ipc_event")]
+    {
+        LinkedList::init(&raw mut task_cb.event.event_list);
+        task_cb.event.event_id = 0;
+        task_cb.event_mask = 0;
+    }
 
     // 任务名称和消息
     task_cb.task_name = init_param.name;
@@ -166,7 +169,10 @@ fn init_task_cb(
     task_cb.clear_all_signals();
 
     // 时间片相关
-    task_cb.time_slice = 0;
+    #[cfg(feature = "time_slice")]
+    {
+        task_cb.time_slice = 0;
+    }
 
     // 调度统计相关
     #[cfg(feature = "debug_sched_statistics")]
@@ -201,14 +207,14 @@ fn task_create_internal(
     check_task_create_param_dynamic(init_param)?;
 
     // 获取空闲任务控制块
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
     let task_cb = match get_free_task_cb() {
         Ok(tcb) => {
-            int_restore(int_save);
+            restore_interrupt_state(int_save);
             tcb
         }
         Err(err) => {
-            int_restore(int_save);
+            restore_interrupt_state(int_save);
             return Err(err);
         }
     };
@@ -223,9 +229,9 @@ fn task_create_internal(
             Ok(stack_ptr) => stack_ptr,
             Err(err) => {
                 // 分配失败，需要将任务控制块归还到空闲列表
-                let int_save = int_lock();
+                let int_save = disable_interrupts();
                 LinkedList::insert(&raw mut FREE_TASK_LIST, &raw mut task_cb.pend_list);
-                int_restore(int_save);
+                restore_interrupt_state(int_save);
                 return Err(err);
             }
         }
@@ -244,14 +250,14 @@ fn task_resume(task_id: u32) {
     // 根据任务ID获取任务控制块
     let task_cb = get_tcb_from_id(task_id);
     // 加锁进行原子操作
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     task_cb.task_status.remove(TaskStatus::SUSPEND);
     task_cb.task_status.insert(TaskStatus::READY);
 
     priority_queue_insert_at_back(&mut task_cb.pend_list, task_cb.priority as u32);
 
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     if is_scheduler_active() {
         schedule();
@@ -293,6 +299,13 @@ pub fn task_create(task_id: &mut u32, init_param: &mut TaskInitParam) -> SystemR
     // 首先创建任务
     task_create_only(task_id, init_param)?;
     // 启动任务
+    // unsafe {
+    //     crate::utils::printf::dprintf(
+    //         b"Creating task [%d]: %s\n\0" as *const core::ffi::c_char,
+    //         *task_id,
+    //         init_param.name,
+    //     )
+    // };
     task_resume(*task_id);
     Ok(())
 }

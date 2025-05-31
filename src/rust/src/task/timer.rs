@@ -25,8 +25,7 @@ pub extern "C" fn delete_from_timer_list(task_cb: &mut TaskCB) {
     delete_from_sort_link(sort_link_header, &mut (*task_cb).sort_list);
 }
 
-#[unsafe(export_name = "OsTaskScan")]
-pub extern "C" fn task_scan() {
+pub fn task_scan() {
     let mut need_schedule = false;
     // 获取当前CPU的任务排序链表
     let sort_link_header = &mut os_percpu_get().task_sort_link;

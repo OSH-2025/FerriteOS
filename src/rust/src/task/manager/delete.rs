@@ -1,7 +1,7 @@
 use crate::{
     config::TASK_LIMIT,
     error::{SystemError, SystemResult, TaskError},
-    interrupt::{int_lock, int_restore, is_int_active},
+    interrupt::{disable_interrupts, restore_interrupt_state, is_int_active},
     mem::{defs::m_aucSysMem1, memory::los_mem_free, memstat::os_memstat_task_clear},
     percpu::can_preempt_in_scheduler,
     task::{
@@ -98,14 +98,14 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
     }
 
     // 锁定调度器
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 获取任务状态
     let temp_status = task_cb.task_status;
 
     // 检查任务是否未创建
     if temp_status.contains(TaskStatus::UNUSED) {
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         return Err(SystemError::Task(TaskError::NotCreated));
     }
 
@@ -115,11 +115,11 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
         match can_delete_running_task(task_cb) {
             Ok(true) => {}
             Ok(false) => {
-                int_restore(int_save);
+                restore_interrupt_state(int_save);
                 return Ok(());
             }
             Err(err) => {
-                int_restore(int_save);
+                restore_interrupt_state(int_save);
                 return Err(err);
             }
         }
@@ -143,8 +143,11 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
     task_cb.task_status.insert(TaskStatus::UNUSED);
 
     // 清除事件相关信息
-    task_cb.event.event_id = u32::MAX;
-    task_cb.event_mask = 0;
+    #[cfg(feature = "ipc_event")]
+    {
+        task_cb.event.event_id = u32::MAX;
+        task_cb.event_mask = 0;
+    }
 
     // 清除内存相关信息
     #[cfg(feature = "memory_task_statistics")]
@@ -156,6 +159,6 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
     }
 
     // 解锁调度器
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
     Ok(())
 }

@@ -1,7 +1,7 @@
 use crate::{
     error::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
-    interrupt::{int_lock, int_restore, is_int_active},
+    interrupt::{disable_interrupts, restore_interrupt_state, is_int_active},
     percpu::can_preempt,
     task::{
         sched::{priority_queue_get_size, priority_queue_insert_at_back, schedule_reschedule},
@@ -37,7 +37,7 @@ pub fn task_delay(tick: u32) -> SystemResult<()> {
 
     // 延时处理
     // 锁定调度器
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 将任务添加到定时器列表
     add_to_timer_list(run_task, tick);
@@ -49,7 +49,7 @@ pub fn task_delay(tick: u32) -> SystemResult<()> {
     schedule_reschedule();
 
     // 解锁调度器
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
 
     Ok(())
 }
@@ -70,10 +70,10 @@ pub fn task_yield() -> SystemResult<()> {
     let run_task = get_current_task();
 
     // 锁定调度器
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 重置时间片
-    #[cfg(feature = "timeslice")]
+    #[cfg(feature = "time_slice")]
     {
         run_task.time_slice = 0;
     }
@@ -90,11 +90,11 @@ pub fn task_yield() -> SystemResult<()> {
         schedule_reschedule();
 
         // 解锁调度器
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         Ok(())
     } else {
         // 没有其他同优先级任务，解锁并返回错误
-        int_restore(int_save);
+        restore_interrupt_state(int_save);
         Err(SystemError::Task(TaskError::YieldNotEnoughTask))
     }
 }

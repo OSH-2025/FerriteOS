@@ -12,17 +12,17 @@ pub mod global;
 pub mod types;
 
 #[inline]
-pub fn int_lock() -> u32 {
+pub fn disable_interrupts() -> u32 {
     arch_int_lock()
 }
 
 #[inline]
-pub fn int_unlock() -> u32 {
+pub fn enable_interrupts() -> u32 {
     arch_int_unlock()
 }
 
 #[inline]
-pub fn int_restore(int_save: u32) {
+pub fn restore_interrupt_state(int_save: u32) {
     arch_int_restore(int_save);
 }
 
@@ -34,15 +34,15 @@ pub fn is_int_active() -> bool {
 
 /// 当前CPU的中断嵌套计数
 pub fn get_interrupt_nesting_count() -> u32 {
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
     let count = irq_nesting_count_get();
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
     count
 }
 
 /// 删除硬件中断处理程序（内部函数）
 fn unregister_interrupt_handler(hwi_form: &mut InterruptHandler, irq_id: u32) -> SystemResult<()> {
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     // 清除处理函数和响应计数
     hwi_form.reset();
@@ -54,7 +54,7 @@ fn unregister_interrupt_handler(hwi_form: &mut InterruptHandler, irq_id: u32) ->
         Err(SystemError::Interrupt(InterruptError::ProcFuncNull))
     };
 
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
     result
 }
 
@@ -63,7 +63,7 @@ fn register_interrupt_handler(
     hwi_form: &mut InterruptHandler,
     hwi_handler: InterruptHandlerFn,
 ) -> SystemResult<()> {
-    let int_save = int_lock();
+    let int_save = disable_interrupts();
 
     let result = if !hwi_form.is_registered() {
         hwi_form.hook = hwi_handler;
@@ -72,7 +72,7 @@ fn register_interrupt_handler(
         Err(SystemError::Interrupt(InterruptError::AlreadyCreated))
     };
 
-    int_restore(int_save);
+    restore_interrupt_state(int_save);
     result
 }
 
