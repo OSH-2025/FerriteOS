@@ -1,6 +1,5 @@
 use super::defs::*;
 use crate::utils::list::LinkedList;
-use crate::utils::printf::dprintf;
 
 /// 多级双向链表头结构
 #[repr(C)]
@@ -29,21 +28,21 @@ impl LosMultipleDlinkHead {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn print(head_addr: *mut LosMultipleDlinkHead) {
-        let head_addr = unsafe { &*head_addr };
-        for (i, list_node_head) in head_addr.list_head.iter().enumerate() {
-            unsafe {
-                dprintf(
-                    b"list_head[%d]: %p, prev: %p, next: %p\0\n" as *const u8,
-                    i,
-                    list_node_head,
-                    list_node_head.prev,
-                    list_node_head.next,
-                )
-            };
-        }
-    }
+    // #[allow(dead_code)]
+    // pub fn print(head_addr: *mut LosMultipleDlinkHead) {
+    // let head_addr = unsafe { &*head_addr };
+    // for (i, list_node_head) in head_addr.list_head.iter().enumerate() {
+    // unsafe {
+    //     dprintf(
+    //         b"list_head[%d]: %p, prev: %p, next: %p\0\n" as *const u8,
+    //         i,
+    //         list_node_head,
+    //         list_node_head.prev,
+    //         list_node_head.next,
+    //     )
+    // };
+    // }
+    // }
 }
 
 #[inline]

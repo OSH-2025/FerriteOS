@@ -1,10 +1,10 @@
 use crate::{
     config::{TASK_IDLE_STACK_SIZE, TASK_PRIORITY_LOWEST},
-    result::SystemResult,
     ffi::bindings::wfi,
     interrupt::{disable_interrupts, restore_interrupt_state},
     mem::{defs::m_aucSysMem0, memory::los_mem_free},
     percpu::os_percpu_get,
+    result::SystemResult,
     task::{
         global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         manager::create::task_create,

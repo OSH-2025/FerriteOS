@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 semihosting = { version = "0.1", features = ["stdio", "panic-handler"] }
 bitflags = "2.9.1"
+heapless = "0.8"
 
 [lib]
 crate-type = ["staticlib"]
@@ -20,6 +21,7 @@ default = [
 	"backtrace",
 	"shell",
 	"software_timer",
+	"log-error",
 ]
 software_timer = []
 software_timer_in_isr = []
@@ -35,3 +37,11 @@ task_static_allocation = []
 shell = []
 shell_excinfo_dump = []
 exc_interaction = []
+
+# 日志级别features（互斥）
+log-emergency = []
+log-common = []
+log-error = []
+log-warning = []
+log-info = []
+log-debug = []

@@ -1,7 +1,6 @@
 use crate::config::{NOK, OK, OS_INVALID};
 use crate::utils::list::LinkedList;
-use crate::utils::printf::dprintf;
-use crate::{container_of, list_for_each_entry, offset_of, os_check_null_return};
+use crate::{container_of, list_for_each_entry, offset_of};
 
 use super::defs::*;
 use super::mempool::{LosMemPoolInfo, LosMemPoolStatus};
@@ -71,11 +70,11 @@ pub extern "C" fn os_mem_system_init(mem_start: usize) -> u32 {
         m_aucSysMem1 = mem_start as *mut u8;
         let pool_size = os_sys_mem_size() as u32;
         let ret = los_mem_init(mem_start as *mut core::ffi::c_void, pool_size);
-        dprintf(
-            b"LiteOS system heap memory address:%p,size:0x%x\n\0" as *const u8,
-            m_aucSysMem1,
-            pool_size,
-        );
+        // dprintf(
+        //     b"LiteOS system heap memory address:%p,size:0x%x\n\0" as *const u8,
+        //     m_aucSysMem1,
+        //     pool_size,
+        // );
         m_aucSysMem0 = m_aucSysMem1;
         ret
     };
@@ -157,7 +156,7 @@ fn os_mem_split_node(
         }
         // 获取新空闲节点对应的链表头
         let list_node_head = os_mem_head(pool, (*new_free_node).self_node.size_and_flag);
-        os_check_null_return!(list_node_head);
+        // os_check_null_return!(list_node_head);
 
         // 将新空闲节点添加到链表中
         os_mem_list_add(
@@ -202,7 +201,7 @@ fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut LosMemPoolInfo) {
             );
 
             let list_node_head = os_mem_head(pool, (*pre_node).self_node.size_and_flag);
-            os_check_null_return!(list_node_head);
+            // os_check_null_return!(list_node_head);
 
             os_mem_list_add(
                 list_node_head,
@@ -220,7 +219,7 @@ fn os_mem_free_node(node: *mut LosMemDynNode, pool: *mut LosMemPoolInfo) {
             }
 
             let list_node_head = os_mem_head(pool, (*node).self_node.size_and_flag);
-            os_check_null_return!(list_node_head);
+            // os_check_null_return!(list_node_head);
 
             os_mem_list_add(
                 list_node_head,
@@ -237,7 +236,7 @@ fn os_mem_info_get(pool_info: *mut LosMemPoolInfo, pool_status: &mut LosMemPoolS
         let tmp_node = os_mem_align(tmp_node as usize, OS_MEM_ALIGN_SIZE) as *mut LosMemDynNode;
 
         if !os_mem_magic_valid(tmp_node) {
-            dprintf(b"Wrong memory pool address: {%p}\n" as *const u8, pool_info);
+            // dprintf(b"Wrong memory pool address: {%p}\n" as *const u8, pool_info);
             return NOK;
         }
 
@@ -283,30 +282,30 @@ pub fn os_mem_info_print(pool_info: *mut LosMemPoolInfo) {
         return;
     }
     #[cfg(feature = "task_static_allocation")]
-    unsafe {
-        dprintf(
-            b"pool addr          pool size    used size     free size    \
-             max free node size   used node num     free node num      \
-             UsageWaterLine\n\0" as *const u8,
-        );
-        dprintf(
-            b"---------------    --------     -------       --------     \
-             --------------       -------------      ------------      \
-             ------------\n\0" as *const u8,
-        );
-        dprintf(
-            b"%-16p   0x%-8x   0x%-8x    0x%-8x   0x%-16x   0x%-13x    0x%-13x    \
-             0x%-13x\n\0" as *const u8,
-            (*pool_info).pool,
-            (*pool_info).pool_size,
-            status.total_used_size,
-            status.total_free_size,
-            status.max_free_node_size,
-            status.used_node_num,
-            status.free_node_num,
-            status.usage_water_line,
-        );
-    }
+    // unsafe {
+    // dprintf(
+    //     b"pool addr          pool size    used size     free size    \
+    //      max free node size   used node num     free node num      \
+    //      UsageWaterLine\n\0" as *const u8,
+    // );
+    // dprintf(
+    //     b"---------------    --------     -------       --------     \
+    //      --------------       -------------      ------------      \
+    //      ------------\n\0" as *const u8,
+    // );
+    // dprintf(
+    //     b"%-16p   0x%-8x   0x%-8x    0x%-8x   0x%-16x   0x%-13x    0x%-13x    \
+    //      0x%-13x\n\0" as *const u8,
+    //     (*pool_info).pool,
+    //     (*pool_info).pool_size,
+    //     status.total_used_size,
+    //     status.total_free_size,
+    //     status.max_free_node_size,
+    //     status.used_node_num,
+    //     status.free_node_num,
+    //     status.usage_water_line,
+    // );
+    // }
     #[cfg(not(feature = "task_static_allocation"))]
     unsafe {
         dprintf(
@@ -471,15 +470,15 @@ pub fn los_mem_init(pool: *mut core::ffi::c_void, mut size: u32) -> u32 {
         || !is_aligned(pool as usize, OS_MEM_ALIGN_SIZE)
     {
         // 打印警告信息
-        unsafe {
-            dprintf(
-                b"pool [%p, %p) size 0x%x should be aligned with OS_MEM_ALIGN_SIZE\n\0"
-                    as *const u8,
-                pool as usize,
-                pool as usize + size as usize,
-                size,
-            )
-        };
+        // unsafe {
+        //     dprintf(
+        //         b"pool [%p, %p) size 0x%x should be aligned with OS_MEM_ALIGN_SIZE\n\0"
+        //             as *const u8,
+        //         pool as usize,
+        //         pool as usize + size as usize,
+        //         size,
+        //     )
+        // };
         size = os_mem_align(size as usize, OS_MEM_ALIGN_SIZE) as u32 - OS_MEM_ALIGN_SIZE as u32;
     }
     // 加锁
@@ -579,14 +578,14 @@ fn os_mem_free(pool: *mut core::ffi::c_void, ptr: *const core::ffi::c_void) -> u
         }
         // 检查 gapSize 的标志位
         if os_mem_node_get_aligned_flag(gap_size) && os_mem_node_get_used_flag(gap_size) {
-            unsafe {
-                dprintf(
-                    b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
-                    b"OsMemFree\0" as *const u8,
-                    line!(),
-                    gap_size,
-                )
-            };
+            // unsafe {
+            //     dprintf(
+            //         b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
+            //         b"OsMemFree\0" as *const u8,
+            //         line!(),
+            //         gap_size,
+            //     )
+            // };
             break;
         }
         // 获取节点指针
@@ -597,7 +596,7 @@ fn os_mem_free(pool: *mut core::ffi::c_void, ptr: *const core::ffi::c_void) -> u
             if (gap_size & (OS_MEM_ALIGN_SIZE - 1) as u32) != 0
                 || gap_size > (ptr as usize - OS_MEM_NODE_HEAD_SIZE as usize) as u32
             {
-                unsafe { dprintf(b"illegal gapSize: 0x%x\n\0" as *const u8, gap_size) };
+                // unsafe { dprintf(b"illegal gapSize: 0x%x\n\0" as *const u8, gap_size) };
                 break;
             }
             node = (ptr as usize - gap_size as usize - OS_MEM_NODE_HEAD_SIZE as usize)
@@ -643,14 +642,14 @@ fn os_get_real_ptr(
     }
     // 检查 gapSize 的标志位
     if os_mem_node_get_aligned_flag(gap_size) && os_mem_node_get_used_flag(gap_size) {
-        unsafe {
-            dprintf(
-                b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
-                b"os_get_real_ptr\0" as *const u8,
-                line!(),
-                gap_size,
-            )
-        };
+        // unsafe {
+        //     dprintf(
+        //         b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
+        //         b"os_get_real_ptr\0" as *const u8,
+        //         line!(),
+        //         gap_size,
+        //     )
+        // };
         return None;
     }
     // 如果节点有对齐标志
@@ -660,14 +659,14 @@ fn os_get_real_ptr(
         if (gap_size & (OS_MEM_ALIGN_SIZE - 1) as u32) != 0
             || gap_size > (ptr as usize - OS_MEM_NODE_HEAD_SIZE as usize - pool as usize) as u32
         {
-            unsafe {
-                dprintf(
-                    b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
-                    b"os_get_real_ptr\0" as *const u8,
-                    line!(),
-                    gap_size,
-                )
-            };
+            // unsafe {
+            //     dprintf(
+            //         b"[%s:%d]gapSize:0x%x error\n\0" as *const u8,
+            //         b"os_get_real_ptr\0" as *const u8,
+            //         line!(),
+            //         gap_size,
+            //     )
+            // };
             return None;
         }
         // 计算实际指针
@@ -686,13 +685,13 @@ fn os_mem_realloc(
     let real_ptr = match os_get_real_ptr(pool, ptr) {
         Some(real_ptr) => real_ptr,
         None => {
-            unsafe {
-                dprintf(
-                    b"[%s:%d]get real ptr error\n\0" as *const u8,
-                    b"os_mem_realloc\0" as *const u8,
-                    line!(),
-                )
-            };
+            // unsafe {
+            //     dprintf(
+            //         b"[%s:%d]get real ptr error\n\0" as *const u8,
+            //         b"os_mem_realloc\0" as *const u8,
+            //         line!(),
+            //     )
+            // };
             return core::ptr::null_mut();
         }
     };
@@ -844,14 +843,14 @@ pub fn los_mem_task_id_get(ptr: *const core::ffi::c_void) -> u32 {
         || ptr < os_mem_first_node(pool_info) as *const core::ffi::c_void
         || ptr > os_mem_end_node(pool_info) as *const core::ffi::c_void
     {
-        unsafe {
-            dprintf(
-                b"input ptr %p is out of system memory range[%p, %p]\n\0" as *const u8,
-                ptr,
-                os_mem_first_node(pool_info),
-                os_mem_end_node(pool_info),
-            );
-        }
+        // unsafe {
+        //     dprintf(
+        //         b"input ptr %p is out of system memory range[%p, %p]\n\0" as *const u8,
+        //         ptr,
+        //         os_mem_first_node(pool_info),
+        //         os_mem_end_node(pool_info),
+        //     );
+        // }
         return OS_INVALID;
     }
 
@@ -873,10 +872,10 @@ pub fn los_mem_task_id_get(ptr: *const core::ffi::c_void) -> u32 {
                         .task_id as u32;
                 } else {
                     mem_unlock(int_save);
-                    dprintf(
-                        b"input ptr %p is belong to a free mem node\n\0" as *const u8,
-                        ptr,
-                    );
+                    // dprintf(
+                    //     b"input ptr %p is belong to a free mem node\n\0" as *const u8,
+                    //     ptr,
+                    // );
                     return OS_INVALID;
                 }
             }
@@ -962,20 +961,20 @@ pub fn los_mem_pool_size_get(pool: *const LosMemPoolInfo) -> u32 {
 #[unsafe(export_name = "LOS_MemInfoGet")]
 pub fn los_mem_info_get(pool: *mut LosMemPoolInfo, pool_status: *mut LosMemPoolStatus) -> u32 {
     if pool_status.is_null() {
-        unsafe {
-            dprintf(b"can't use NULL addr to save info\n\0" as *const u8);
-        }
+        // unsafe {
+        //     dprintf(b"can't use NULL addr to save info\n\0" as *const u8);
+        // }
         return NOK;
     }
     let pool_status = unsafe { &mut *pool_status };
     if pool.is_null() || (pool as usize) != unsafe { (*pool).pool as usize } {
-        unsafe {
-            dprintf(
-                b"wrong mem pool addr: %p, line:%d\n\0" as *const u8,
-                pool,
-                line!(),
-            );
-        }
+        // unsafe {
+        //     dprintf(
+        //         b"wrong mem pool addr: %p, line:%d\n\0" as *const u8,
+        //         pool,
+        //         line!(),
+        //     );
+        // }
         return NOK;
     }
     let mut int_save: u32 = 0;
@@ -986,31 +985,34 @@ pub fn los_mem_info_get(pool: *mut LosMemPoolInfo, pool_status: *mut LosMemPoolS
 }
 
 fn os_show_free_node(index: usize, length: usize, count_num: &[u32]) {
+    let _ = index;
+    let _ = length;
+    let _ = count_num;
     let mut count = 0;
 
     // 打印块大小
-    unsafe {
-        dprintf(b"\n    block size:  \0" as *const u8);
-    }
+    // unsafe {
+    //     dprintf(b"\n    block size:  \0" as *const u8);
+    // }
     while count < length {
-        unsafe {
-            dprintf(
-                b"2^%-5u \0" as *const u8,
-                index + OS_MIN_MULTI_DLNK_LOG2 as usize + count,
-            );
-        }
+        // unsafe {
+        //     dprintf(
+        //         b"2^%-5u \0" as *const u8,
+        //         index + OS_MIN_MULTI_DLNK_LOG2 as usize + count,
+        //     );
+        // }
         count += 1;
     }
 
-    // 打印节点数量
-    unsafe {
-        dprintf(b"\n    node number: \0" as *const u8);
-    }
+    // // 打印节点数量
+    // unsafe {
+    //     dprintf(b"\n    node number: \0" as *const u8);
+    // }
     count = 0;
     while count < length {
-        unsafe {
-            dprintf(b"%-5u \0" as *const u8, count_num[count + index]);
-        }
+        // unsafe {
+        //     dprintf(b"%-5u \0" as *const u8, count_num[count + index]);
+        // }
         count += 1;
     }
 }
@@ -1018,25 +1020,25 @@ fn os_show_free_node(index: usize, length: usize, count_num: &[u32]) {
 #[unsafe(export_name = "LOS_MemFreeNodeShow")]
 pub fn los_mem_free_node_show(pool: *mut LosMemPoolInfo) -> u32 {
     if pool.is_null() || (pool as usize) != unsafe { (*pool).pool as usize } {
-        unsafe {
-            dprintf(
-                b"wrong mem pool addr: %p, line:%d\n\0" as *const u8,
-                pool,
-                line!(),
-            );
-        }
+        // unsafe {
+        //     dprintf(
+        //         b"wrong mem pool addr: %p, line:%d\n\0" as *const u8,
+        //         pool,
+        //         line!(),
+        //     );
+        // }
         return NOK;
     }
 
     let mut count_num = [0; OS_MULTI_DLNK_NUM];
     let mut int_save: u32 = 0;
 
-    unsafe {
-        dprintf(
-            b"\n   ************************ left free node number**********************\n\0"
-                as *const u8,
-        );
-    }
+    // unsafe {
+    //     dprintf(
+    //         b"\n   ************************ left free node number**********************\n\0"
+    //             as *const u8,
+    //     );
+    // }
     mem_lock(&mut int_save);
 
     let head_addr =
@@ -1062,12 +1064,12 @@ pub fn los_mem_free_node_show(pool: *mut LosMemPoolInfo) -> u32 {
         };
         os_show_free_node(link_head_index, length, &count_num);
     }
-    unsafe {
-        dprintf(
-            b"\n   ********************************************************************\n\n\0"
-                as *const u8,
-        );
-    }
+    // unsafe {
+    // dprintf(
+    //     b"\n   ********************************************************************\n\n\0"
+    //         as *const u8,
+    // );
+    // }
     OK
 }
 

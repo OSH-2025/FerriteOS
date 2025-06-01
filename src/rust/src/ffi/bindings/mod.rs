@@ -1,5 +1,5 @@
 use crate::task::types::TaskCB;
-use core::ffi::c_void;
+use core::ffi::{c_char, c_void};
 
 unsafe extern "C" {
     #[link_name = "ArchCurrTaskGetWrapper"]
@@ -53,6 +53,9 @@ unsafe extern "C" {
 
     #[link_name = "HalDelayUs"]
     unsafe fn c_hal_delay_us(usecs: u32);
+
+    #[link_name = "dprintf"]
+    unsafe fn c_dprintf(fmt: *const c_char, ...);
 }
 
 #[inline]
@@ -133,4 +136,9 @@ pub fn arch_back_trace_with_sp(ptr: *mut c_void) {
 #[inline]
 pub fn arch_irq_init() {
     unsafe { c_arch_irq_init() }
+}
+
+#[inline]
+pub fn dprintf(fmt: *const c_char) {
+    unsafe { c_dprintf(fmt) }
 }

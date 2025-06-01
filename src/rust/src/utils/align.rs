@@ -8,6 +8,7 @@ pub fn align_up(addr: u32, boundary: u32) -> u32 {
 
 /// 将地址向下对齐到指定边界
 #[inline]
+#[allow(dead_code)]
 pub fn align_down(addr: u32, boundary: u32) -> u32 {
     addr & !(boundary - 1)
 }
@@ -16,4 +17,19 @@ pub fn align_down(addr: u32, boundary: u32) -> u32 {
 #[inline]
 pub fn is_aligned(addr: u32, boundary: u32) -> bool {
     (addr & (boundary - 1)) == 0
+}
+
+/// 获取地址对齐所需的填充字节数
+///
+/// # Arguments
+/// * `addr` - 需要对齐的地址
+/// * `boundary` - 对齐边界，必须是2的幂
+///
+/// # Returns
+/// 需要添加的填充字节数
+#[inline]
+#[allow(dead_code)]
+pub fn get_align_padding(addr: u32, boundary: u32) -> u32 {
+    let aligned = align_up(addr, boundary);
+    aligned - addr
 }
