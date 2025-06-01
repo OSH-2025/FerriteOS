@@ -1,12 +1,13 @@
 use crate::{
     config::TASK_PRIORITY_LOWEST,
-    result::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
     interrupt::{disable_interrupts, restore_interrupt_state},
+    result::{SystemError, SystemResult},
     task::{
+        error::TaskError,
         global::get_tcb_from_id,
         sched::{priority_queue_insert_at_back, priority_queue_remove, schedule},
-        types::{TaskCB, TaskFlags, TaskStatus},
+        types::{TaskCB, TaskStatus},
     },
 };
 
@@ -56,7 +57,7 @@ pub fn set_task_priority(task_id: u32, priority: u16) -> SystemResult<()> {
     let task_cb = get_tcb_from_id(task_id);
 
     // 检查是否为系统任务
-    if task_cb.task_flags.contains(TaskFlags::SYSTEM) {
+    if task_cb.is_system_task() {
         return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
 

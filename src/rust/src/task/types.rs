@@ -160,7 +160,7 @@ impl TaskCB {
         pend_list: LinkedList::UNINIT,
         sort_list: SortLinkList::UNINIT,
         #[cfg(feature = "ipc_event")]
-        event: EventCB::UNINIT,
+        event: EventCB::new(),
         #[cfg(feature = "ipc_event")]
         event_mask: 0,
         #[cfg(feature = "ipc_event")]
@@ -205,19 +205,15 @@ impl TaskCB {
         }
     }
 
-    // #[inline]
-    // pub fn is_system_task(&self) -> bool {
-    //     self.task_flags.contains(TaskFlags::SYSTEM)
-    // }
+    #[inline]
+    pub fn is_system_task(&self) -> bool {
+        self.task_flags.contains(TaskFlags::SYSTEM)
+    }
 
-    // #[inline]
-    // pub fn set_system_task(&mut self, is_system: bool) {
-    //     if is_system {
-    //         self.task_flags.insert(TaskFlags::SYSTEM);
-    //     } else {
-    //         self.task_flags.remove(TaskFlags::SYSTEM);
-    //     }
-    // }
+    #[inline]
+    pub fn set_system_task(&mut self) {
+        self.task_flags.insert(TaskFlags::SYSTEM);
+    }
 
     // #[inline]
     // pub fn set_signal(&mut self, signal: TaskSignal) {

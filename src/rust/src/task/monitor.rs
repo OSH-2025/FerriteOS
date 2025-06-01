@@ -1,5 +1,4 @@
 use crate::task::types::TaskCB;
-use core::ffi::CStr;
 
 /// 任务切换钩子函数类型
 pub type TaskSwitchHook = Option<extern "C" fn()>;
@@ -15,28 +14,28 @@ fn stack_magic_check(top_stack: *const usize) -> bool {
 
 /// 检查任务栈是否溢出或栈指针是否有效
 fn check_task_stack(old_task: &TaskCB, new_task: &TaskCB) {
-    unsafe {
-        if !stack_magic_check(old_task.top_of_stack as *const usize) {
-            panic!(
-                "CURRENT task ID: {}:{} stack overflow!\n",
-                CStr::from_ptr(old_task.task_name).to_str().unwrap(),
-                old_task.task_id
-            );
-        }
+    if !stack_magic_check(old_task.top_of_stack as *const usize) {
+        panic!(
+            "current task id: {}:{} stack overflow! StackPointer: {:p} TopOfStack: {:p}\n",
+            old_task.name(),
+            old_task.task_id,
+            old_task.stack_pointer,
+            old_task.top_of_stack
+        );
+    }
 
-        // 检查新任务的栈指针是否在有效范围内
-        if (new_task.stack_pointer as usize <= new_task.top_of_stack as usize)
-            || (new_task.stack_pointer as usize
-                > (new_task.top_of_stack as usize + new_task.stack_size as usize))
-        {
-            panic!(
-                "HIGHEST task ID: {}:{} SP error! StackPointer: {:p} TopOfStack: {:p}\n",
-                CStr::from_ptr(new_task.task_name).to_str().unwrap(),
-                new_task.task_id,
-                new_task.stack_pointer,
-                new_task.top_of_stack
-            );
-        }
+    // 检查新任务的栈指针是否在有效范围内
+    if (new_task.stack_pointer as usize <= new_task.top_of_stack as usize)
+        || (new_task.stack_pointer as usize
+            > (new_task.top_of_stack as usize + new_task.stack_size as usize))
+    {
+        panic!(
+            "highest task ID: {}:{} SP error! StackPointer: {:p} TopOfStack: {:p}\n",
+            new_task.name(),
+            new_task.task_id,
+            new_task.stack_pointer,
+            new_task.top_of_stack
+        );
     }
 }
 

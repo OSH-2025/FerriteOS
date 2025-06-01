@@ -1,12 +1,13 @@
 use crate::{
-    result::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
-    interrupt::{disable_interrupts, restore_interrupt_state, is_int_active},
+    interrupt::{disable_interrupts, is_int_active, restore_interrupt_state},
     percpu::can_preempt,
+    result::{SystemError, SystemResult},
     task::{
+        error::TaskError,
         sched::{priority_queue_get_size, priority_queue_insert_at_back, schedule_reschedule},
         timer::add_to_timer_list,
-        types::{TaskFlags, TaskStatus},
+        types::TaskStatus,
     },
 };
 
@@ -21,7 +22,7 @@ pub fn task_delay(tick: u32) -> SystemResult<()> {
     let run_task = get_current_task();
 
     // 检查是否是系统任务
-    if run_task.task_flags.contains(TaskFlags::SYSTEM) {
+    if run_task.is_system_task() {
         return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
 

@@ -5,8 +5,8 @@ edition = "2024"
 
 [dependencies]
 semihosting = { version = "0.1", features = ["stdio", "panic-handler"] }
-bitflags = "2.9.1"
-heapless = "0.8"
+bitflags = { version = "2.9.1" }
+heapless = { version = "0.8" }
 
 [lib]
 crate-type = ["staticlib"]

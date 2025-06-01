@@ -8,7 +8,7 @@ use crate::{
     task::{
         global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         manager::create::task_create,
-        types::{TaskCB, TaskEntryFunc, TaskFlags, TaskInitParam},
+        types::{TaskCB, TaskEntryFunc, TaskInitParam},
     },
     utils::list::LinkedList,
 };
@@ -74,7 +74,7 @@ pub fn idle_task_create() -> SystemResult<()> {
 
     // 如果创建成功，设置系统任务标志
     let task_cb = get_tcb_from_id(*idle_task_id);
-    task_cb.task_flags.insert(TaskFlags::SYSTEM);
+    task_cb.set_system_task();
 
     Ok(())
 }

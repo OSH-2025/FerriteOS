@@ -1,10 +1,12 @@
 //! 栈水位线检测功能
+pub mod error;
 pub mod global;
 pub mod types;
 
 use crate::{
     config::{STACK_INIT_PATTERN, STACK_MAGIC_WORD},
-    result::{StackError, SystemError, SystemResult},
+    result::{SystemError, SystemResult},
+    stack::error::StackError,
 };
 
 /// 获取栈的水位线（最大使用量）

@@ -1,14 +1,15 @@
 use crate::{
     config::TASK_LIMIT,
-    result::{SystemError, SystemResult, TaskError},
-    interrupt::{disable_interrupts, restore_interrupt_state, is_int_active},
+    interrupt::{disable_interrupts, is_int_active, restore_interrupt_state},
     mem::{defs::m_aucSysMem1, memory::los_mem_free, memstat::os_memstat_task_clear},
     percpu::can_preempt_in_scheduler,
+    result::{SystemError, SystemResult},
     task::{
+        error::TaskError,
         global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         sched::{priority_queue_remove, schedule_reschedule},
         timer::delete_from_timer_list,
-        types::{TaskCB, TaskFlags, TaskSignal, TaskStatus},
+        types::{TaskCB, TaskSignal, TaskStatus},
     },
     utils::list::LinkedList,
 };
@@ -93,7 +94,7 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
     // 获取任务控制块
     let task_cb = get_tcb_from_id(task_id);
 
-    if task_cb.task_flags.contains(TaskFlags::SYSTEM) {
+    if task_cb.is_system_task() {
         return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
 

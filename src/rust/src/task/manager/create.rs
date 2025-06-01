@@ -2,14 +2,15 @@ use crate::{
     config::{
         STACK_POINT_ALIGN_SIZE, TASK_DEFAULT_STACK_SIZE, TASK_MIN_STACK_SIZE, TASK_PRIORITY_LOWEST,
     },
-    result::{SystemError, SystemResult, TaskError},
     ffi::bindings::task_stack_init,
     interrupt::{disable_interrupts, restore_interrupt_state},
     mem::{
         defs::{m_aucSysMem0, os_sys_mem_size},
         memory::los_mem_alloc_align,
     },
+    result::{SystemError, SystemResult},
     task::{
+        error::TaskError,
         global::{FREE_TASK_LIST, get_tcb_from_id, is_scheduler_active},
         sched::{priority_queue_insert_at_back, schedule},
         types::{TaskCB, TaskInitParam, TaskStatus},
@@ -149,7 +150,7 @@ fn init_task_cb(
 
     #[cfg(feature = "ipc_event")]
     {
-        LinkedList::init(&raw mut task_cb.event.event_list);
+        LinkedList::init(&raw mut task_cb.event.wait_list);
         task_cb.event.event_id = 0;
         task_cb.event_mask = 0;
     }

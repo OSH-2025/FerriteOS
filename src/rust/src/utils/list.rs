@@ -6,6 +6,13 @@ pub struct LinkedList {
 }
 
 impl LinkedList {
+    pub const fn new() -> Self {
+        Self {
+            prev: core::ptr::null_mut(),
+            next: core::ptr::null_mut(),
+        }
+    }
+
     pub const UNINIT: Self = Self {
         prev: core::ptr::null_mut(),
         next: core::ptr::null_mut(),

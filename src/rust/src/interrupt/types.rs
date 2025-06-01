@@ -1,6 +1,9 @@
 use core::ffi::c_char;
 
-use crate::result::{ErrorCode, InterruptError, SystemError, SystemResult};
+use crate::{
+    interrupt::error::InterruptError,
+    result::{ErrorCode, SystemError, SystemResult},
+};
 
 pub type InterruptHandlerFn = Option<extern "C" fn()>;
 

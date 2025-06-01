@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// 将当前任务放入等待列表
-pub fn task_wait(list: &mut LinkedList, timeout: Option<u32>) {
+pub fn task_wait(list: &mut LinkedList, timeout: u32) {
     // 获取当前运行的任务
     let run_task = get_current_task();
 
@@ -23,9 +23,9 @@ pub fn task_wait(list: &mut LinkedList, timeout: Option<u32>) {
     LinkedList::tail_insert(list, &mut run_task.pend_list);
 
     // 如果设置了超时时间，添加到定时器列表
-    if let Some(ticks) = timeout {
+    if timeout != u32::MAX {
         run_task.task_status.insert(TaskStatus::PEND_TIME);
-        add_to_timer_list(run_task, ticks);
+        add_to_timer_list(run_task, timeout);
     }
 }
 
@@ -51,11 +51,7 @@ pub fn task_wake(resumed_task: &mut TaskCB) {
 #[unsafe(export_name = "OsTaskWait")]
 pub extern "C" fn os_task_wait(list: *mut LinkedList, timeout: u32) {
     let list = unsafe { list.as_mut().expect("list pointer must not be null") };
-    if let u32::MAX = timeout {
-        task_wait(list, None);
-    } else {
-        task_wait(list, Some(timeout));
-    }
+    task_wait(list, timeout);
 }
 
 // TODO remove this

@@ -1,4 +1,5 @@
 pub mod entry;
+pub mod error;
 pub mod global;
 pub mod idle;
 pub mod info;

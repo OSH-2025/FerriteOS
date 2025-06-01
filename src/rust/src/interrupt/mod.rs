@@ -1,13 +1,15 @@
 use crate::{
-    result::{InterruptError, SystemError, SystemResult},
     ffi::bindings::{arch_int_lock, arch_int_restore, arch_int_unlock, arch_irq_init},
+    result::{SystemError, SystemResult},
 };
 use core::ffi::c_char;
+use error::InterruptError;
 use global::{
     get_interrupt_controller, irq_nesting_count_dec, irq_nesting_count_get, irq_nesting_count_inc,
 };
 use types::{InterruptHandler, InterruptHandlerFn};
 
+pub mod error;
 pub mod global;
 pub mod types;
 

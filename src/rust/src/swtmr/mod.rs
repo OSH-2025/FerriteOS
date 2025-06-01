@@ -12,7 +12,7 @@ use crate::{
     task::{
         global::get_tcb_from_id,
         manager::create::task_create,
-        types::{TaskAttr, TaskEntryFunc, TaskFlags, TaskInitParam},
+        types::{TaskAttr, TaskEntryFunc, TaskInitParam},
     },
     utils::{
         list::LinkedList,
@@ -233,9 +233,7 @@ pub extern "C" fn os_swtmr_task_create() -> u32 {
         Ok(_) => {
             os_percpu_get().swtmr_task_id = swtmr_task_id;
             // 设置系统任务标志
-            get_tcb_from_id(swtmr_task_id)
-                .task_flags
-                .insert(TaskFlags::SYSTEM);
+            get_tcb_from_id(swtmr_task_id).set_system_task();
             return OK;
         }
         Err(err) => {

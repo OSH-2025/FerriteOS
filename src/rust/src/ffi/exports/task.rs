@@ -2,8 +2,9 @@
 use crate::task::monitor::{TaskSwitchHook, init_task_monitor, register_task_switch_hook};
 use crate::{
     config::OK,
-    result::{SystemError, TaskError},
+    result::SystemError,
     task::{
+        error::TaskError,
         idle::idle_task_create,
         info::get_current_task_id,
         manager::{
