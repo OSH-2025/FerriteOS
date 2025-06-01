@@ -1,4 +1,4 @@
-use crate::exc::{back_trace, task_back_trace};
+use crate::exception::backtrace::{back_trace, task_back_trace};
 
 #[unsafe(export_name = "LOS_BackTrace")]
 pub extern "C" fn los_back_trace() {

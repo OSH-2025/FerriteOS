@@ -5,7 +5,10 @@ use crate::{
     utils::{list::LinkedList, sortlink::SortLinkList},
 };
 use bitflags::bitflags;
-use core::ffi::{c_char, c_void};
+use core::{
+    ffi::{c_char, c_void},
+    fmt,
+};
 
 /// 任务入口函数类型
 pub type TaskEntryFunc = Option<extern "C" fn(*mut c_void)>;
@@ -169,6 +172,14 @@ impl TaskCB {
         time_slice: 0,
     };
 
+    pub fn name(&self) -> &str {
+        unsafe {
+            core::ffi::CStr::from_ptr(self.task_name)
+                .to_str()
+                .unwrap_or("unknown")
+        }
+    }
+
     #[inline]
     pub fn from_pend_list(ptr: *mut LinkedList) -> &'static mut TaskCB {
         let task_ptr = container_of!(ptr, TaskCB, pend_list);
@@ -242,6 +253,22 @@ impl TaskCB {
     // pub fn signal_suspend(&mut self) {
     //     self.signal.insert(TaskSignal::SUSPEND);
     // }
+}
+
+impl fmt::Display for TaskCB {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TaskCB {{ id: {}, name: '{}', status: {:?}, priority: {}, flags: {:?}, stack_size: {}, stack_pointer: {:p} }}",
+            self.task_id,
+            self.name(),
+            self.task_status,
+            self.priority,
+            self.task_flags,
+            self.stack_size,
+            self.stack_pointer
+        )
+    }
 }
 
 bitflags! {

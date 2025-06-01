@@ -7,7 +7,7 @@ mod config;
 mod error;
 #[cfg(feature = "ipc_event")]
 mod event;
-mod exc;
+mod exception;
 mod ffi;
 mod interrupt;
 mod mem;
