@@ -1,6 +1,6 @@
 use crate::{
     config::{TASK_IDLE_STACK_SIZE, TASK_PRIORITY_LOWEST},
-    error::SystemResult,
+    result::SystemResult,
     ffi::bindings::wfi,
     interrupt::{disable_interrupts, restore_interrupt_state},
     mem::{defs::m_aucSysMem0, memory::los_mem_free},

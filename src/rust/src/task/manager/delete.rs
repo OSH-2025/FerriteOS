@@ -1,6 +1,6 @@
 use crate::{
     config::TASK_LIMIT,
-    error::{SystemError, SystemResult, TaskError},
+    result::{SystemError, SystemResult, TaskError},
     interrupt::{disable_interrupts, restore_interrupt_state, is_int_active},
     mem::{defs::m_aucSysMem1, memory::los_mem_free, memstat::os_memstat_task_clear},
     percpu::can_preempt_in_scheduler,

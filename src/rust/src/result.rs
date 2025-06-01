@@ -252,7 +252,7 @@ impl From<ErrorCode> for SystemResult<()> {
                 Err(SystemError::Interrupt(interrupt_error))
             } else if let Ok(stack_error) = StackError::try_from(errno) {
                 Err(SystemError::Stack(stack_error))
-            }else {
+            } else {
                 Err(SystemError::Unknown(errno))
             }
         }

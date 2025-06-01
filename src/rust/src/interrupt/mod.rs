@@ -1,5 +1,5 @@
 use crate::{
-    error::{InterruptError, SystemError, SystemResult},
+    result::{InterruptError, SystemError, SystemResult},
     ffi::bindings::{arch_int_lock, arch_int_restore, arch_int_unlock, arch_irq_init},
 };
 use core::ffi::c_char;

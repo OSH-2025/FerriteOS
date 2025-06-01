@@ -4,7 +4,7 @@ pub mod types;
 
 use crate::{
     config::{STACK_INIT_PATTERN, STACK_MAGIC_WORD},
-    error::{StackError, SystemError, SystemResult},
+    result::{StackError, SystemError, SystemResult},
 };
 
 /// 获取栈的水位线（最大使用量）

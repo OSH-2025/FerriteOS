@@ -2,7 +2,7 @@ use crate::{
     config::{
         STACK_POINT_ALIGN_SIZE, TASK_DEFAULT_STACK_SIZE, TASK_MIN_STACK_SIZE, TASK_PRIORITY_LOWEST,
     },
-    error::{SystemError, SystemResult, TaskError},
+    result::{SystemError, SystemResult, TaskError},
     ffi::bindings::task_stack_init,
     interrupt::{disable_interrupts, restore_interrupt_state},
     mem::{

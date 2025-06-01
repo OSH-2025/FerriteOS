@@ -1,5 +1,5 @@
 use crate::{
-    error::{SystemError, SystemResult, TaskError},
+    result::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
     interrupt::{disable_interrupts, restore_interrupt_state, is_int_active},
     percpu::can_preempt,

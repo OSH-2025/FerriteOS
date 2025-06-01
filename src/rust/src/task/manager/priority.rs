@@ -1,6 +1,6 @@
 use crate::{
     config::TASK_PRIORITY_LOWEST,
-    error::{SystemError, SystemResult, TaskError},
+    result::{SystemError, SystemResult, TaskError},
     ffi::bindings::get_current_task,
     interrupt::{disable_interrupts, restore_interrupt_state},
     task::{

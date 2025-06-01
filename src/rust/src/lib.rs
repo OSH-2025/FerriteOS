@@ -4,7 +4,6 @@
 use semihosting::println;
 
 mod config;
-mod err;
 mod error;
 #[cfg(feature = "ipc_event")]
 mod event;
@@ -14,6 +13,7 @@ mod interrupt;
 mod mem;
 mod percpu;
 mod queue;
+mod result;
 mod stack;
 mod swtmr;
 mod task;

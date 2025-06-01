@@ -2,7 +2,7 @@
 use crate::task::monitor::{TaskSwitchHook, init_task_monitor, register_task_switch_hook};
 use crate::{
     config::OK,
-    error::{SystemError, TaskError},
+    result::{SystemError, TaskError},
     task::{
         idle::idle_task_create,
         info::get_current_task_id,
