@@ -1,18 +1,20 @@
 pub type SystemResult<T> = Result<T, SystemError>;
 
 /// 系统级通用错误类型
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemError {
     /// 任务相关错误
     Task(TaskError),
     /// 中断相关错误
     Interrupt(InterruptError),
+    /// 栈相关错误
+    Stack(StackError),
     /// 未知错误码
     Unknown(u32),
 }
 
 /// 任务管理错误
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskError {
     /// 任务ID指针无效
     InvalidId,
@@ -59,7 +61,7 @@ pub enum TaskError {
 }
 
 /// 中断管理错误
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InterruptError {
     /// 中断处理函数为空
     ProcFuncNull,
@@ -67,6 +69,13 @@ pub enum InterruptError {
     AlreadyCreated,
     /// 无效的中断号
     NumInvalid,
+}
+
+/// 栈水位线检测结果
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StackError {
+    /// 栈魔数无效
+    Corrupted,
 }
 
 impl From<TaskError> for SystemError {
@@ -81,13 +90,9 @@ impl From<InterruptError> for SystemError {
     }
 }
 
-impl From<SystemError> for u32 {
-    fn from(error: SystemError) -> Self {
-        match error {
-            SystemError::Task(err) => u32::from(err),
-            SystemError::Interrupt(err) => u32::from(err),
-            SystemError::Unknown(errno) => errno,
-        }
+impl From<StackError> for SystemError {
+    fn from(err: StackError) -> Self {
+        SystemError::Stack(err)
     }
 }
 
@@ -156,6 +161,25 @@ pub const ERRNO_HWI_NUM_INVALID: u32 = 0x02000900;
 pub const ERRNO_HWI_PROC_FUNC_NULL: u32 = 0x02000901;
 pub const ERRNO_HWI_ALREADY_CREATED: u32 = 0x02000904;
 
+impl From<StackError> for u32 {
+    fn from(error: StackError) -> Self {
+        match error {
+            StackError::Corrupted => u32::MAX, // 栈魔数无效
+        }
+    }
+}
+
+impl From<SystemError> for u32 {
+    fn from(error: SystemError) -> Self {
+        match error {
+            SystemError::Task(err) => u32::from(err),
+            SystemError::Interrupt(err) => u32::from(err),
+            SystemError::Stack(err) => u32::from(err),
+            SystemError::Unknown(errno) => errno,
+        }
+    }
+}
+
 /// 从u32错误码转换为TaskError
 impl TryFrom<u32> for TaskError {
     type Error = ();
@@ -202,6 +226,18 @@ impl TryFrom<u32> for InterruptError {
     }
 }
 
+impl TryFrom<u32> for StackError {
+    type Error = ();
+
+    fn try_from(errno: u32) -> Result<Self, Self::Error> {
+        if errno == u32::MAX {
+            Ok(StackError::Corrupted)
+        } else {
+            Err(())
+        }
+    }
+}
+
 pub struct ErrorCode(pub u32);
 
 impl From<ErrorCode> for SystemResult<()> {
@@ -214,7 +250,9 @@ impl From<ErrorCode> for SystemResult<()> {
                 Err(SystemError::Task(task_error))
             } else if let Ok(interrupt_error) = InterruptError::try_from(errno) {
                 Err(SystemError::Interrupt(interrupt_error))
-            } else {
+            } else if let Ok(stack_error) = StackError::try_from(errno) {
+                Err(SystemError::Stack(stack_error))
+            }else {
                 Err(SystemError::Unknown(errno))
             }
         }

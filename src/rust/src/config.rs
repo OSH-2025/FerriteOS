@@ -15,3 +15,7 @@ pub const TASK_IDLE_STACK_SIZE: u32 = 2048;
 // tick
 pub const SYS_CLOCK: u32 = 0x6000000;
 pub const TICK_PER_SECOND: u32 = 1000;
+
+// stack
+pub const STACK_MAGIC_WORD: usize = 0xCCCCCCCC;
+pub const STACK_INIT_PATTERN: usize = 0xCACACACA;

@@ -14,6 +14,7 @@ mod interrupt;
 mod mem;
 mod percpu;
 mod queue;
+mod stack;
 mod swtmr;
 mod task;
 mod tick;

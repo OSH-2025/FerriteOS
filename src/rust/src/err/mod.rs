@@ -1,13 +1,13 @@
 //! 错误处理模块
-use core::ffi::c_void;
+use core::ffi::{c_char, c_void};
 
 /// 错误处理函数类型定义
 pub type ErrorHandleFunc = extern "C" fn(
-    file_name: *const u8, // CHAR*
-    line_no: u32,         // UINT32
-    error_no: u32,        // UINT32
-    para_len: u32,        // UINT32
-    para: *mut c_void,    // VOID*
+    file_name: *const c_char, // CHAR*
+    line_no: u32,             // UINT32
+    error_no: u32,            // UINT32
+    para_len: u32,            // UINT32
+    para: *mut c_void,        // VOID*
 ) -> u32; // UINT32
 
 /// 全局错误处理函数指针
