@@ -1,5 +1,5 @@
 use crate::{
-    container_of, offset_of,
+    container_of,
     percpu::os_percpu_get,
     task::{
         sched::{priority_queue_insert_at_back, schedule},
@@ -57,7 +57,6 @@ pub fn task_scan() {
                 (*task_cb).task_status.insert(TaskStatus::TIMEOUT);
                 LinkedList::remove(&mut (*task_cb).pend_list);
                 (*task_cb).task_sem = core::ptr::null_mut();
-                (*task_cb).task_mux = core::ptr::null_mut();
             } else {
                 (*task_cb).task_status.remove(TaskStatus::DELAY);
             }

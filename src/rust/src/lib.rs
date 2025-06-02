@@ -9,6 +9,7 @@ mod exception;
 mod ffi;
 mod interrupt;
 mod mem;
+mod mutex;
 mod percpu;
 mod queue;
 mod result;

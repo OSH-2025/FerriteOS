@@ -67,6 +67,22 @@ impl LinkedList {
     pub fn first(list: *const LinkedList) -> *mut LinkedList {
         unsafe { (*list).next }
     }
+
+    #[inline]
+    pub fn last(list: *const LinkedList) -> *mut LinkedList {
+        unsafe { (*list).prev }
+    }
+
+    // #[inline]
+    // pub fn remove_first(list: *const LinkedList) -> Option<*mut LinkedList> {
+    //     if LinkedList::is_empty(list) {
+    //         None
+    //     } else {
+    //         let first_node = LinkedList::first(list);
+    //         LinkedList::remove(first_node);
+    //         Some(first_node)
+    //     }
+    // }
 }
 
 #[macro_export]
@@ -82,7 +98,7 @@ macro_rules! offset_of {
 #[macro_export]
 macro_rules! container_of {
     ($ptr:expr, $type:ty, $($field:ident).+) => {{
-        let offset = offset_of!($type, $($field).+);
+        let offset = crate::offset_of!($type, $($field).+);
         ($ptr as usize - offset) as *mut $type
     }};
 }
@@ -95,7 +111,7 @@ macro_rules! list_for_each_entry {
             if !list_head__.is_null() {
                 let mut current_node_ptr__ = (*list_head__).next;
                 while current_node_ptr__ != list_head__ {
-                    let $item: *mut $type = container_of!(current_node_ptr__, $type, $($field).+);
+                    let $item: *mut $type = crate::container_of!(current_node_ptr__, $type, $($field).+);
                     $code
                     current_node_ptr__ = (*current_node_ptr__).next;
                 }

@@ -1,6 +1,6 @@
 use crate::config::{NOK, OK, OS_INVALID};
+use crate::list_for_each_entry;
 use crate::utils::list::LinkedList;
-use crate::{container_of, list_for_each_entry, offset_of};
 
 use super::defs::*;
 use super::mempool::{LosMemPoolInfo, LosMemPoolStatus};

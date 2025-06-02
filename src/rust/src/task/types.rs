@@ -1,7 +1,7 @@
 #[cfg(feature = "ipc_event")]
 use crate::event::types::EventCB;
 use crate::{
-    container_of, offset_of,
+    container_of,
     utils::{list::LinkedList, sortlink::SortLinkList},
 };
 use bitflags::bitflags;
@@ -96,9 +96,6 @@ pub struct TaskCB {
     #[cfg(feature = "compat_posix")]
     pub thread_join_retval: *mut c_void,
 
-    /// 任务持有的互斥锁
-    pub task_mux: *mut c_void,
-
     /// 任务参数
     pub args: *mut c_void,
 
@@ -154,7 +151,6 @@ impl TaskCB {
         thread_join: core::ptr::null_mut(),
         #[cfg(feature = "compat_posix")]
         thread_join_retval: core::ptr::null_mut(),
-        task_mux: core::ptr::null_mut(),
         args: core::ptr::null_mut(),
         task_name: core::ptr::null(),
         pend_list: LinkedList::UNINIT,
@@ -181,7 +177,7 @@ impl TaskCB {
     }
 
     #[inline]
-    pub fn from_pend_list(ptr: *mut LinkedList) -> &'static mut TaskCB {
+    pub fn from_pend_list(ptr: *const LinkedList) -> &'static mut TaskCB {
         let task_ptr = container_of!(ptr, TaskCB, pend_list);
         unsafe { &mut *task_ptr }
     }

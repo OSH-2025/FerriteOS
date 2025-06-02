@@ -6,7 +6,6 @@ use crate::{
         defs::m_aucSysMem0,
         memory::{los_mem_alloc, los_mem_free},
     },
-    offset_of,
     percpu::os_percpu_get,
     queue::{los_queue_create, los_queue_write_copy},
     task::{

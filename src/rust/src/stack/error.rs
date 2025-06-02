@@ -24,3 +24,11 @@ impl TryFrom<u32> for StackError {
         }
     }
 }
+
+impl core::fmt::Display for StackError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            StackError::Corrupted => write!(f, "Stack corrupted"),
+        }
+    }
+}

@@ -36,3 +36,13 @@ impl TryFrom<u32> for InterruptError {
         }
     }
 }
+
+impl core::fmt::Display for InterruptError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            InterruptError::ProcFuncNull => write!(f, "Interrupt processing function is null"),
+            InterruptError::AlreadyCreated => write!(f, "Interrupt already created"),
+            InterruptError::NumInvalid => write!(f, "Invalid interrupt number"),
+        }
+    }
+}

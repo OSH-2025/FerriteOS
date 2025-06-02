@@ -1,4 +1,4 @@
-use crate::{container_of, offset_of, utils::list::LinkedList};
+use crate::{container_of, utils::list::LinkedList};
 
 pub const OS_TSK_HIGH_BITS: u32 = 3;
 pub const OS_TSK_LOW_BITS: u32 = 32 - OS_TSK_HIGH_BITS;

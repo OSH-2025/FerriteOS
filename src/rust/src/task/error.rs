@@ -74,27 +74,27 @@ impl From<TaskError> for u32 {
     }
 }
 
-pub const ERRNO_TSK_NO_MEMORY: u32 = 0x03000200;
-pub const ERRNO_TSK_PTR_NULL: u32 = 0x02000201;
-pub const ERRNO_TSK_STKSZ_NOT_ALIGN: u32 = 0x02000202;
-pub const ERRNO_TSK_PRIOR_ERROR: u32 = 0x02000203;
-pub const ERRNO_TSK_ENTRY_NULL: u32 = 0x02000204;
-pub const ERRNO_TSK_NAME_EMPTY: u32 = 0x02000205;
-pub const ERRNO_TSK_STKSZ_TOO_SMALL: u32 = 0x02000206;
-pub const ERRNO_TSK_ID_INVALID: u32 = 0x02000207;
-pub const ERRNO_TSK_ALREADY_SUSPENDED: u32 = 0x02000208;
-pub const ERRNO_TSK_NOT_SUSPENDED: u32 = 0x02000209;
-pub const ERRNO_TSK_NOT_CREATED: u32 = 0x0200020a;
-pub const ERRNO_TSK_DELETE_LOCKED: u32 = 0x0300020b;
-pub const ERRNO_TSK_DELAY_IN_INT: u32 = 0x0200020d;
-pub const ERRNO_TSK_DELAY_IN_LOCK: u32 = 0x0200020e;
-pub const ERRNO_TSK_YIELD_IN_LOCK: u32 = 0x0200020f;
-pub const ERRNO_TSK_YIELD_NOT_ENOUGH_TASK: u32 = 0x02000210;
-pub const ERRNO_TSK_TCB_UNAVAILABLE: u32 = 0x02000211;
-pub const ERRNO_TSK_OPERATE_SYSTEM_TASK: u32 = 0x02000214;
-pub const ERRNO_TSK_SUSPEND_LOCKED: u32 = 0x03000215;
-pub const ERRNO_TSK_STKSZ_TOO_LARGE: u32 = 0x02000220;
-pub const ERRNO_TSK_YIELD_IN_INT: u32 = 0x02000224;
+const ERRNO_TSK_NO_MEMORY: u32 = 0x03000200;
+const ERRNO_TSK_PTR_NULL: u32 = 0x02000201;
+const ERRNO_TSK_STKSZ_NOT_ALIGN: u32 = 0x02000202;
+const ERRNO_TSK_PRIOR_ERROR: u32 = 0x02000203;
+const ERRNO_TSK_ENTRY_NULL: u32 = 0x02000204;
+const ERRNO_TSK_NAME_EMPTY: u32 = 0x02000205;
+const ERRNO_TSK_STKSZ_TOO_SMALL: u32 = 0x02000206;
+const ERRNO_TSK_ID_INVALID: u32 = 0x02000207;
+const ERRNO_TSK_ALREADY_SUSPENDED: u32 = 0x02000208;
+const ERRNO_TSK_NOT_SUSPENDED: u32 = 0x02000209;
+const ERRNO_TSK_NOT_CREATED: u32 = 0x0200020a;
+const ERRNO_TSK_DELETE_LOCKED: u32 = 0x0300020b;
+const ERRNO_TSK_DELAY_IN_INT: u32 = 0x0200020d;
+const ERRNO_TSK_DELAY_IN_LOCK: u32 = 0x0200020e;
+const ERRNO_TSK_YIELD_IN_LOCK: u32 = 0x0200020f;
+const ERRNO_TSK_YIELD_NOT_ENOUGH_TASK: u32 = 0x02000210;
+const ERRNO_TSK_TCB_UNAVAILABLE: u32 = 0x02000211;
+const ERRNO_TSK_OPERATE_SYSTEM_TASK: u32 = 0x02000214;
+const ERRNO_TSK_SUSPEND_LOCKED: u32 = 0x03000215;
+const ERRNO_TSK_STKSZ_TOO_LARGE: u32 = 0x02000220;
+const ERRNO_TSK_YIELD_IN_INT: u32 = 0x02000224;
 
 /// 从u32错误码转换为TaskError
 impl TryFrom<u32> for TaskError {
@@ -124,6 +124,34 @@ impl TryFrom<u32> for TaskError {
             ERRNO_TSK_YIELD_IN_LOCK => Ok(TaskError::YieldInLock),
             ERRNO_TSK_YIELD_NOT_ENOUGH_TASK => Ok(TaskError::YieldNotEnoughTask),
             _ => Err(()),
+        }
+    }
+}
+
+impl core::fmt::Display for TaskError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            TaskError::InvalidId => write!(f, "Invalid task ID"),
+            TaskError::ParamNull => write!(f, "Parameter pointer is null"),
+            TaskError::NameEmpty => write!(f, "Task name is empty"),
+            TaskError::EntryNull => write!(f, "Task entry function is null"),
+            TaskError::PriorityError => write!(f, "Task priority error"),
+            TaskError::StackSizeTooLarge => write!(f, "Stack size too large"),
+            TaskError::StackSizeTooSmall => write!(f, "Stack size too small"),
+            TaskError::OutOfMemory => write!(f, "Out of memory for task"),
+            TaskError::NoFreeTasks => write!(f, "No free tasks available"),
+            TaskError::StackNotAligned => write!(f, "Task stack not aligned"),
+            TaskError::DeleteLocked => write!(f, "Task delete locked"),
+            TaskError::OperateSystemTask => write!(f, "Cannot operate system task"),
+            TaskError::NotCreated => write!(f, "Task not created"),
+            TaskError::NotSuspended => write!(f, "Task not suspended"),
+            TaskError::AlreadySuspended => write!(f, "Task already suspended"),
+            TaskError::SuspendLocked => write!(f, "Task suspend locked"),
+            TaskError::DelayInInterrupt => write!(f, "Delay in interrupt context"),
+            TaskError::DelayInLock => write!(f, "Delay in lock context"),
+            TaskError::YieldInInterrupt => write!(f, "Yield in interrupt context"),
+            TaskError::YieldInLock => write!(f, "Yield in lock context"),
+            TaskError::YieldNotEnoughTask => write!(f, "Not enough tasks to yield"),
         }
     }
 }

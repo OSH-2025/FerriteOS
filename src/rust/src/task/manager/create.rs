@@ -134,7 +134,6 @@ fn init_task_cb(
 
     // 清空同步对象指针
     task_cb.task_sem = core::ptr::null_mut();
-    task_cb.task_mux = core::ptr::null_mut();
 
     #[cfg(feature = "compat_posix")]
     {

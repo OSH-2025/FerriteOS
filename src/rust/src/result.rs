@@ -1,6 +1,6 @@
 use crate::{
-    event::error::EventError, interrupt::error::InterruptError, stack::error::StackError,
-    task::error::TaskError,
+    event::error::EventError, interrupt::error::InterruptError, mutex::error::MutexError,
+    stack::error::StackError, task::error::TaskError,
 };
 
 pub type SystemResult<T> = Result<T, SystemError>;
@@ -16,6 +16,8 @@ pub enum SystemError {
     Stack(StackError),
     /// 事件操作错误类型
     Event(EventError),
+    /// 互斥锁相关错误
+    Mutex(MutexError),
     /// 未知错误码
     Unknown(u32),
 }
@@ -38,6 +40,12 @@ impl From<StackError> for SystemError {
     }
 }
 
+impl From<MutexError> for SystemError {
+    fn from(err: MutexError) -> Self {
+        SystemError::Mutex(err)
+    }
+}
+
 impl From<SystemError> for u32 {
     fn from(error: SystemError) -> Self {
         match error {
@@ -45,7 +53,21 @@ impl From<SystemError> for u32 {
             SystemError::Interrupt(err) => u32::from(err),
             SystemError::Stack(err) => u32::from(err),
             SystemError::Event(err) => u32::from(err),
+            SystemError::Mutex(err) => u32::from(err),
             SystemError::Unknown(errno) => errno,
+        }
+    }
+}
+
+impl core::fmt::Display for SystemError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            SystemError::Task(err) => write!(f, "Task error: {}", err),
+            SystemError::Interrupt(err) => write!(f, "Interrupt error: {}", err),
+            SystemError::Stack(err) => write!(f, "Stack error: {}", err),
+            SystemError::Event(err) => write!(f, "Event error: {}", err),
+            SystemError::Mutex(err) => write!(f, "Mutex error: {}", err),
+            SystemError::Unknown(code) => write!(f, "Unknown error: 0x{:08x}", code),
         }
     }
 }
@@ -66,6 +88,8 @@ impl From<ErrorCode> for SystemResult<()> {
                 Err(SystemError::Stack(stack_error))
             } else if let Ok(event_error) = EventError::try_from(errno) {
                 Err(SystemError::Event(event_error))
+            } else if let Ok(mutex_error) = MutexError::try_from(errno) {
+                Err(SystemError::Mutex(mutex_error))
             } else {
                 Err(SystemError::Unknown(errno))
             }

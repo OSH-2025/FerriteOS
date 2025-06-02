@@ -22,6 +22,7 @@ default = [
 	"shell",
 	"software_timer",
 	"log-error",
+	"mutex-waitmode-prio",
 ]
 software_timer = []
 software_timer_in_isr = []
@@ -38,10 +39,16 @@ shell = []
 shell_excinfo_dump = []
 exc_interaction = []
 
-# 日志级别features（互斥）
+# 日志级别features
 log-emergency = []
 log-common = []
 log-error = []
 log-warning = []
 log-info = []
 log-debug = []
+
+debug-mutex = []
+debug-mutex-deadlock = []
+
+mutex-waitmode-prio = []
+mutex-waitmode-fifo = []
