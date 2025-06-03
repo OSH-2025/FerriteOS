@@ -56,7 +56,6 @@ pub fn task_scan() {
                 (*task_cb).task_status.remove(TaskStatus::PEND);
                 (*task_cb).task_status.insert(TaskStatus::TIMEOUT);
                 LinkedList::remove(&mut (*task_cb).pend_list);
-                (*task_cb).task_sem = core::ptr::null_mut();
             } else {
                 (*task_cb).task_status.remove(TaskStatus::DELAY);
             }

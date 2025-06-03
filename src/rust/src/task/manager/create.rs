@@ -132,9 +132,6 @@ fn init_task_cb(
     task_cb.top_of_stack = top_stack;
     task_cb.stack_size = init_param.stack_size;
 
-    // 清空同步对象指针
-    task_cb.task_sem = core::ptr::null_mut();
-
     #[cfg(feature = "compat_posix")]
     {
         task_cb.thread_join = core::ptr::null_mut();

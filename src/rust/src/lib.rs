@@ -13,6 +13,7 @@ mod mutex;
 mod percpu;
 mod queue;
 mod result;
+mod semaphore;
 mod stack;
 mod swtmr;
 mod task;

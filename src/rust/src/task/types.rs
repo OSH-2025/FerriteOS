@@ -87,9 +87,6 @@ pub struct TaskCB {
     /// 任务入口函数
     pub task_entry: TaskEntryFunc,
 
-    /// 任务持有的信号量
-    pub task_sem: *mut c_void,
-
     #[cfg(feature = "compat_posix")]
     pub thread_join: *mut c_void,
 
@@ -146,7 +143,6 @@ impl TaskCB {
         top_of_stack: core::ptr::null_mut(),
         task_id: 0,
         task_entry: None,
-        task_sem: core::ptr::null_mut(),
         #[cfg(feature = "compat_posix")]
         thread_join: core::ptr::null_mut(),
         #[cfg(feature = "compat_posix")]
