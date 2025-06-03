@@ -1,6 +1,6 @@
 //! 信号量类型定义
 
-use crate::utils::list::LinkedList;
+use crate::{container_of, utils::list::LinkedList};
 use core::sync::atomic::{AtomicU16, Ordering};
 
 /// 信号量类型
@@ -11,6 +11,22 @@ pub enum SemaphoreType {
     Counting = 0,
     /// 二进制信号量 - 最大计数为OS_SEM_BINARY_COUNT_MAX
     Binary = 1,
+}
+
+impl SemaphoreType {
+    /// 计数信号量的最大计数值
+    const COUNT_MAX: u16 = 0xFFFE;
+
+    /// 二进制信号量的最大计数值
+    const BINARY_COUNT_MAX: u16 = 0x0001;
+
+    /// 获取当前信号量类型的最大计数值
+    pub fn max_count(&self) -> u16 {
+        match self {
+            Self::Counting => Self::COUNT_MAX,
+            Self::Binary => Self::BINARY_COUNT_MAX,
+        }
+    }
 }
 
 /// 信号量状态
@@ -70,23 +86,33 @@ impl From<SemaphoreId> for u32 {
 #[derive(Debug)]
 pub struct SemaphoreControlBlock {
     /// 信号量状态，对应C代码中的semStat
-    sem_stat: SemaphoreState,
+    pub sem_stat: SemaphoreState,
 
     /// 信号量类型，对应C代码中的semType
-    sem_type: SemaphoreType,
+    pub sem_type: SemaphoreType,
 
     /// 可用信号量数量，对应C代码中的semCount
-    sem_count: AtomicU16,
+    pub sem_count: AtomicU16,
 
     /// 信号量控制结构ID，对应C代码中的semId
-    sem_id: SemaphoreId,
+    pub sem_id: SemaphoreId,
 
     /// 等待信号量的任务列表，对应C代码中的semList
-    sem_list: LinkedList,
+    pub sem_list: LinkedList,
 }
 
 impl SemaphoreControlBlock {
     /// 创建一个新的信号量控制块
+    pub const UNINT: Self = Self {
+        sem_stat: SemaphoreState::Unused,
+        sem_type: SemaphoreType::Counting,
+        sem_count: AtomicU16::new(0),
+        sem_id: SemaphoreId(0),
+        sem_list: LinkedList::new(),
+    };
+
+    /// 创建一个新的信号量控制块
+    #[allow(dead_code)]
     pub const fn new() -> Self {
         Self {
             sem_stat: SemaphoreState::Unused,
@@ -107,6 +133,11 @@ impl SemaphoreControlBlock {
     #[inline]
     pub fn get_state(&self) -> SemaphoreState {
         self.sem_stat
+    }
+
+    #[inline]
+    pub fn is_unused(&self) -> bool {
+        self.get_state() == SemaphoreState::Unused
     }
 
     /// 设置信号量类型
@@ -145,6 +176,11 @@ impl SemaphoreControlBlock {
         self.sem_count.fetch_sub(1, Ordering::AcqRel) - 1
     }
 
+    #[inline]
+    pub fn max_count(&self) -> u16 {
+        self.get_type().max_count()
+    }
+
     /// 设置信号量ID
     #[inline]
     pub fn set_id(&mut self, id: SemaphoreId) {
@@ -157,6 +193,12 @@ impl SemaphoreControlBlock {
         self.sem_id
     }
 
+    /// 检查是否为指定的句柄
+    #[inline]
+    pub fn matches_id(&self, id: SemaphoreId) -> bool {
+        self.get_id() == id
+    }
+
     pub fn increment_id_counter(&mut self) {
         self.sem_id = self.sem_id.increment_count();
     }
@@ -165,6 +207,12 @@ impl SemaphoreControlBlock {
     #[inline]
     pub fn has_waiting_tasks(&self) -> bool {
         !LinkedList::is_empty(&raw const self.sem_list)
+    }
+
+    #[inline]
+    pub fn from_list(list: *const LinkedList) -> &'static mut Self {
+        let semaphore_ptr = container_of!(list, SemaphoreControlBlock, sem_list);
+        unsafe { &mut *semaphore_ptr }
     }
 
     /// 初始化信号量

@@ -5,6 +5,7 @@ pub mod exc;
 pub mod hwi;
 pub mod misc;
 pub mod mutex;
+pub mod semaphore;
 pub mod stack;
 pub mod task;
 pub mod tick;

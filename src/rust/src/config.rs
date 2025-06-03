@@ -1,7 +1,7 @@
 pub const OK: u32 = 0;
 pub const NOK: u32 = 1;
 pub const OS_INVALID: u32 = u32::MAX;
-pub const WAIT_FOREVER : u32 = u32::MAX;
+pub const WAIT_FOREVER: u32 = u32::MAX;
 
 #[cfg(feature = "time_slice")]
 pub const KERNEL_TIMESLICE_TIMEOUT: u16 = 2;
@@ -24,3 +24,6 @@ pub const STACK_INIT_PATTERN: usize = 0xCACACACA;
 
 /// mutex
 pub const MUX_LIMIT: u32 = 1024;
+
+/// semaphore
+pub const SEM_LIMIT: u32 = 1024;

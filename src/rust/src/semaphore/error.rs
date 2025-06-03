@@ -11,7 +11,7 @@ pub enum SemaphoreError {
     /// 互斥锁不可用
     Unavailable,
     /// 在中断中等待互斥锁
-    PendInterrupt,
+    PendInInterrupt,
     /// 在调度锁定状态下等待互斥锁
     PendInLock,
     /// 等待互斥锁超时
@@ -39,7 +39,7 @@ impl From<SemaphoreError> for u32 {
             SemaphoreError::PtrNull => ERRNO_SEM_PTR_NULL,
             SemaphoreError::AllBusy => ERRNO_SEM_ALL_BUSY,
             SemaphoreError::Unavailable => ERRNO_SEM_UNAVAILABLE,
-            SemaphoreError::PendInterrupt => ERRNO_SEM_PEND_INTERR,
+            SemaphoreError::PendInInterrupt => ERRNO_SEM_PEND_INTERR,
             SemaphoreError::PendInLock => ERRNO_SEM_PEND_IN_LOCK,
             SemaphoreError::Timeout => ERRNO_SEM_TIMEOUT,
             SemaphoreError::Overflow => ERRNO_SEM_OVERFLOW,
@@ -57,7 +57,7 @@ impl TryFrom<u32> for SemaphoreError {
             ERRNO_SEM_PTR_NULL => Ok(SemaphoreError::PtrNull),
             ERRNO_SEM_ALL_BUSY => Ok(SemaphoreError::AllBusy),
             ERRNO_SEM_UNAVAILABLE => Ok(SemaphoreError::Unavailable),
-            ERRNO_SEM_PEND_INTERR => Ok(SemaphoreError::PendInterrupt),
+            ERRNO_SEM_PEND_INTERR => Ok(SemaphoreError::PendInInterrupt),
             ERRNO_SEM_PEND_IN_LOCK => Ok(SemaphoreError::PendInLock),
             ERRNO_SEM_TIMEOUT => Ok(SemaphoreError::Timeout),
             ERRNO_SEM_OVERFLOW => Ok(SemaphoreError::Overflow),
@@ -74,7 +74,7 @@ impl core::fmt::Display for SemaphoreError {
             Self::PtrNull => "Semaphore pointer is null",
             Self::AllBusy => "All semaphores are busy",
             Self::Unavailable => "Semaphore is unavailable",
-            Self::PendInterrupt => "Waiting for semaphore in interrupt context",
+            Self::PendInInterrupt => "Waiting for semaphore in interrupt context",
             Self::PendInLock => "Waiting for semaphore while in lock state",
             Self::Timeout => "Semaphore wait timed out",
             Self::Overflow => "Semaphore overflow occurred",

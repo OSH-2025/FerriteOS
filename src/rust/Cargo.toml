@@ -50,5 +50,7 @@ log-debug = []
 debug-mutex = []
 debug-mutex-deadlock = []
 
+debug-semaphore = []
+
 mutex-waitmode-prio = []
 mutex-waitmode-fifo = []
