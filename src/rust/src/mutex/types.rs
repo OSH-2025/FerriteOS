@@ -25,12 +25,7 @@ impl MutexId {
     /// 设置互斥锁ID
     const MUX_SPLIT_BIT: u32 = 16;
 
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-
-    /// 从计数和索引创建互斥锁ID
-    pub fn set_mux_id(count: u16, index: u16) -> Self {
+    pub fn new(count: u16, index: u16) -> Self {
         let id = ((count as u32) << Self::MUX_SPLIT_BIT) | (index as u32);
         Self(id)
     }
@@ -46,8 +41,8 @@ impl MutexId {
     }
 
     /// 增加计数值生成新ID，保持索引不变
-    pub fn increment_count(&self) {
-        Self::set_mux_id(self.get_count().wrapping_add(1), self.get_index());
+    pub fn increment_count(&self) -> Self {
+        Self::new(self.get_count().wrapping_add(1), self.get_index())
     }
 }
 
@@ -170,7 +165,7 @@ impl MutexControlBlock {
     }
 
     pub fn increment_id_counter(&mut self) {
-        self.mux_id.increment_count();
+        self.set_id(self.mux_id.increment_count());
     }
 
     /// 设置互斥锁ID
