@@ -1,6 +1,7 @@
 use crate::{
     event::error::EventError, interrupt::error::InterruptError, mutex::error::MutexError,
-    semaphore::error::SemaphoreError, stack::error::StackError, task::error::TaskError,
+    queue::error::QueueError, semaphore::error::SemaphoreError, stack::error::StackError,
+    task::error::TaskError,
 };
 
 pub type SystemResult<T> = Result<T, SystemError>;
@@ -20,6 +21,8 @@ pub enum SystemError {
     Mutex(MutexError),
     /// 信号量相关错误
     Semaphore(SemaphoreError),
+    /// 消息队列相关错误
+    Queue(QueueError),
     /// 未知错误码
     Unknown(u32),
 }
@@ -60,6 +63,12 @@ impl From<SemaphoreError> for SystemError {
     }
 }
 
+impl From<QueueError> for SystemError {
+    fn from(err: QueueError) -> Self {
+        SystemError::Queue(err)
+    }
+}
+
 impl From<SystemError> for u32 {
     fn from(error: SystemError) -> Self {
         match error {
@@ -69,6 +78,7 @@ impl From<SystemError> for u32 {
             SystemError::Event(err) => u32::from(err),
             SystemError::Mutex(err) => u32::from(err),
             SystemError::Semaphore(err) => u32::from(err),
+            SystemError::Queue(err) => u32::from(err),
             SystemError::Unknown(errno) => errno,
         }
     }
@@ -83,6 +93,7 @@ impl core::fmt::Display for SystemError {
             SystemError::Event(err) => write!(f, "Event error: {}", err),
             SystemError::Mutex(err) => write!(f, "Mutex error: {}", err),
             SystemError::Semaphore(err) => write!(f, "Semaphore error: {}", err),
+            SystemError::Queue(err) => write!(f, "Queue error: {}", err),
             SystemError::Unknown(code) => write!(f, "Unknown error: 0x{:08x}", code),
         }
     }
@@ -108,6 +119,8 @@ impl From<ErrorCode> for SystemResult<()> {
                 Err(SystemError::Mutex(mutex_error))
             } else if let Ok(semaphore_error) = SemaphoreError::try_from(errno) {
                 Err(SystemError::Semaphore(semaphore_error))
+            } else if let Ok(queue_error) = QueueError::try_from(errno) {
+                Err(SystemError::Queue(queue_error))
             } else {
                 Err(SystemError::Unknown(errno))
             }

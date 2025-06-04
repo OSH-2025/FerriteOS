@@ -7,9 +7,8 @@ use crate::{
 };
 
 #[unsafe(export_name = "OsMuxInit")]
-pub extern "C" fn os_mux_init() -> u32 {
+pub extern "C" fn os_mux_init()  {
     mutex_init();
-    OK
 }
 
 #[unsafe(export_name = "LOS_MuxCreate")]

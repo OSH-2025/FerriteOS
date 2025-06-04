@@ -279,10 +279,8 @@ pub extern "C" fn os_swtmr_init() -> u32 {
     {
         // 创建定时器处理队列
         let ret = los_queue_create(
-            core::ptr::null_mut(),
             OS_SWTMR_HANDLE_QUEUE_SIZE,
             &mut os_percpu_get().swtmr_handler_queue,
-            0,
             core::mem::size_of::<*mut SwtmrHandlerItem>() as u16,
         );
 

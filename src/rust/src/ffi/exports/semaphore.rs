@@ -15,9 +15,8 @@ use crate::{
 ///
 /// 对应C函数: OsSemInit
 #[unsafe(export_name = "OsSemInit")]
-pub extern "C" fn os_sem_init() -> u32 {
+pub extern "C" fn os_sem_init() {
     init_semaphore_system();
-    OK
 }
 
 /// 创建信号量

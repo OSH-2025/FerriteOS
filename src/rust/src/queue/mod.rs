@@ -1,4 +1,4 @@
-use core::ffi::c_char;
+pub mod error;
 
 unsafe extern "C" {
     #[link_name = "LOS_QueueReadCopy"]
@@ -10,13 +10,7 @@ unsafe extern "C" {
     ) -> u32;
 
     #[link_name = "LOS_QueueCreate"]
-    unsafe fn c_los_queue_create(
-        queue_name: *const c_char,
-        len: u16,
-        queue_id: *mut u32,
-        flags: u32,
-        max_msg_size: u16,
-    ) -> u32;
+    unsafe fn c_los_queue_create(len: u16, queue_id: *mut u32, max_msg_size: u16) -> u32;
 
     #[link_name = "LOS_QueueWriteCopy"]
     unsafe fn c_los_queue_write_copy(
@@ -36,14 +30,8 @@ pub fn los_queue_read_copy(
     unsafe { c_los_queue_read_copy(queue_id, buffer_addr, buffer_size, timeout) }
 }
 
-pub fn los_queue_create(
-    queue_name: *const c_char,
-    len: u16,
-    queue_id: *mut u32,
-    flags: u32,
-    max_msg_size: u16,
-) -> u32 {
-    unsafe { c_los_queue_create(queue_name, len, queue_id, flags, max_msg_size) }
+pub fn los_queue_create(len: u16, queue_id: *mut u32, max_msg_size: u16) -> u32 {
+    unsafe { c_los_queue_create(len, queue_id, max_msg_size) }
 }
 
 pub fn los_queue_write_copy(
