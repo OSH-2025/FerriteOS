@@ -1,13 +1,13 @@
 use core::ffi::c_char;
 
-/// 硬件中断处理程序信息结构体
-#[repr(C)]
-pub struct HwiHandleInfo {
-    /// 用户注册的回调函数
-    pub hook: Option<extern "C" fn()>,
-    /// 中断响应计数
-    pub resp_count: u32,
-}
+// /// 硬件中断处理程序信息结构体
+// #[repr(C)]
+// pub struct HwiHandleInfo {
+//     /// 用户注册的回调函数
+//     pub hook: Option<extern "C" fn()>,
+//     /// 中断响应计数
+//     pub resp_count: u32,
+// }
 
 /// 命令类型枚举
 #[repr(u32)]
