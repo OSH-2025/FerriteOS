@@ -1,6 +1,6 @@
 use crate::{
     ffi::bindings::get_current_task,
-    interrupt::{disable_interrupts, is_int_active, restore_interrupt_state},
+    interrupt::{disable_interrupts, is_interrupt_active, restore_interrupt_state},
     percpu::can_preempt,
     println_debug,
     result::SystemResult,
@@ -101,7 +101,7 @@ pub fn delete_semaphore(id: SemaphoreId) -> SystemResult<()> {
 pub fn semaphore_pend(handle: SemaphoreId, timeout: u32) -> SystemResult<()> {
     let semaphore = SemaphoreManager::get_semaphore(handle)?;
 
-    if is_int_active() {
+    if is_interrupt_active() {
         return Err(SemaphoreError::PendInInterrupt.into());
     }
 

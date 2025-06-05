@@ -1,7 +1,7 @@
 use crate::{
     config::TASK_LIMIT,
     ffi::bindings::get_current_task,
-    interrupt::{disable_interrupts, is_int_active, restore_interrupt_state},
+    interrupt::{disable_interrupts, is_interrupt_active, restore_interrupt_state},
     percpu::can_preempt_in_scheduler,
     result::{SystemError, SystemResult},
     task::{
@@ -81,7 +81,7 @@ fn can_suspend_running_task(task_cb: &mut TaskCB) -> SystemResult<bool> {
     }
 
     // 检查是否在中断上下文
-    if is_int_active() {
+    if is_interrupt_active() {
         // 在中断中挂起任务，设置挂起信号
         task_cb.signal = TaskSignal::SUSPEND;
         return Ok(false);

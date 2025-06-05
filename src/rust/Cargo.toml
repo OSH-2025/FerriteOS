@@ -23,6 +23,7 @@ default = [
 	"software_timer",
 	"log-error",
 	"mutex-waitmode-prio",
+	"queue-static-allocation",
 ]
 software_timer = []
 software_timer_in_isr = []
@@ -49,8 +50,10 @@ log-debug = []
 
 debug-mutex = []
 debug-mutex-deadlock = []
-
 debug-semaphore = []
+debug-queue = []
 
 mutex-waitmode-prio = []
 mutex-waitmode-fifo = []
+
+queue-static-allocation = []

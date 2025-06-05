@@ -1,6 +1,6 @@
 use crate::{
     ffi::bindings::get_current_task,
-    interrupt::{disable_interrupts, is_int_active, restore_interrupt_state},
+    interrupt::{disable_interrupts, is_interrupt_active, restore_interrupt_state},
     percpu::can_preempt,
     result::{SystemError, SystemResult},
     task::{
@@ -14,7 +14,7 @@ use crate::{
 /// 使当前任务延时指定的tick数
 pub fn task_delay(tick: u32) -> SystemResult<()> {
     // 检查是否在中断上下文
-    if is_int_active() {
+    if is_interrupt_active() {
         return Err(SystemError::Task(TaskError::DelayInInterrupt));
     }
 
@@ -58,7 +58,7 @@ pub fn task_delay(tick: u32) -> SystemResult<()> {
 /// 让当前任务让出CPU，允许同优先级的其他任务运行
 pub fn task_yield() -> SystemResult<()> {
     // 检查是否在中断上下文
-    if is_int_active() {
+    if is_interrupt_active() {
         return Err(SystemError::Task(TaskError::YieldInInterrupt));
     }
 

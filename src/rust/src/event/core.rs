@@ -14,7 +14,7 @@ use crate::utils::list::LinkedList;
 use super::error::EventError;
 use super::types::{EventCB, EventWaitMode};
 
-use crate::interrupt::is_int_active;
+use crate::interrupt::is_interrupt_active;
 use crate::println_debug;
 
 const EVENT_RESERVED_BIT_MASK: u32 = 0x0200_0000;
@@ -37,7 +37,7 @@ fn validate_event_params(event_mask: u32, mode: u32) -> SystemResult<()> {
 #[inline]
 fn validate_event_read_context() -> SystemResult<()> {
     // 检查是否在中断上下文中
-    if is_int_active() {
+    if is_interrupt_active() {
         return Err(SystemError::Event(EventError::ReadInInterrupt));
     }
 

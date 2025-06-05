@@ -9,7 +9,7 @@ pub enum QueueError {
     /// 队列最大消息尺寸过大
     SizeTooBig,
     /// 队列控制块不可用（超出系统队列数量上限）
-    CbUnavailable,
+    Unavailable,
     /// 队列未找到（无效的队列ID）
     NotFound,
     /// 在调度锁定状态下等待队列
@@ -82,7 +82,7 @@ impl From<QueueError> for u32 {
         match err {
             QueueError::CreateNoMemory => ERRNO_QUEUE_CREATE_NO_MEMORY,
             QueueError::SizeTooBig => ERRNO_QUEUE_SIZE_TOO_BIG,
-            QueueError::CbUnavailable => ERRNO_QUEUE_CB_UNAVAILABLE,
+            QueueError::Unavailable => ERRNO_QUEUE_CB_UNAVAILABLE,
             QueueError::NotFound => ERRNO_QUEUE_NOT_FOUND,
             QueueError::PendInLock => ERRNO_QUEUE_PEND_IN_LOCK,
             QueueError::Timeout => ERRNO_QUEUE_TIMEOUT,
@@ -114,7 +114,7 @@ impl TryFrom<u32> for QueueError {
         match errno {
             ERRNO_QUEUE_CREATE_NO_MEMORY => Ok(QueueError::CreateNoMemory),
             ERRNO_QUEUE_SIZE_TOO_BIG => Ok(QueueError::SizeTooBig),
-            ERRNO_QUEUE_CB_UNAVAILABLE => Ok(QueueError::CbUnavailable),
+            ERRNO_QUEUE_CB_UNAVAILABLE => Ok(QueueError::Unavailable),
             ERRNO_QUEUE_NOT_FOUND => Ok(QueueError::NotFound),
             ERRNO_QUEUE_PEND_IN_LOCK => Ok(QueueError::PendInLock),
             ERRNO_QUEUE_TIMEOUT => Ok(QueueError::Timeout),
@@ -145,7 +145,7 @@ impl core::fmt::Display for QueueError {
         let desc = match self {
             Self::CreateNoMemory => "Failed to allocate memory for queue creation",
             Self::SizeTooBig => "Message size is too big for queue",
-            Self::CbUnavailable => "No available queue control blocks",
+            Self::Unavailable => "No available queue control blocks",
             Self::NotFound => "Queue not found",
             Self::PendInLock => "Cannot wait on queue while task is locked",
             Self::Timeout => "Queue operation timed out",

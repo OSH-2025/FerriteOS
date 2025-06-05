@@ -27,3 +27,6 @@ pub const MUX_LIMIT: u32 = 1024;
 
 /// semaphore
 pub const SEM_LIMIT: u32 = 1024;
+
+/// queue
+pub const QUEUE_LIMIT: u32 = 1024;

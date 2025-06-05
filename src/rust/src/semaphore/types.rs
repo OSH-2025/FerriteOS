@@ -54,17 +54,17 @@ impl SemaphoreId {
     }
 
     /// 获取索引部分
-    pub fn get_index(self) -> u16 {
+    pub fn get_index(&self) -> u16 {
         (self.0 & ((1 << Self::SEM_SPLIT_BIT) - 1)) as u16
     }
 
     /// 获取计数部分
-    pub fn get_count(self) -> u16 {
+    pub fn get_count(&self) -> u16 {
         (self.0 >> Self::SEM_SPLIT_BIT) as u16
     }
 
     /// 创建下一个版本的ID（计数+1）
-    pub fn increment_count(self) -> Self {
+    pub fn increment_count(&self) -> Self {
         Self::new(self.get_count().wrapping_add(1), self.get_index())
     }
 }
@@ -199,6 +199,7 @@ impl SemaphoreControlBlock {
         self.get_id() == id
     }
 
+    #[inline]
     pub fn increment_id_counter(&mut self) {
         self.sem_id = self.sem_id.increment_count();
     }

@@ -1,7 +1,7 @@
 use crate::{
     config::WAIT_FOREVER,
     ffi::bindings::get_current_task,
-    interrupt::{disable_interrupts, is_int_active, restore_interrupt_state},
+    interrupt::{disable_interrupts, is_interrupt_active, restore_interrupt_state},
     percpu::can_preempt_in_scheduler,
     println_debug,
     result::SystemResult,
@@ -170,7 +170,7 @@ pub fn mutex_pend(id: MutexId, timeout: u32) -> SystemResult<()> {
         todo!("Implement mutex debug logging");
     }
 
-    if is_int_active() {
+    if is_interrupt_active() {
         return Err(MutexError::PendInterrupt.into());
     }
 
@@ -235,7 +235,7 @@ pub fn mutex_post(id: MutexId) -> SystemResult<()> {
         todo!("Implement mutex debug logging");
     }
 
-    if is_int_active() {
+    if is_interrupt_active() {
         return Err(MutexError::PendInterrupt.into());
     }
 

@@ -30,7 +30,7 @@ pub fn restore_interrupt_state(int_save: u32) {
 
 /// 检查当前是否处于中断上下文
 #[inline]
-pub fn is_int_active() -> bool {
+pub fn is_interrupt_active() -> bool {
     get_interrupt_nesting_count() != 0
 }
 

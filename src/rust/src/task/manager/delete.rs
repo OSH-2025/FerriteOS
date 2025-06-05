@@ -1,6 +1,6 @@
 use crate::{
     config::TASK_LIMIT,
-    interrupt::{disable_interrupts, is_int_active, restore_interrupt_state},
+    interrupt::{disable_interrupts, is_interrupt_active, restore_interrupt_state},
     mem::{defs::m_aucSysMem1, memory::los_mem_free, memstat::os_memstat_task_clear},
     percpu::can_preempt_in_scheduler,
     result::{SystemError, SystemResult},
@@ -76,7 +76,7 @@ fn can_delete_running_task(task_cb: &mut TaskCB) -> SystemResult<bool> {
         return Err(SystemError::Task(TaskError::DeleteLocked));
     }
     // 检查是否在中断上下文
-    if is_int_active() {
+    if is_interrupt_active() {
         task_cb.signal = TaskSignal::KILL;
         return Ok(false);
     }

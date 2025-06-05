@@ -7,7 +7,6 @@ use crate::{
         memory::{los_mem_alloc, los_mem_free},
     },
     percpu::os_percpu_get,
-    queue::{los_queue_create, los_queue_write_copy},
     task::{
         global::get_tcb_from_id,
         manager::create::task_create,
@@ -21,11 +20,11 @@ use crate::{
         },
     },
 };
+
 use core::mem::transmute;
 
 const KERNEL_SWTMR_LIMIT: u16 = 1024;
 const OS_SWTMR_MAX_TIMERID: u16 = (u16::MAX / KERNEL_SWTMR_LIMIT) * KERNEL_SWTMR_LIMIT;
-const LOS_WAIT_FOREVER: u32 = u32::MAX;
 const KERNEL_TSK_SWTMR_STACK_SIZE: u32 = 24576;
 const OS_SWTMR_HANDLE_QUEUE_SIZE: u16 = KERNEL_SWTMR_LIMIT;
 
@@ -171,8 +170,6 @@ fn os_swtmr_update(swtmr: &mut LosSwtmrCB) {
 
 #[cfg(not(feature = "software_timer_in_isr"))]
 fn os_swtmr_task() {
-    use crate::queue::los_queue_read_copy;
-
     // 读取大小设置为指针大小
     const READ_SIZE: u32 = core::mem::size_of::<*const SwtmrHandlerItem>() as u32;
 
@@ -183,16 +180,19 @@ fn os_swtmr_task() {
 
     // 无限循环处理软件定时器回调
     loop {
+        use core::u32;
+
         // 从队列中读取定时器处理项
-        let ret = los_queue_read_copy(
-            swtmr_handler_queue,
+        use crate::queue::operation::queue_read;
+        let ret = queue_read(
+            swtmr_handler_queue.into(),
             &mut swtmr_handler as *mut _ as *mut core::ffi::c_void,
             &mut read_size,
-            LOS_WAIT_FOREVER,
+            u32::MAX,
         );
 
         // 检查读取结果和读取大小
-        if ret == OK && read_size == READ_SIZE {
+        if ret.is_ok() && read_size == READ_SIZE {
             unsafe {
                 // 从处理项中提取处理函数和参数
                 let handler = (*swtmr_handler).handler;
@@ -278,14 +278,13 @@ pub extern "C" fn os_swtmr_init() -> u32 {
     #[cfg(not(feature = "software_timer_in_isr"))]
     {
         // 创建定时器处理队列
-        let ret = los_queue_create(
+        use crate::queue::management::create_queue;
+        match create_queue(
             OS_SWTMR_HANDLE_QUEUE_SIZE,
-            &mut os_percpu_get().swtmr_handler_queue,
             core::mem::size_of::<*mut SwtmrHandlerItem>() as u16,
-        );
-
-        if ret != OK {
-            return LOS_ERRNO_SWTMR_QUEUE_CREATE_FAILED;
+        ) {
+            Ok(queue) => os_percpu_get().swtmr_handler_queue = queue.into(),
+            Err(_) => return LOS_ERRNO_SWTMR_QUEUE_CREATE_FAILED,
         }
 
         // 创建定时器任务
@@ -357,17 +356,20 @@ pub fn swtmr_scan() {
                 ) as *mut SwtmrHandlerItem;
 
                 if !swtmr_handler.is_null() {
+                    use crate::queue::operation::queue_write;
+
                     // 设置处理项数据
                     (*swtmr_handler).handler = swtmr.handler;
                     (*swtmr_handler).arg = swtmr.arg;
 
                     // 写入队列
-                    if los_queue_write_copy(
-                        os_percpu_get().swtmr_handler_queue,
+                    if queue_write(
+                        os_percpu_get().swtmr_handler_queue.into(),
                         &swtmr_handler as *const _ as *const core::ffi::c_void,
                         core::mem::size_of::<*const SwtmrHandlerItem>() as u32,
                         0,
-                    ) != OK
+                    )
+                    .is_err()
                     {
                         // 写入失败，释放内存
                         los_mem_free(
