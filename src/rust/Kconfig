@@ -1,7 +1,7 @@
 menu "Rust"
 config LOSCFG_ENABLE_RUST
     bool "Enable Rust"
-    default n
+    default y
     help
         Enable the use of Rust in LiteOS.
 endmenu

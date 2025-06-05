@@ -21,7 +21,7 @@ default = [
 	"backtrace",
 	"shell",
 	"software_timer",
-	"log-error",
+	"log-debug",
 	"mutex-waitmode-prio",
 	"queue-static-allocation",
 ]
@@ -40,7 +40,6 @@ shell = []
 shell_excinfo_dump = []
 exc_interaction = []
 
-# 日志级别features
 log-emergency = []
 log-common = []
 log-error = []
