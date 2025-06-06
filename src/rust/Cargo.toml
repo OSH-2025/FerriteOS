@@ -2,35 +2,75 @@
 name = "rust"
 version = "0.1.0"
 edition = "2024"
-build = "build.rs"  # 添加构建脚本
 
 [dependencies]
-panic-halt = "1.0.0"
+semihosting = { version = "0.1", features = ["stdio", "panic-handler"] }
+bitflags = { version = "2.9.1" }
+heapless = { version = "0.8" }
 
 [lib]
 crate-type = ["staticlib"]
 
 [features]
-default = ["LOSCFG_MEM_TASK_STAT", "LOSCFG_BASE_CORE_USE_MULTI_LIST", "compat_posix", "backtrace", "shell_excinfo_dump", "stack_protector",  "debug_semaphore", "shell_dmesg"]
-LOSCFG_MEM_TASK_STAT = []
-LOSCFG_BASE_CORE_USE_MULTI_LIST = []
-LOSCFG_BASE_CORE_USE_SINGLE_LIST = []
-kernel_trace = []
-perf = []
-compat_posix = []
-kernel_smp = []
+default = [
+	"memory_task_statistics",
+	"time_slice",
+	"task_static_allocation",
+	"ipc_event",
+	"task_monitor",
+	"backtrace",
+	"shell",
+	"software_timer",
+	"log-error",
+	"mutex-waitmode-prio",
+	"queue-static-allocation",
+
+	"mem_leakcheck",
+	"base_core_swtmr",
+	"base_ipc_sem",
+	"base_ipc_mux",
+	"base_ipc_queue",
+	"mem_task_stat",
+	"base_ipc_event"
+]
+software_timer = []
+software_timer_in_isr = []
+time_slice = []
+task_monitor = []
+ipc_event = []
 backtrace = []
+
+compat_posix = []
+debug_sched_statistics = []
+memory_task_statistics = []
+task_static_allocation = []
 shell = []
 shell_excinfo_dump = []
 exc_interaction = []
-stack_protector = []
-lib_configurable = []
-kernel_lms = []
-debug_semaphore = []
-debug_mutex = []
-debug_queue = []
-shell_dmesg = []
+
+# 日志级别features
+log-emergency = []
+log-common = []
+log-error = []
+log-warning = []
+log-info = []
+log-debug = []
+
+debug-mutex = []
+debug-mutex-deadlock = []
+debug-semaphore = []
+debug-queue = []
+
+mutex-waitmode-prio = []
+mutex-waitmode-fifo = []
+
+queue-static-allocation = []
 
 
-[build-dependencies]
-cc = "1.0"  # 用于编译C代码
+mem_leakcheck = []
+base_core_swtmr = []
+base_ipc_sem = []
+base_ipc_mux = []
+base_ipc_queue = []
+mem_task_stat = []
+base_ipc_event = []
