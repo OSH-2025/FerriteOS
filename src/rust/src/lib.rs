@@ -14,6 +14,7 @@ mod percpu;
 mod queue;
 mod result;
 mod semaphore;
+mod shellcmd;
 mod stack;
 mod swtmr;
 mod task;
