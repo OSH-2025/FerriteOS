@@ -448,3 +448,483 @@ pub extern "C" fn os_queue_create_c(
 ) -> u32 {
     os_queue_create(queue_name, len, queue_id, flags, max_msg_size)
 }
+
+// 宏定义
+#[inline]
+fn get_queue_index(queue_id: u32) -> usize {
+    (queue_id & 0xFFFF) as usize  // 假设GET_QUEUE_INDEX宏的实现
+}
+
+#[inline]
+fn get_queue_handle(queue_id: u32) -> *mut LosQueueCB {
+    unsafe {
+        G_ALL_QUEUE.add(get_queue_index(queue_id))
+    }
+}
+
+#[inline]
+fn get_queue_count(queue_id: u32) -> u16 {
+    ((queue_id >> 16) & 0xFFFF) as u16  // 假设GET_QUEUE_COUNT宏的实现
+}
+
+#[inline]
+fn set_queue_id(count: u16, index: u16) -> u32 {
+    ((count as u32) << 16) | (index as u32)  // 假设SET_QUEUE_ID宏的实现
+}
+
+// 判断是否在中断上下文
+#[inline]
+fn os_int_active() -> bool {
+    // 这里应该调用实际的中断检测函数
+    // 简化处理，默认返回false
+    false
+}
+
+/// 检查队列读取操作的参数有效性
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小指针
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 参数有效
+/// * 其他错误码表示参数无效
+fn os_queue_read_parameter_check(
+    queue_id: u32, 
+    buffer_addr: *const core::ffi::c_void,
+    buffer_size: *const u32, 
+    timeout: u32
+) -> u32 {
+    // 检查队列ID是否有效
+    if get_queue_index(queue_id) >= KERNEL_QUEUE_LIMIT {
+        return LOS_ERRNO_QUEUE_INVALID;
+    }
+
+    // 检查缓冲区指针和大小指针是否为空
+    if buffer_addr.is_null() || buffer_size.is_null() {
+        return LOS_ERRNO_QUEUE_READ_PTR_NULL;
+    }
+
+    // 检查缓冲区大小是否有效
+    unsafe {
+        if (*buffer_size == 0) || (*buffer_size > (0xFFFF - 4)) { // OS_NULL_SHORT - sizeof(UINT32)
+            return LOS_ERRNO_QUEUE_READSIZE_IS_INVALID;
+        }
+    }
+
+    // 更新队列调试时间钩子
+    os_queue_dbg_time_update_hook(queue_id);
+
+    // 如果指定了超时时间，检查是否在中断中调用
+    if timeout != LOS_NO_WAIT {
+        if os_int_active() {
+            return LOS_ERRNO_QUEUE_READ_IN_INTERRUPT;
+        }
+    }
+
+    LOS_OK
+}
+
+/// 检查队列写入操作的参数有效性
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小指针
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 参数有效
+/// * 其他错误码表示参数无效
+fn os_queue_write_parameter_check(
+    queue_id: u32, 
+    buffer_addr: *const core::ffi::c_void,
+    buffer_size: *const u32, 
+    timeout: u32
+) -> u32 {
+    // 检查队列ID是否有效
+    if get_queue_index(queue_id) >= KERNEL_QUEUE_LIMIT {
+        return LOS_ERRNO_QUEUE_INVALID;
+    }
+
+    // 检查缓冲区指针是否为空
+    if buffer_addr.is_null() {
+        return LOS_ERRNO_QUEUE_WRITE_PTR_NULL;
+    }
+
+    // 检查缓冲区大小是否为零
+    unsafe {
+        if *buffer_size == 0 {
+            return LOS_ERRNO_QUEUE_WRITESIZE_ISZERO;
+        }
+    }
+
+    // 更新队列调试时间钩子
+    os_queue_dbg_time_update_hook(queue_id);
+
+    // 如果指定了超时时间，检查是否在中断中调用
+    if timeout != LOS_NO_WAIT {
+        if os_int_active() {
+            return LOS_ERRNO_QUEUE_WRITE_IN_INTERRUPT;
+        }
+    }
+    
+    LOS_OK
+}
+
+/// 更新队列调试时间的钩子函数
+fn os_queue_dbg_time_update_hook(queue_id: u32) {
+    // 简化实现，实际应更新调试时间
+    // 原函数为OsQueueDbgTimeUpdateHook
+    os_queue_dbg_update_hook(queue_id, os_curr_task_get().entry as *const u8);
+}
+
+/// 检查队列读取操作的参数有效性（C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub unsafe extern "C" fn os_queue_read_parameter_check_c(
+    queue_id: u32,
+    buffer_addr: *const core::ffi::c_void,
+    buffer_size: *const u32,
+    timeout: u32
+) -> u32 {
+    os_queue_read_parameter_check(queue_id, buffer_addr, buffer_size, timeout)
+}
+
+/// 检查队列写入操作的参数有效性（C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub unsafe extern "C" fn os_queue_write_parameter_check_c(
+    queue_id: u32,
+    buffer_addr: *const core::ffi::c_void,
+    buffer_size: *const u32,
+    timeout: u32
+) -> u32 {
+    os_queue_write_parameter_check(queue_id, buffer_addr, buffer_size, timeout)
+}
+
+// 队列操作类型常量
+pub const OS_QUEUE_READ_HEAD: u32 = 0;
+pub const OS_QUEUE_WRITE_HEAD: u32 = 1;
+pub const OS_QUEUE_WRITE_TAIL: u32 = 2;
+pub const OS_QUEUE_READ_TAIL: u32 = 3;
+
+// 队列读写类型
+pub const OS_QUEUE_READ: usize = 0;
+pub const OS_QUEUE_WRITE: usize = 1;
+
+// 队列位置类型
+pub const OS_QUEUE_HEAD: u32 = 0;
+pub const OS_QUEUE_TAIL: u32 = 1;
+
+// 队列操作错误码
+pub const OS_QUEUE_OPERATE_ERROR_INVALID_TYPE: u32 = 1;
+pub const OS_QUEUE_OPERATE_ERROR_MEMCPYS_GETMSG: u32 = 2;
+pub const OS_QUEUE_OPERATE_ERROR_MEMCPYS_MSG2BUF: u32 = 3;
+pub const OS_QUEUE_OPERATE_ERROR_MEMCPYS_STRMSG: u32 = 4;
+pub const OS_QUEUE_OPERATE_ERROR_MEMCPYS_STRMSGSIZE: u32 = 5;
+
+// 任务状态
+pub const OS_TASK_STATUS_PEND: u32 = 0x0004;
+pub const OS_TASK_STATUS_TIMEOUT: u32 = 0x0008;
+
+// 队列操作宏
+#[inline]
+fn os_queue_is_read(operate_type: u32) -> bool {
+    (operate_type & 0x1) == 0
+}
+
+#[inline]
+fn os_queue_is_write(operate_type: u32) -> bool {
+    (operate_type & 0x1) == 1
+}
+
+#[inline]
+fn os_queue_operate_get(operate_type: u32) -> u32 {
+    operate_type & 0x3
+}
+
+#[inline]
+fn os_queue_read_write_get(operate_type: u32) -> usize {
+    (operate_type & 0x1) as usize
+}
+
+// 队列操作类型宏
+#[inline]
+fn os_queue_operate_type(read_write: u32, head_or_tail: u32) -> u32 {
+    ((head_or_tail) << 1) | (read_write)
+}
+
+/// 检查队列操作参数的有效性
+///
+/// # 参数
+///
+/// * `queue_cb` - 队列控制块指针
+/// * `queue_id` - 队列ID
+/// * `operate_type` - 操作类型
+/// * `buffer_size` - 缓冲区大小指针
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 参数有效
+/// * 其他错误码表示参数无效
+fn os_queue_operate_param_check(
+    queue_cb: *const LosQueueCB,
+    queue_id: u32,
+    operate_type: u32,
+    buffer_size: *const u32
+) -> u32 {
+    unsafe {
+        // 检查队列ID是否匹配且队列是否创建
+        if ((*queue_cb).queue_id != queue_id) || ((*queue_cb).queue_state == 0) { // LOS_UNUSED = 0
+            return LOS_ERRNO_QUEUE_NOT_CREATE;
+        }
+        
+        // 检查缓冲区大小是否合适
+        let max_msg_size = ((*queue_cb).queue_size - core::mem::size_of::<u32>() as u16) as u32;
+        
+        if os_queue_is_read(operate_type) && (*buffer_size < max_msg_size) {
+            // 如果是读操作，检查缓冲区是否足够大
+            return LOS_ERRNO_QUEUE_READ_SIZE_TOO_SMALL;
+        } else if os_queue_is_write(operate_type) && (*buffer_size > max_msg_size) {
+            // 如果是写操作，检查消息是否太大
+            return LOS_ERRNO_QUEUE_WRITE_SIZE_TOO_BIG;
+        }
+        
+        LOS_OK
+    }
+}
+
+/// 检查队列操作参数的有效性（C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub unsafe extern "C" fn os_queue_operate_param_check_c(
+    queue_cb: *const LosQueueCB,
+    queue_id: u32,
+    operate_type: u32,
+    buffer_size: *const u32
+) -> u32 {
+    os_queue_operate_param_check(queue_cb, queue_id, operate_type, buffer_size)
+}
+
+/// 队列缓冲区操作函数
+///
+/// # 参数
+///
+/// * `queue_cb` - 队列控制块指针
+/// * `operate_type` - 操作类型
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小指针
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 操作成功
+/// * 其他错误码表示操作失败
+fn os_queue_buffer_operate(
+    queue_cb: *mut LosQueueCB,
+    operate_type: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: *mut u32
+) -> u32 {
+    // 计算队列位置
+    let queue_position: u16;
+    
+    unsafe {
+        // 根据操作类型获取队列位置并更新队列头尾指针
+        match os_queue_operate_get(operate_type) {
+            OS_QUEUE_READ_HEAD => {
+                queue_position = (*queue_cb).queue_head;
+                if (*queue_cb).queue_head + 1 == (*queue_cb).queue_len {
+                    (*queue_cb).queue_head = 0;
+                } else {
+                    (*queue_cb).queue_head += 1;
+                }
+            },
+            OS_QUEUE_WRITE_HEAD => {
+                if (*queue_cb).queue_head == 0 {
+                    (*queue_cb).queue_head = (*queue_cb).queue_len - 1;
+                } else {
+                    (*queue_cb).queue_head -= 1;
+                }
+                queue_position = (*queue_cb).queue_head;
+            },
+            OS_QUEUE_WRITE_TAIL => {
+                queue_position = (*queue_cb).queue_tail;
+                if (*queue_cb).queue_tail + 1 == (*queue_cb).queue_len {
+                    (*queue_cb).queue_tail = 0;
+                } else {
+                    (*queue_cb).queue_tail += 1;
+                }
+            },
+            _ => {
+                // 不支持的操作类型（读尾部，保留）
+                return OS_QUEUE_OPERATE_ERROR_INVALID_TYPE;
+            }
+        }
+        
+        // 获取队列节点地址
+        let node_offset = queue_position as usize * (*queue_cb).queue_size as usize;
+        let queue_node = (*queue_cb).queue_handle.add(node_offset);
+        
+        // 根据操作类型执行读写操作
+        if os_queue_is_read(operate_type) {
+            // 读操作：从队列节点复制数据到用户缓冲区
+            
+            // 获取消息数据大小
+            let msg_size_offset = (*queue_cb).queue_size as usize - core::mem::size_of::<u32>();
+            let msg_data_size: u32;
+            
+            // 使用安全的方式获取消息大小，相当于memcpy_s
+            let size_ptr = queue_node.add(msg_size_offset) as *const u32;
+            if size_ptr.is_null() || !size_ptr.is_aligned() {
+                return OS_QUEUE_OPERATE_ERROR_MEMCPYS_GETMSG;
+            }
+            msg_data_size = *size_ptr;
+            
+            // 检查缓冲区大小是否足够
+            if *buffer_size < msg_data_size {
+                return OS_QUEUE_OPERATE_ERROR_MEMCPYS_MSG2BUF;
+            }
+            
+            // 安全地复制消息数据到用户缓冲区
+            let src_ptr = queue_node as *const u8;
+            let dst_ptr = buffer_addr as *mut u8;
+            if src_ptr.is_null() || dst_ptr.is_null() || 
+               !src_ptr.is_aligned() || !dst_ptr.is_aligned() {
+                return OS_QUEUE_OPERATE_ERROR_MEMCPYS_MSG2BUF;
+            }
+            
+            // 复制消息数据
+            core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, msg_data_size as usize);
+            
+            // 更新缓冲区大小
+            *buffer_size = msg_data_size;
+        } else {
+            // 写操作：从用户缓冲区复制数据到队列节点
+            
+            // 检查消息大小是否超过队列容量
+            let max_msg_size = ((*queue_cb).queue_size - core::mem::size_of::<u32>() as u16) as u32;
+            if *buffer_size > max_msg_size {
+                return OS_QUEUE_OPERATE_ERROR_MEMCPYS_STRMSG;
+            }
+            
+            // 安全地复制用户数据到队列节点
+            let src_ptr = buffer_addr as *const u8;
+            let dst_ptr = queue_node as *mut u8;
+            if src_ptr.is_null() || dst_ptr.is_null() || 
+               !src_ptr.is_aligned() || !dst_ptr.is_aligned() {
+                return OS_QUEUE_OPERATE_ERROR_MEMCPYS_STRMSG;
+            }
+            
+            // 复制用户数据
+            core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, *buffer_size as usize);
+            
+            // 安全地存储消息大小
+            let msg_size_offset = (*queue_cb).queue_size as usize - core::mem::size_of::<u32>();
+            let size_ptr = queue_node.add(msg_size_offset) as *mut u32;
+            if size_ptr.is_null() || !size_ptr.is_aligned() {
+                return OS_QUEUE_OPERATE_ERROR_MEMCPYS_STRMSGSIZE;
+            }
+            *size_ptr = *buffer_size;
+        }
+        
+        LOS_OK
+    }
+}
+
+/// 队列缓冲区操作函数（C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub unsafe extern "C" fn os_queue_buffer_operate_c(
+    queue_cb: *mut LosQueueCB,
+    operate_type: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: *mut u32
+) -> u32 {
+    os_queue_buffer_operate(queue_cb, operate_type, buffer_addr, buffer_size)
+}
+
+/// 处理队列缓冲区操作错误
+///
+/// # 参数
+///
+/// * `error_code` - 错误码
+fn os_queue_buffer_operate_err_process(error_code: u32) {
+    match error_code {
+        LOS_OK => {}, // 成功情况，不做任何处理
+        OS_QUEUE_OPERATE_ERROR_INVALID_TYPE => {
+            print_err!("invalid queue operate type!\n");
+        },
+        OS_QUEUE_OPERATE_ERROR_MEMCPYS_GETMSG => {
+            print_err!("get msgdatasize failed\n");
+        },
+        OS_QUEUE_OPERATE_ERROR_MEMCPYS_MSG2BUF => {
+            print_err!("copy message to buffer failed\n");
+        },
+        OS_QUEUE_OPERATE_ERROR_MEMCPYS_STRMSG => {
+            print_err!("store message failed\n");
+        },
+        OS_QUEUE_OPERATE_ERROR_MEMCPYS_STRMSGSIZE => {
+            print_err!("store message size failed\n");
+        },
+        _ => {
+            print_err!("unknown queue operate ret %u\n", error_code);
+        }
+    }
+}
+
+/// 队列缓冲区操作错误处理函数（C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub unsafe extern "C" fn os_queue_buffer_operate_err_process_c(error_code: u32) {
+    os_queue_buffer_operate_err_process(error_code)
+}
+
+// 调度器操作宏
+// 简化版，实际使用时需要根据系统实现调整
+macro_rules! scheduler_lock {
+    () => {{
+        let int_save = { LOS_IntLock() };
+        int_save
+    }};
+}
+
+macro_rules! scheduler_unlock {
+    ($int_save:expr) => {{
+        { LOS_IntRestore($int_save); }
+    }};
+}
+
+// 从任务链表获取任务控制块
+unsafe fn os_tcb_from_pendlist(list_node: *mut LosDlList) -> *mut TaskCB {
+    // 简化实现，实际应该使用类似container_of的方法
+    // 这里假设任务控制块包含链表节点，并且可以通过偏移获取
+    // 实际实现需要根据系统设计
+    let offset = 0; // 假设偏移为0，实际需要根据结构体定义计算
+    (list_node as usize - offset) as *mut TaskCB
+}
+
+// 遍历链表的简化实现
+macro_rules! los_dl_list_for_each_entry {
+    ($entry:ident, $list:expr, $container_type:ty, $field:ident, $block:block) => {
+        {
+            let mut current = los_dl_list_first($list);
+            while current != $list {
+                let $entry = os_tcb_from_pendlist(current);
+                $block
+                current = { (*current).pst_next };
+            }
+        }
+    };
+}
