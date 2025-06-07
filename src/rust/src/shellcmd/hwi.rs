@@ -48,7 +48,7 @@ pub fn cmd_hwi(argc: i32, _argv: *const *const u8) -> u32 {
         }
 
         // 获取中断表单 - 不同的核心有不同的中断表单实现
-        let hwi_form = unsafe { os_get_hwi_form(i) };
+        let hwi_form = os_get_hwi_form(i);
         if !hwi_form.is_null() {
             // 获取中断响应计数
             let count = os_get_hwi_form_cnt(i);
@@ -72,9 +72,10 @@ pub unsafe extern "C" fn rust_hwi_cmd(argc: i32, argv: *const *const u8) -> u32 
 }
 
 // 注册hwi命令
+#[unsafe(no_mangle)]  // 防止编译器修改符号名
 #[used]
-#[unsafe(link_section = ".shell.cmds")]
-pub static HWI_SHELL_CMD: ShellCmd = ShellCmd {
+#[unsafe(link_section = ".liteos.table.shellcmd.data")]
+pub static hwi_shellcmd: ShellCmd = ShellCmd {
     cmd_type: CmdType::Ex,
     cmd_key: b"hwi\0".as_ptr() as *const c_char,
     para_num: 0,

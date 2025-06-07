@@ -41,6 +41,12 @@ const LOSCFG_BASE_IPC_QUEUE_LIMIT: u32 = 1024;
 #[cfg(feature = "base_core_swtmr")]
 const LOSCFG_BASE_CORE_SWTMR_LIMIT: u32 = 1024; 
 
+#[cfg(feature = "base_ipc_sem")]
+const SEM_SPLIT_BIT: u32 = 16;
+
+#[cfg(feature = "base_ipc_mux")]
+const MUX_SPLIT_BIT: u32 = 16;
+
 // 状态常量
 const OS_TASK_STATUS_UNUSED: TaskStatus = TaskStatus::UNUSED;
 const OS_SWTMR_STATUS_UNUSED: u8 = 0;
@@ -55,7 +61,7 @@ pub fn os_shell_cmd_task_cnt_get() -> u32 {
         
         // 遍历任务控制块数组
         for loop_idx in 0..KERNEL_TSK_LIMIT {
-            let task_cb = (g_task_cb_array as *mut TaskCB).offset(loop_idx as isize);
+            let task_cb = (g_taskCBArray as *mut TaskCB).offset(loop_idx as isize);
             if (*task_cb).task_status != OS_TASK_STATUS_UNUSED {
                 continue;
             }
@@ -67,6 +73,18 @@ pub fn os_shell_cmd_task_cnt_get() -> u32 {
     }
     
     task_cnt
+}
+
+#[cfg(feature = "base_ipc_sem")]
+#[inline]
+unsafe fn get_sem_index(sem_id: u32) -> u32 {
+    sem_id & ((1u32 << SEM_SPLIT_BIT) - 1)
+}
+
+#[cfg(feature = "base_ipc_sem")]
+#[inline]
+unsafe fn get_sem(sem_id: u32) -> *mut LosSemCB {
+    g_allSem.offset(get_sem_index(sem_id) as isize)
 }
 
 /// 获取信号量数量
@@ -91,6 +109,18 @@ pub fn os_shell_cmd_sem_cnt_get() -> u32 {
     }
     
     sem_cnt
+}
+
+#[cfg(feature = "base_ipc_mux")]
+#[inline]
+unsafe fn get_mux_index(mux_id: u32) -> u32 {
+    mux_id & ((1u32 << MUX_SPLIT_BIT) - 1)
+}
+
+#[cfg(feature = "base_ipc_mux")]
+#[inline]
+unsafe fn get_mux(mux_id: u32) -> *mut LosMuxCB {
+    g_allMux.offset(get_mux_index(mux_id) as isize)
 }
 
 /// 获取互斥锁数量
@@ -128,7 +158,7 @@ pub fn os_shell_cmd_queue_cnt_get() -> u32 {
         let int_save = los_int_lock();
         
         // 遍历队列控制块
-        let mut queue_cb = g_all_queue;
+        let mut queue_cb = g_allQueue;
         for _ in 0..LOSCFG_BASE_IPC_QUEUE_LIMIT {
 
             if (*queue_cb).queue_state == QueueState::Used {
@@ -154,7 +184,7 @@ pub fn os_shell_cmd_swtmr_cnt_get() -> u32 {
         let int_save = los_int_lock();
         
         // 遍历软件定时器控制块
-        let mut swtmr_cb = g_swtmr_cb_array;
+        let mut swtmr_cb = g_swtmrCBArray;
         for _ in 0..LOSCFG_BASE_CORE_SWTMR_LIMIT {
             if (*swtmr_cb).state != OS_SWTMR_STATUS_UNUSED {
                 swtmr_cnt += 1;
@@ -235,9 +265,10 @@ pub unsafe extern "C" fn rust_systeminfo_cmd(argc: i32, argv: *const *const u8) 
 
 
 // 注册systeminfo命令
+#[unsafe(no_mangle)]  // 防止编译器修改符号名
 #[used]
-#[unsafe(link_section = ".shell.cmds")]
-pub static SYSTEMINFO_SHELL_CMD: ShellCmd = ShellCmd {
+#[unsafe(link_section = ".liteos.table.shellcmd.data")]
+pub static systeminfo_shellcmd: ShellCmd = ShellCmd {
     cmd_type: CmdType::Ex,
     cmd_key: b"systeminfo\0".as_ptr() as *const c_char,
     para_num: 1,
@@ -246,17 +277,17 @@ pub static SYSTEMINFO_SHELL_CMD: ShellCmd = ShellCmd {
 
 // 外部符号引用
 unsafe extern "C" {
-    static g_task_cb_array: *const TaskCB;
+    static g_taskCBArray: *const TaskCB;
     
     #[cfg(feature = "base_ipc_sem")]
-    fn get_sem(sem_id: u32) -> *mut LosSemCB;
+    static mut g_allSem: *mut LosSemCB;
     
     #[cfg(feature = "base_ipc_mux")]
-    fn get_mux(mux_id: u32) -> *mut LosMuxCB;
+    static mut g_allMux: *mut LosMuxCB;
     
     #[cfg(feature = "base_ipc_queue")]
-    static g_all_queue: *mut LosQueueCB;
+    static g_allQueue: *mut LosQueueCB;
     
     #[cfg(feature = "base_core_swtmr")]
-    static g_swtmr_cb_array: *mut LosSwtmrCB;
+    static g_swtmrCBArray: *mut LosSwtmrCB;
 }
