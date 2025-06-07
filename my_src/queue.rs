@@ -1337,3 +1337,191 @@ pub extern "C" fn os_queue_write_head_c(
 ) -> u32 {
     los_queue_write_head(queue_id, buffer_addr, _buffer_size, timeout)
 }
+
+/// 删除一个队列
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 删除成功
+/// * 其他错误码表示删除失败
+pub fn los_queue_delete(queue_id: u32) -> u32 {
+    // 检查队列ID是否有效
+    if get_queue_index(queue_id) >= KERNEL_QUEUE_LIMIT {
+        return LOS_ERRNO_QUEUE_NOT_FOUND;
+    }
+    
+    // 获取队列控制块
+    let queue_cb = get_queue_handle(queue_id);
+    
+    // 记录队列操作的跟踪信息（简化实现）
+    // los_trace(QUEUE_DELETE, queue_id, ...);
+    
+    unsafe {
+        // 锁定调度器
+        let int_save = scheduler_lock!();
+        let mut ret = LOS_OK;
+        
+        // 检查队列是否存在
+        if ((*queue_cb).queue_id != queue_id) || ((*queue_cb).queue_state == 0) { // LOS_UNUSED = 0
+            ret = LOS_ERRNO_QUEUE_NOT_CREATE;
+            scheduler_unlock!(int_save);
+            return ret;
+        }
+        
+        // 检查队列是否被任务使用（读列表）
+        if !los_list_empty(&mut (*queue_cb).read_write_list[OS_QUEUE_READ] as *mut _) {
+            ret = LOS_ERRNO_QUEUE_IN_TSKUSE;
+            scheduler_unlock!(int_save);
+            return ret;
+        }
+        
+        // 检查队列是否被任务使用（写列表）
+        if !los_list_empty(&mut (*queue_cb).read_write_list[OS_QUEUE_WRITE] as *mut _) {
+            ret = LOS_ERRNO_QUEUE_IN_TSKUSE;
+            scheduler_unlock!(int_save);
+            return ret;
+        }
+        
+        // 检查队列是否被任务使用（内存列表）
+        if !los_list_empty(&mut (*queue_cb).mem_list as *mut _) {
+            ret = LOS_ERRNO_QUEUE_IN_TSKUSE;
+            scheduler_unlock!(int_save);
+            return ret;
+        }
+        
+        // 检查队列是否有消息正在处理
+        if ((*queue_cb).readable_writable_cnt[OS_QUEUE_WRITE] + (*queue_cb).readable_writable_cnt[OS_QUEUE_READ]) != (*queue_cb).queue_len {
+            ret = LOS_ERRNO_QUEUE_IN_TSKWRITE;
+            scheduler_unlock!(int_save);
+            return ret;
+        }
+        
+        // 获取队列句柄并清除队列控制块状态
+        let queue = (*queue_cb).queue_handle;
+        (*queue_cb).queue_handle = core::ptr::null_mut();
+        (*queue_cb).queue_state = 0; // LOS_UNUSED = 0
+        
+        // 更新队列ID（递增计数器部分）
+        let queue_index = get_queue_index((*queue_cb).queue_id) as u16;
+        let queue_count = get_queue_count((*queue_cb).queue_id);
+        (*queue_cb).queue_id = set_queue_id(queue_count + 1, queue_index);
+        
+        // 更新调试钩子
+        os_queue_dbg_update_hook((*queue_cb).queue_id, core::ptr::null());
+        
+        // 将队列控制块添加到空闲队列列表
+        los_list_tail_insert(&mut G_FREE_QUEUE_LIST as *mut _, 
+                             &mut (*queue_cb).read_write_list[OS_QUEUE_WRITE] as *mut _);
+        
+        // 解锁调度器
+        scheduler_unlock!(int_save);
+        
+        // 如果是动态分配的队列，释放内存
+        if (*queue_cb).queue_mem_type == OS_QUEUE_ALLOC_DYNAMIC {
+            ret = LOS_MemFree(m_aucSysMem1, queue as *mut core::ffi::c_void);
+        }
+        
+        ret
+    }
+}
+
+/// 删除一个队列（C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn los_queue_delete_c(queue_id: u32) -> u32 {
+    los_queue_delete(queue_id)
+}
+
+/// 获取队列信息
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `queue_info` - 队列信息结构体指针
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 获取成功
+/// * 其他错误码表示获取失败
+pub fn los_queue_info_get(queue_id: u32, queue_info: *mut QueueInfoS) -> u32 {
+    // 检查队列信息指针是否为空
+    if queue_info.is_null() {
+        return LOS_ERRNO_QUEUE_PTR_NULL;
+    }
+    
+    // 检查队列ID是否有效
+    if get_queue_index(queue_id) >= KERNEL_QUEUE_LIMIT {
+        return LOS_ERRNO_QUEUE_INVALID;
+    }
+    
+    // 清空队列信息结构体
+    unsafe {
+        *queue_info = QueueInfoS {
+            uw_queue_id: 0,
+            us_queue_len: 0,
+            us_queue_size: 0,
+            us_queue_head: 0,
+            us_queue_tail: 0,
+            us_readable_cnt: 0,
+            us_writable_cnt: 0,
+            uw_wait_read_task: 0,
+            uw_wait_write_task: 0,
+            uw_wait_mem_task: 0,
+        };
+        
+        // 锁定调度器
+        let int_save = scheduler_lock!();
+        let mut ret = LOS_OK;
+        
+        // 获取队列控制块
+        let queue_cb = get_queue_handle(queue_id);
+        
+        // 检查队列是否存在
+        if ((*queue_cb).queue_id != queue_id) || ((*queue_cb).queue_state == 0) { // LOS_UNUSED = 0
+            ret = LOS_ERRNO_QUEUE_NOT_CREATE;
+            scheduler_unlock!(int_save);
+            return ret;
+        }
+        
+        // 填充队列信息
+        (*queue_info).uw_queue_id = queue_id;
+        (*queue_info).us_queue_len = (*queue_cb).queue_len;
+        (*queue_info).us_queue_size = (*queue_cb).queue_size;
+        (*queue_info).us_queue_head = (*queue_cb).queue_head;
+        (*queue_info).us_queue_tail = (*queue_cb).queue_tail;
+        (*queue_info).us_readable_cnt = (*queue_cb).readable_writable_cnt[OS_QUEUE_READ];
+        (*queue_info).us_writable_cnt = (*queue_cb).readable_writable_cnt[OS_QUEUE_WRITE];
+        
+        // 获取等待读取的任务
+        los_dl_list_for_each_entry!(task_cb, &mut (*queue_cb).read_write_list[OS_QUEUE_READ] as *mut _, TaskCB, pendList, {
+            (*queue_info).uw_wait_read_task |= 1u64 << (*task_cb).task_status;
+        });
+        
+        // 获取等待写入的任务
+        los_dl_list_for_each_entry!(task_cb, &mut (*queue_cb).read_write_list[OS_QUEUE_WRITE] as *mut _, TaskCB, pendList, {
+            (*queue_info).uw_wait_write_task |= 1u64 << (*task_cb).task_status;
+        });
+        
+        // 获取等待内存的任务
+        los_dl_list_for_each_entry!(task_cb, &mut (*queue_cb).mem_list as *mut _, TaskCB, pendList, {
+            (*queue_info).uw_wait_mem_task |= 1u64 << (*task_cb).task_status;
+        });
+        
+        // 解锁调度器
+        scheduler_unlock!(int_save);
+        ret
+    }
+}
+
+/// 获取队列信息（C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn los_queue_info_get_c(queue_id: u32, queue_info: *mut QueueInfoS) -> u32 {
+    los_queue_info_get(queue_id, queue_info)
+}
