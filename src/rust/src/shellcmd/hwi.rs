@@ -53,12 +53,14 @@ pub fn cmd_hwi(argc: i32, _argv: *const *const u8) -> u32 {
             // 获取中断响应计数
             let count = os_get_hwi_form_cnt(i);
 
-            // 打印中断信息
+            // 打印中断信息，确保格式与表头一致，并添加换行符
             print_common!(
-                "{:<8}\t  {}\t  {:<10}",
+                "{:<15}{:<10}{:<18}{:<16}{}\n",
                 i,
                 if get_hwi_share(hwi_form) { "Y" } else { "N" },
-                count
+                count,
+                "Unknown",  // 名称字段，如果没有实际数据可用
+                "N/A"       // 设备ID字段，如果没有实际数据可用
             );
         }
     }
