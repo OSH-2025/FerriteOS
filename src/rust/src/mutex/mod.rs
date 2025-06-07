@@ -218,382 +218,356 @@ macro_rules! OS_RETURN_ERROR {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn OsMuxInit() {
-    unsafe {
-        LOS_ListInit(&mut g_unusedMuxList);
+    LOS_ListInit(&mut g_unusedMuxList);
 
-        for index in 0..KERNEL_MUX_LIMIT {
-            let mux_node = &mut g_allMux[index];
-            mux_node.muxId = index as u32;
-            mux_node.owner = core::ptr::null_mut();
-            mux_node.muxStat = LOS_UNUSED;
-            LOS_ListTailInsert(&mut g_unusedMuxList, &mut mux_node.muxList);
-        }
-
-        #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
-        OsMuxDbgInit();
+    for index in 0..KERNEL_MUX_LIMIT {
+        let mux_node = &mut g_allMux[index];
+        mux_node.muxId = index as u32;
+        mux_node.owner = core::ptr::null_mut();
+        mux_node.muxStat = LOS_UNUSED;
+        LOS_ListTailInsert(&mut g_unusedMuxList, &mut mux_node.muxList);
     }
+
+    #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
+    OsMuxDbgInit();
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn LOS_MuxCreate(muxHandle: *mut u32) -> u32 {
-    unsafe {
-        if muxHandle.is_null() {
-            return LOS_ERRNO_MUX_PTR_NULL;
-        }
-
-        SCHEDULER_LOCK!(intSave);
-        
-        if LOS_ListEmpty(&g_unusedMuxList) {
-            SCHEDULER_UNLOCK!(intSave);
-            #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
-            OsMutexCheck();
-            return LOS_ERRNO_MUX_ALL_BUSY;
-        }
-
-        let unusedMux = LOS_DL_LIST_FIRST(&g_unusedMuxList);
-        LOS_ListDelete(unusedMux);
-        
-        // 使用 LOS_DL_LIST_ENTRY 宏等价的操作
-        let muxCreated = (unusedMux as *mut u8).sub(core::mem::offset_of!(LosMuxCB, muxList)) as *mut LosMuxCB;
-        
-        (*muxCreated).muxCount = 0;
-        (*muxCreated).muxStat = LOS_USED;
-        (*muxCreated).owner = core::ptr::null_mut();
-        LOS_ListInit(&mut (*muxCreated).muxList);
-        *muxHandle = (*muxCreated).muxId;
-
-        #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
-        OsMuxDbgUpdate((*muxCreated).muxId, (*OsCurrTaskGet()).taskEntry);
-
-        SCHEDULER_UNLOCK!(intSave);
-        return LOS_OK;
+    if muxHandle.is_null() {
+        return LOS_ERRNO_MUX_PTR_NULL;
     }
+
+    SCHEDULER_LOCK!(intSave);
+    
+    if LOS_ListEmpty(&g_unusedMuxList) {
+        SCHEDULER_UNLOCK!(intSave);
+        #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
+        OsMutexCheck();
+        return LOS_ERRNO_MUX_ALL_BUSY;
+    }
+
+    let unusedMux = LOS_DL_LIST_FIRST(&g_unusedMuxList);
+    LOS_ListDelete(unusedMux);
+    
+    // 使用 LOS_DL_LIST_ENTRY 宏等价的操作
+    let muxCreated = (unusedMux as *mut u8).sub(core::mem::offset_of!(LosMuxCB, muxList)) as *mut LosMuxCB;
+    
+    (*muxCreated).muxCount = 0;
+    (*muxCreated).muxStat = LOS_USED;
+    (*muxCreated).owner = core::ptr::null_mut();
+    LOS_ListInit(&mut (*muxCreated).muxList);
+    *muxHandle = (*muxCreated).muxId;
+
+    #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
+    OsMuxDbgUpdate((*muxCreated).muxId, (*OsCurrTaskGet()).taskEntry);
+
+    SCHEDULER_UNLOCK!(intSave);
+    return LOS_OK;
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn LOS_MuxDelete(muxHandle: u32) -> u32 {
-    unsafe {
-        if GET_MUX_INDEX!(muxHandle) >= KERNEL_MUX_LIMIT as u32 {
-            OS_GOTO_ERR_HANDLER!(LOS_ERRNO_MUX_INVALID);
-        }
-
-        let muxDeleted = GET_MUX!(muxHandle);
-
-        SCHEDULER_LOCK!(intSave);
-        
-        if (muxDeleted.muxId != muxHandle) || (muxDeleted.muxStat == LOS_UNUSED) {
-            SCHEDULER_UNLOCK!(intSave);
-            OS_GOTO_ERR_HANDLER!(LOS_ERRNO_MUX_INVALID);
-        }
-
-        if !LOS_ListEmpty(&muxDeleted.muxList) || muxDeleted.muxCount != 0 {
-            SCHEDULER_UNLOCK!(intSave);
-            OS_GOTO_ERR_HANDLER!(LOS_ERRNO_MUX_PENDED);
-        }
-
-        LOS_ListTailInsert(&mut g_unusedMuxList, &mut muxDeleted.muxList);
-        muxDeleted.muxStat = LOS_UNUSED;
-        muxDeleted.muxId = SET_MUX_ID!(
-            GET_MUX_COUNT!(muxDeleted.muxId) + 1,
-            GET_MUX_INDEX!(muxDeleted.muxId)
-        );
-
-        #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
-        OsMuxDbgUpdate(muxDeleted.muxId, None);
-
-        SCHEDULER_UNLOCK!(intSave);
-        return LOS_OK;
+    if GET_MUX_INDEX!(muxHandle) >= KERNEL_MUX_LIMIT as u32 {
+        OS_GOTO_ERR_HANDLER!(LOS_ERRNO_MUX_INVALID);
     }
+
+    let muxDeleted = GET_MUX!(muxHandle);
+
+    SCHEDULER_LOCK!(intSave);
+    
+    if (muxDeleted.muxId != muxHandle) || (muxDeleted.muxStat == LOS_UNUSED) {
+        SCHEDULER_UNLOCK!(intSave);
+        OS_GOTO_ERR_HANDLER!(LOS_ERRNO_MUX_INVALID);
+    }
+
+    if !LOS_ListEmpty(&muxDeleted.muxList) || muxDeleted.muxCount != 0 {
+        SCHEDULER_UNLOCK!(intSave);
+        OS_GOTO_ERR_HANDLER!(LOS_ERRNO_MUX_PENDED);
+    }
+
+    LOS_ListTailInsert(&mut g_unusedMuxList, &mut muxDeleted.muxList);
+    muxDeleted.muxStat = LOS_UNUSED;
+    muxDeleted.muxId = SET_MUX_ID!(
+        GET_MUX_COUNT!(muxDeleted.muxId) + 1,
+        GET_MUX_INDEX!(muxDeleted.muxId)
+    );
+
+    #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
+    OsMuxDbgUpdate(muxDeleted.muxId, None);
+
+    SCHEDULER_UNLOCK!(intSave);
+    return LOS_OK;
 }
 
 unsafe fn OsMuxParaCheck(muxCB: *const LosMuxCB, muxHandle: u32) -> u32 {
-    unsafe {
-        if ((*muxCB).muxStat == LOS_UNUSED) || ((*muxCB).muxId != muxHandle) {
-            OS_RETURN_ERROR!(LOS_ERRNO_MUX_INVALID);
-        }
-
-        #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
-        OsMuxDbgTimeUpdate((*muxCB).muxId);
-
-        if OS_INT_ACTIVE() {
-            return LOS_ERRNO_MUX_PEND_INTERR;
-        }
-        return LOS_OK;
+    if ((*muxCB).muxStat == LOS_UNUSED) || ((*muxCB).muxId != muxHandle) {
+        OS_RETURN_ERROR!(LOS_ERRNO_MUX_INVALID);
     }
+
+    #[cfg(feature = "LOSCFG_DEBUG_MUTEX")]
+    OsMuxDbgTimeUpdate((*muxCB).muxId);
+
+    if OS_INT_ACTIVE() {
+        return LOS_ERRNO_MUX_PEND_INTERR;
+    }
+    return LOS_OK;
 }
 
 unsafe fn OsMuxBitmapSet(runTask: *const LosTaskCB, muxPended: *const LosMuxCB) {
-    unsafe {
-        let owner = (*muxPended).owner;
-        if !owner.is_null() && (*owner).priority > (*runTask).priority {
-            LOS_BitmapSet(&mut (*owner).priBitMap, (*owner).priority);
-            OsTaskPriModify(owner, (*runTask).priority);
-        }
+    let owner = (*muxPended).owner;
+    if !owner.is_null() && (*owner).priority > (*runTask).priority {
+        LOS_BitmapSet(&mut (*owner).priBitMap, (*owner).priority);
+        OsTaskPriModify(owner, (*runTask).priority);
     }
 }
 
 unsafe fn OsMuxBitmapRestore(runTask: *const LosTaskCB, owner: *mut LosTaskCB) {
-    unsafe {
-        if owner.is_null() { return; }
-        
-        let bitMapPri: u16;
-        if (*owner).priority >= (*runTask).priority {
-            bitMapPri = LOS_LowBitGet((*owner).priBitMap);
-            if bitMapPri != LOS_INVALID_BIT_INDEX {
-                LOS_BitmapClr(&mut (*owner).priBitMap, bitMapPri);
-                OsTaskPriModify(owner, bitMapPri);
-            }
-        } else {
-            if LOS_HighBitGet((*owner).priBitMap) != (*runTask).priority {
-                LOS_BitmapClr(&mut (*owner).priBitMap, (*runTask).priority);
-            }
+    if owner.is_null() { return; }
+    
+    let bitMapPri: u16;
+    if (*owner).priority >= (*runTask).priority {
+        bitMapPri = LOS_LowBitGet((*owner).priBitMap);
+        if bitMapPri != LOS_INVALID_BIT_INDEX {
+            LOS_BitmapClr(&mut (*owner).priBitMap, bitMapPri);
+            OsTaskPriModify(owner, bitMapPri);
+        }
+    } else {
+        if LOS_HighBitGet((*owner).priBitMap) != (*runTask).priority {
+            LOS_BitmapClr(&mut (*owner).priBitMap, (*runTask).priority);
         }
     }
 }
 
 #[cfg(feature = "LOSCFG_MUTEX_WAITMODE_PRIO")]
 unsafe fn OsMuxPendFindPosSub(runTask: *const LosTaskCB, muxPended: *const LosMuxCB) -> *mut LOS_DL_LIST {
-    unsafe {
-        let mut node: *mut LOS_DL_LIST = core::ptr::null_mut();
+    let mut node: *mut LOS_DL_LIST = core::ptr::null_mut();
+    
+    // 使用 LOS_DL_LIST_FOR_EACH_ENTRY 宏的等价实现
+    let mut current = (*muxPended).muxList.pstNext;
+    while current != &(*muxPended).muxList as *const LOS_DL_LIST as *mut LOS_DL_LIST {
+        let pendedTask = OS_TCB_FROM_PENDLIST!(current);
         
-        // 使用 LOS_DL_LIST_FOR_EACH_ENTRY 宏的等价实现
-        let mut current = (*muxPended).muxList.pstNext;
-        while current != &(*muxPended).muxList as *const LOS_DL_LIST as *mut LOS_DL_LIST {
-            let pendedTask = OS_TCB_FROM_PENDLIST!(current);
-            
-            if (*pendedTask).priority < (*runTask).priority {
-                current = (*current).pstNext;
-                continue;
-            } else if (*pendedTask).priority >= (*runTask).priority {
-                node = &mut (*pendedTask).pendList;
-                break;
-            } else {
-                node = (*pendedTask).pendList.pstNext;
-                break;
-            }
+        if (*pendedTask).priority < (*runTask).priority {
+            current = (*current).pstNext;
+            continue;
+        } else if (*pendedTask).priority >= (*runTask).priority {
+            node = &mut (*pendedTask).pendList;
+            break;
+        } else {
+            node = (*pendedTask).pendList.pstNext;
+            break;
         }
-        
-        return node;
     }
+    
+    return node;
 }
 
 unsafe fn OsMuxPendFindPos(runTask: *const LosTaskCB, muxPended: *mut LosMuxCB) -> *mut LOS_DL_LIST {
-    unsafe {
-        let node: *mut LOS_DL_LIST;
-        
-        if LOS_ListEmpty(&(*muxPended).muxList) {
-            node = &mut (*muxPended).muxList;
-        } else {
-            #[cfg(feature = "LOSCFG_MUTEX_WAITMODE_PRIO")]
-            {
-                let pendedTask1 = OS_TCB_FROM_PENDLIST!(LOS_DL_LIST_FIRST(&(*muxPended).muxList));
-                let pendedTask2 = OS_TCB_FROM_PENDLIST!(LOS_DL_LIST_LAST(&(*muxPended).muxList));
-                    
-                if (*pendedTask1).priority > (*runTask).priority {
-                    node = (*muxPended).muxList.pstNext;
-                } else if (*pendedTask2).priority <= (*runTask).priority {
-                    node = &mut (*muxPended).muxList;
-                } else {
-                    node = OsMuxPendFindPosSub(runTask, muxPended);
-                }
-            }
-            #[cfg(not(feature = "LOSCFG_MUTEX_WAITMODE_PRIO"))]
-            {
-                node = &mut (*muxPended).muxList;
-            }
-        }
-        return node;
-    }
-}
-
-unsafe fn OsMuxPendOp(runTask: *mut LosTaskCB, muxPended: *mut LosMuxCB, timeout: u32, intSave: *mut u32) -> u32 {
-    unsafe {
-        let mut ret = LOS_OK;
-        let owner = (*muxPended).owner;
-
-        let node = OsMuxPendFindPos(runTask, muxPended);
-        OsTaskWait(node, timeout);
-        OsSchedResched();
-        SCHEDULER_UNLOCK!(*intSave);
-        SCHEDULER_LOCK!(newIntSave);
-        *intSave = newIntSave;
-
-        if ((*runTask).taskStatus & OS_TASK_STATUS_TIMEOUT) != 0 {
-            (*runTask).taskStatus &= !OS_TASK_STATUS_TIMEOUT;
-            ret = LOS_ERRNO_MUX_TIMEOUT;
-        }
-
-        if timeout != LOS_WAIT_FOREVER {
-            OsMuxBitmapRestore(runTask, owner);
-        }
-
-        return ret;
-    }
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn LOS_MuxPend(muxHandle: u32, timeout: u32) -> u32 {
-    unsafe {
-        if GET_MUX_INDEX!(muxHandle) >= KERNEL_MUX_LIMIT as u32 {
-            OS_RETURN_ERROR!(LOS_ERRNO_MUX_INVALID);
-        }
-
-        let muxPended = GET_MUX!(muxHandle);
-        
-        let runTask = OsCurrTaskGet();
-        if ((*runTask).taskFlags & OS_TASK_FLAG_SYSTEM) != 0 {
-            PRINT_DEBUG(b"Warning: DO NOT recommend to use %s in system tasks.\n\0".as_ptr(), b"LOS_MuxPend\0".as_ptr());
-        }
-
-        SCHEDULER_LOCK!(intSave);
-
-        let mut ret = OsMuxParaCheck(muxPended, muxHandle);
-        if ret != LOS_OK {
-            SCHEDULER_UNLOCK!(intSave);
-            return ret;
-        }
-
-        if (*muxPended).muxCount == 0 {
-            #[cfg(feature = "LOSCFG_DEBUG_MUTEX_DEADLOCK")]
-            OsMuxDlockNodeInsert((*runTask).taskId, muxPended);
-            
-            (*muxPended).muxCount += 1;
-            (*muxPended).owner = runTask;
-            SCHEDULER_UNLOCK!(intSave);
-            return LOS_OK;
-        }
-
-        if (*muxPended).owner == runTask {
-            (*muxPended).muxCount += 1;
-            SCHEDULER_UNLOCK!(intSave);
-            return LOS_OK;
-        }
-
-        if timeout == 0 {
-            ret = LOS_ERRNO_MUX_UNAVAILABLE;
-            SCHEDULER_UNLOCK!(intSave);
-            return ret;
-        }
-
-        if !OsPreemptableInSched() {
-            ret = LOS_ERRNO_MUX_PEND_IN_LOCK;
-            OsBackTrace();
-            SCHEDULER_UNLOCK!(intSave);
-            return ret;
-        }
-
-        OsMuxBitmapSet(runTask, muxPended);
-        ret = OsMuxPendOp(runTask, muxPended, timeout, &intSave as *const u32 as *mut u32);
-
-        SCHEDULER_UNLOCK!(intSave);
-        if ret == LOS_ERRNO_MUX_PEND_IN_LOCK {
-            PRINT_ERR(b"!!!LOS_ERRNO_MUX_PEND_IN_LOCK!!!\n\0".as_ptr());
-        }
-        return ret;
-    }
-}
-
-unsafe fn OsMuxPostOpSub(runTask: *mut LosTaskCB, muxPosted: *mut LosMuxCB) {
-    unsafe {
-        if !LOS_ListEmpty(&(*muxPosted).muxList) {
-            let bitMapPri = LOS_HighBitGet((*runTask).priBitMap);
-            
-            // 使用 LOS_DL_LIST_FOR_EACH_ENTRY 宏的等价实现
-            let mut current = (*muxPosted).muxList.pstNext;
-            while current != &(*muxPosted).muxList as *const LOS_DL_LIST as *mut LOS_DL_LIST {
-                let pendedTask = OS_TCB_FROM_PENDLIST!(current);
-                if bitMapPri != (*pendedTask).priority {
-                    LOS_BitmapClr(&mut (*runTask).priBitMap, (*pendedTask).priority);
-                }
-                current = (*current).pstNext;
-            }
-        }
-        
-        let bitMapPri = LOS_LowBitGet((*runTask).priBitMap);
-        LOS_BitmapClr(&mut (*runTask).priBitMap, bitMapPri);
-        OsTaskPriModify((*muxPosted).owner, bitMapPri);
-    }
-}
-
-unsafe fn OsMuxPostOp(runTask: *mut LosTaskCB, muxPosted: *mut LosMuxCB) -> u32 {
-    unsafe {
-        if LOS_ListEmpty(&(*muxPosted).muxList) {
-            (*muxPosted).owner = core::ptr::null_mut();
-            #[cfg(feature = "LOSCFG_DEBUG_MUTEX_DEADLOCK")]
-            OsMuxDlockNodeDelete((*runTask).taskId, muxPosted);
-            return MUX_NO_SCHEDULE;
-        }
-
-        let resumedTask = OS_TCB_FROM_PENDLIST!(LOS_DL_LIST_FIRST(&(*muxPosted).muxList));
-
+    let node: *mut LOS_DL_LIST;
+    
+    if LOS_ListEmpty(&(*muxPended).muxList) {
+        node = &mut (*muxPended).muxList;
+    } else {
         #[cfg(feature = "LOSCFG_MUTEX_WAITMODE_PRIO")]
         {
-            if (*resumedTask).priority > (*runTask).priority {
-                if LOS_HighBitGet((*runTask).priBitMap) != (*resumedTask).priority {
-                    LOS_BitmapClr(&mut (*runTask).priBitMap, (*resumedTask).priority);
-                }
-            } else if (*runTask).priBitMap != 0 {
-                OsMuxPostOpSub(runTask, muxPosted);
+            let pendedTask1 = OS_TCB_FROM_PENDLIST!(LOS_DL_LIST_FIRST(&(*muxPended).muxList));
+            let pendedTask2 = OS_TCB_FROM_PENDLIST!(LOS_DL_LIST_LAST(&(*muxPended).muxList));
+                
+            if (*pendedTask1).priority > (*runTask).priority {
+                node = (*muxPended).muxList.pstNext;
+            } else if (*pendedTask2).priority <= (*runTask).priority {
+                node = &mut (*muxPended).muxList;
+            } else {
+                node = OsMuxPendFindPosSub(runTask, muxPended);
             }
         }
         #[cfg(not(feature = "LOSCFG_MUTEX_WAITMODE_PRIO"))]
         {
-            if (*runTask).priBitMap != 0 {
-                OsMuxPostOpSub(runTask, muxPosted);
-            }
+            node = &mut (*muxPended).muxList;
         }
-
-        (*muxPosted).muxCount = 1;
-        (*muxPosted).owner = resumedTask;
-        
-        #[cfg(feature = "LOSCFG_DEBUG_MUTEX_DEADLOCK")]
-        {
-            OsMuxDlockNodeDelete((*runTask).taskId, muxPosted);
-            OsMuxDlockNodeInsert((*resumedTask).taskId, muxPosted);
-        }
-
-        OsTaskWake(resumedTask);
-
-        return MUX_SCHEDULE;
     }
+    return node;
+}
+
+unsafe fn OsMuxPendOp(runTask: *mut LosTaskCB, muxPended: *mut LosMuxCB, timeout: u32, intSave: *mut u32) -> u32 {
+    let mut ret = LOS_OK;
+    let owner = (*muxPended).owner;
+
+    let node = OsMuxPendFindPos(runTask, muxPended);
+    OsTaskWait(node, timeout);
+    OsSchedResched();
+    SCHEDULER_UNLOCK!(*intSave);
+    SCHEDULER_LOCK!(newIntSave);
+    *intSave = newIntSave;
+
+    if ((*runTask).taskStatus & OS_TASK_STATUS_TIMEOUT) != 0 {
+        (*runTask).taskStatus &= !OS_TASK_STATUS_TIMEOUT;
+        ret = LOS_ERRNO_MUX_TIMEOUT;
+    }
+
+    if timeout != LOS_WAIT_FOREVER {
+        OsMuxBitmapRestore(runTask, owner);
+    }
+
+    return ret;
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn LOS_MuxPend(muxHandle: u32, timeout: u32) -> u32 {
+    if GET_MUX_INDEX!(muxHandle) >= KERNEL_MUX_LIMIT as u32 {
+        OS_RETURN_ERROR!(LOS_ERRNO_MUX_INVALID);
+    }
+
+    let muxPended = GET_MUX!(muxHandle);
+    
+    let runTask = OsCurrTaskGet();
+    if ((*runTask).taskFlags & OS_TASK_FLAG_SYSTEM) != 0 {
+        PRINT_DEBUG(b"Warning: DO NOT recommend to use %s in system tasks.\n\0".as_ptr(), b"LOS_MuxPend\0".as_ptr());
+    }
+
+    SCHEDULER_LOCK!(intSave);
+
+    let mut ret = OsMuxParaCheck(muxPended, muxHandle);
+    if ret != LOS_OK {
+        SCHEDULER_UNLOCK!(intSave);
+        return ret;
+    }
+
+    if (*muxPended).muxCount == 0 {
+        #[cfg(feature = "LOSCFG_DEBUG_MUTEX_DEADLOCK")]
+        OsMuxDlockNodeInsert((*runTask).taskId, muxPended);
+        
+        (*muxPended).muxCount += 1;
+        (*muxPended).owner = runTask;
+        SCHEDULER_UNLOCK!(intSave);
+        return LOS_OK;
+    }
+
+    if (*muxPended).owner == runTask {
+        (*muxPended).muxCount += 1;
+        SCHEDULER_UNLOCK!(intSave);
+        return LOS_OK;
+    }
+
+    if timeout == 0 {
+        ret = LOS_ERRNO_MUX_UNAVAILABLE;
+        SCHEDULER_UNLOCK!(intSave);
+        return ret;
+    }
+
+    if !OsPreemptableInSched() {
+        ret = LOS_ERRNO_MUX_PEND_IN_LOCK;
+        OsBackTrace();
+        SCHEDULER_UNLOCK!(intSave);
+        return ret;
+    }
+
+    OsMuxBitmapSet(runTask, muxPended);
+    ret = OsMuxPendOp(runTask, muxPended, timeout, &intSave as *const u32 as *mut u32);
+
+    SCHEDULER_UNLOCK!(intSave);
+    if ret == LOS_ERRNO_MUX_PEND_IN_LOCK {
+        PRINT_ERR(b"!!!LOS_ERRNO_MUX_PEND_IN_LOCK!!!\n\0".as_ptr());
+    }
+    return ret;
+}
+
+unsafe fn OsMuxPostOpSub(runTask: *mut LosTaskCB, muxPosted: *mut LosMuxCB) {
+    if !LOS_ListEmpty(&(*muxPosted).muxList) {
+        let bitMapPri = LOS_HighBitGet((*runTask).priBitMap);
+        
+        // 使用 LOS_DL_LIST_FOR_EACH_ENTRY 宏的等价实现
+        let mut current = (*muxPosted).muxList.pstNext;
+        while current != &(*muxPosted).muxList as *const LOS_DL_LIST as *mut LOS_DL_LIST {
+            let pendedTask = OS_TCB_FROM_PENDLIST!(current);
+            if bitMapPri != (*pendedTask).priority {
+                LOS_BitmapClr(&mut (*runTask).priBitMap, (*pendedTask).priority);
+            }
+            current = (*current).pstNext;
+        }
+    }
+    
+    let bitMapPri = LOS_LowBitGet((*runTask).priBitMap);
+    LOS_BitmapClr(&mut (*runTask).priBitMap, bitMapPri);
+    OsTaskPriModify((*muxPosted).owner, bitMapPri);
+}
+
+unsafe fn OsMuxPostOp(runTask: *mut LosTaskCB, muxPosted: *mut LosMuxCB) -> u32 {
+    if LOS_ListEmpty(&(*muxPosted).muxList) {
+        (*muxPosted).owner = core::ptr::null_mut();
+        #[cfg(feature = "LOSCFG_DEBUG_MUTEX_DEADLOCK")]
+        OsMuxDlockNodeDelete((*runTask).taskId, muxPosted);
+        return MUX_NO_SCHEDULE;
+    }
+
+    let resumedTask = OS_TCB_FROM_PENDLIST!(LOS_DL_LIST_FIRST(&(*muxPosted).muxList));
+
+    #[cfg(feature = "LOSCFG_MUTEX_WAITMODE_PRIO")]
+    {
+        if (*resumedTask).priority > (*runTask).priority {
+            if LOS_HighBitGet((*runTask).priBitMap) != (*resumedTask).priority {
+                LOS_BitmapClr(&mut (*runTask).priBitMap, (*resumedTask).priority);
+            }
+        } else if (*runTask).priBitMap != 0 {
+            OsMuxPostOpSub(runTask, muxPosted);
+        }
+    }
+    #[cfg(not(feature = "LOSCFG_MUTEX_WAITMODE_PRIO"))]
+    {
+        if (*runTask).priBitMap != 0 {
+            OsMuxPostOpSub(runTask, muxPosted);
+        }
+    }
+
+    (*muxPosted).muxCount = 1;
+    (*muxPosted).owner = resumedTask;
+    
+    #[cfg(feature = "LOSCFG_DEBUG_MUTEX_DEADLOCK")]
+    {
+        OsMuxDlockNodeDelete((*runTask).taskId, muxPosted);
+        OsMuxDlockNodeInsert((*resumedTask).taskId, muxPosted);
+    }
+
+    OsTaskWake(resumedTask);
+
+    return MUX_SCHEDULE;
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn LOS_MuxPost(muxHandle: u32) -> u32 {
-    unsafe {
-        if GET_MUX_INDEX!(muxHandle) >= KERNEL_MUX_LIMIT as u32 {
-            return LOS_ERRNO_MUX_INVALID;
-        }
+    if GET_MUX_INDEX!(muxHandle) >= KERNEL_MUX_LIMIT as u32 {
+        return LOS_ERRNO_MUX_INVALID;
+    }
 
-        let muxPosted = GET_MUX!(muxHandle);
-        
-        SCHEDULER_LOCK!(intSave);
+    let muxPosted = GET_MUX!(muxHandle);
+    
+    SCHEDULER_LOCK!(intSave);
 
-        let mut ret = OsMuxParaCheck(muxPosted, muxHandle);
-        if ret != LOS_OK {
-            SCHEDULER_UNLOCK!(intSave);
-            return ret;
-        }
-
-        let runTask = OsCurrTaskGet();
-        if ((*muxPosted).muxCount == 0) || ((*muxPosted).owner != runTask) {
-            SCHEDULER_UNLOCK!(intSave);
-            return LOS_ERRNO_MUX_INVALID;
-        }
-
-        (*muxPosted).muxCount -= 1;
-        if (*muxPosted).muxCount != 0 {
-            SCHEDULER_UNLOCK!(intSave);
-            return LOS_OK;
-        }
-
-        ret = OsMuxPostOp(runTask, muxPosted);
+    let mut ret = OsMuxParaCheck(muxPosted, muxHandle);
+    if ret != LOS_OK {
         SCHEDULER_UNLOCK!(intSave);
-        
-        if ret == MUX_SCHEDULE {
-            LOS_Schedule();
-        }
+        return ret;
+    }
 
+    let runTask = OsCurrTaskGet();
+    if ((*muxPosted).muxCount == 0) || ((*muxPosted).owner != runTask) {
+        SCHEDULER_UNLOCK!(intSave);
+        return LOS_ERRNO_MUX_INVALID;
+    }
+
+    (*muxPosted).muxCount -= 1;
+    if (*muxPosted).muxCount != 0 {
+        SCHEDULER_UNLOCK!(intSave);
         return LOS_OK;
     }
+
+    ret = OsMuxPostOp(runTask, muxPosted);
+    SCHEDULER_UNLOCK!(intSave);
+    
+    if ret == MUX_SCHEDULE {
+        LOS_Schedule();
+    }
+
+    return LOS_OK;
 }
