@@ -928,3 +928,412 @@ macro_rules! los_dl_list_for_each_entry {
         }
     };
 }
+
+/// 队列操作函数
+///
+/// 执行队列的读写操作，包括处理任务等待和唤醒
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `operate_type` - 操作类型
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小指针
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 操作成功
+/// * 其他错误码表示操作失败
+fn os_queue_operate(
+    queue_id: u32,
+    operate_type: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: *mut u32,
+    timeout: u32
+) -> u32 {
+    // 获取队列控制块
+    let queue_cb = get_queue_handle(queue_id);
+    // 获取读写类型（0表示读，1表示写）
+    let read_write = os_queue_read_write_get(operate_type);
+    let error_code;  // 移除无用的初始化
+    let mut ret: u32;
+    
+    unsafe {
+        // 记录队列操作的跟踪信息
+        // 简化处理，此处应该记录队列操作的各种参数
+        // LOS_TRACE(...);
+        
+        // 锁定调度器
+        let int_save = scheduler_lock!();
+        
+        // 检查队列操作参数
+        ret = os_queue_operate_param_check(queue_cb, queue_id, operate_type, buffer_size);
+        if ret != LOS_OK {
+            scheduler_unlock!(int_save);
+            return ret;
+        }
+        
+        // 检查队列是否可读/写
+        if (*queue_cb).readable_writable_cnt[read_write] == 0 {
+            if timeout == LOS_NO_WAIT {
+                // 如果无需等待，直接返回队列为空/满的错误
+                ret = if os_queue_is_read(operate_type) {
+                    LOS_ERRNO_QUEUE_ISEMPTY
+                } else {
+                    LOS_ERRNO_QUEUE_ISFULL
+                };
+                scheduler_unlock!(int_save);
+                return ret;
+            }
+            
+            // 检查是否可以在当前上下文中挂起任务
+            if !OsPreemptableInSched() {
+                ret = LOS_ERRNO_QUEUE_PEND_IN_LOCK;
+                scheduler_unlock!(int_save);
+                return ret;
+            }
+            
+            // 将当前任务挂起，等待队列可读/写
+            OsTaskWait(&mut (*queue_cb).read_write_list[read_write], OS_TASK_STATUS_PEND, timeout);
+            
+            // 重新调度
+            OsSchedResched();
+            scheduler_unlock!(int_save);
+            scheduler_lock!();
+            
+            // 检查任务是否超时
+            let curr_task = OsCurrTaskGet();
+            if (*curr_task).task_status & OS_TASK_STATUS_TIMEOUT != 0 {
+                (*curr_task).task_status &= !OS_TASK_STATUS_TIMEOUT;
+                ret = LOS_ERRNO_QUEUE_TIMEOUT;
+                scheduler_unlock!(int_save);
+                return ret;
+            }
+        } else {
+            // 队列可读/写，减少可读/写计数
+            (*queue_cb).readable_writable_cnt[read_write] -= 1;
+        }
+        
+        // 执行队列缓冲区操作
+        error_code = os_queue_buffer_operate(queue_cb, operate_type, buffer_addr, buffer_size);
+        
+        // 检查是否有任务在等待相反操作
+        let opposite_read_write = if read_write == OS_QUEUE_READ { OS_QUEUE_WRITE } else { OS_QUEUE_READ };
+        let read_write_list = &mut (*queue_cb).read_write_list[opposite_read_write];
+        
+        if !los_list_empty(read_write_list) {
+            // 有任务在等待，唤醒第一个任务
+            let first_node = los_dl_list_first(read_write_list);
+            let resumed_task = os_tcb_from_pendlist(first_node);
+            OsTaskWake(resumed_task, OS_TASK_STATUS_PEND);
+            scheduler_unlock!(int_save);
+            
+            // 处理缓冲区操作错误
+            os_queue_buffer_operate_err_process(error_code);
+            
+            // 多处理器调度
+            LOS_MpSchedule(0xFFFFFFFF); // OS_MP_CPU_ALL假设为0xFFFFFFFF
+            LOS_Schedule();
+            return LOS_OK;
+        } else {
+            // 没有任务等待，增加相反操作的可读/写计数
+            (*queue_cb).readable_writable_cnt[opposite_read_write] += 1;
+        }
+        
+        // 结束队列操作
+        scheduler_unlock!(int_save);
+        
+        // 处理缓冲区操作错误
+        os_queue_buffer_operate_err_process(error_code);
+        ret
+    }
+}
+
+/// 队列操作函数（C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub unsafe extern "C" fn os_queue_operate_c(
+    queue_id: u32,
+    operate_type: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: *mut u32,
+    timeout: u32
+) -> u32 {
+    os_queue_operate(queue_id, operate_type, buffer_addr, buffer_size, timeout)
+}
+
+/// 从队列中读取数据（复制方式）
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小指针
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 读取成功
+/// * 其他错误码表示读取失败
+pub fn los_queue_read_copy(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: *mut u32,
+    timeout: u32
+) -> u32 {
+    // 检查参数
+    let ret = os_queue_read_parameter_check(queue_id, buffer_addr, buffer_size, timeout);
+    if ret != LOS_OK {
+        return ret;
+    }
+
+    // 设置操作类型（读取，队列头）
+    let operate_type = os_queue_operate_type(OS_QUEUE_READ as u32, OS_QUEUE_HEAD);
+    
+    // 执行队列操作
+    os_queue_operate(queue_id, operate_type, buffer_addr, buffer_size, timeout)
+}
+
+/// 从队列头写入数据（复制方式）
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 写入成功
+/// * 其他错误码表示写入失败
+pub fn los_queue_write_head_copy(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    // 创建缓冲区大小参数
+    let mut size = buffer_size;
+    
+    // 检查参数
+    let ret = os_queue_write_parameter_check(queue_id, buffer_addr, &size, timeout);
+    if ret != LOS_OK {
+        return ret;
+    }
+
+    // 设置操作类型（写入，队列头）
+    let operate_type = os_queue_operate_type(OS_QUEUE_WRITE as u32, OS_QUEUE_HEAD);
+    
+    // 执行队列操作
+    os_queue_operate(queue_id, operate_type, buffer_addr, &mut size, timeout)
+}
+
+/// 从队列尾写入数据（复制方式）
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 写入成功
+/// * 其他错误码表示写入失败
+pub fn los_queue_write_copy(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    // 创建缓冲区大小参数
+    let mut size = buffer_size;
+    
+    // 检查参数
+    let ret = os_queue_write_parameter_check(queue_id, buffer_addr, &size, timeout);
+    if ret != LOS_OK {
+        return ret;
+    }
+
+    // 设置操作类型（写入，队列尾）
+    let operate_type = os_queue_operate_type(OS_QUEUE_WRITE as u32, OS_QUEUE_TAIL);
+    
+    // 执行队列操作
+    os_queue_operate(queue_id, operate_type, buffer_addr, &mut size, timeout)
+}
+
+/// 从队列中读取数据（复制方式，C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn los_queue_read_copy_c(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: *mut u32,
+    timeout: u32
+) -> u32 {
+    los_queue_read_copy(queue_id, buffer_addr, buffer_size, timeout)
+}
+
+/// 从队列头写入数据（复制方式，C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn los_queue_write_head_copy_c(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    los_queue_write_head_copy(queue_id, buffer_addr, buffer_size, timeout)
+}
+
+/// 从队列尾写入数据（复制方式，C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn los_queue_write_copy_c(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    los_queue_write_copy(queue_id, buffer_addr, buffer_size, timeout)
+}
+
+/// 从队列中读取数据（指针方式）
+///
+/// 直接调用复制版本函数，但传递的是缓冲区地址
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 读取成功
+/// * 其他错误码表示读取失败
+pub fn los_queue_read(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    // 创建可变的缓冲区大小
+    let mut size = buffer_size;
+    
+    // 调用复制版本函数
+    los_queue_read_copy(queue_id, buffer_addr, &mut size, timeout)
+}
+
+/// 从队列尾写入数据（指针方式）
+///
+/// 写入的是指针地址，而不是数据内容
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小（会被忽略）
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 写入成功
+/// * 其他错误码表示写入失败
+pub fn los_queue_write(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    _buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    // 检查缓冲区地址是否为空
+    if buffer_addr.is_null() {
+        return LOS_ERRNO_QUEUE_WRITE_PTR_NULL;
+    }
+    
+    // 设置缓冲区大小为指针大小
+    let ptr_size = core::mem::size_of::<*mut u8>() as u32;
+    
+    // 调用复制版本函数，传递的是指针的地址
+    los_queue_write_copy(queue_id, &buffer_addr as *const _ as *mut core::ffi::c_void, ptr_size, timeout)
+}
+
+/// 从队列头写入数据（指针方式）
+///
+/// 写入的是指针地址，而不是数据内容
+///
+/// # 参数
+///
+/// * `queue_id` - 队列ID
+/// * `buffer_addr` - 缓冲区地址指针
+/// * `buffer_size` - 缓冲区大小（会被忽略）
+/// * `timeout` - 超时时间
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 写入成功
+/// * 其他错误码表示写入失败
+pub fn los_queue_write_head(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    _buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    // 检查缓冲区地址是否为空
+    if buffer_addr.is_null() {
+        return LOS_ERRNO_QUEUE_WRITE_PTR_NULL;
+    }
+    
+    // 设置缓冲区大小为指针大小
+    let ptr_size = core::mem::size_of::<*mut u8>() as u32;
+    
+    // 调用复制版本函数，传递的是指针的地址
+    los_queue_write_head_copy(queue_id, &buffer_addr as *const _ as *mut core::ffi::c_void, ptr_size, timeout)
+}
+
+/// 从队列中读取数据（指针方式，C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn los_queue_read_c(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    los_queue_read(queue_id, buffer_addr, buffer_size, timeout)
+}
+
+/// 从队列尾写入数据（指针方式，C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn os_queue_write_c(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    _buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    los_queue_write(queue_id, buffer_addr, _buffer_size, timeout)
+}
+
+/// 从队列头写入数据（指针方式，C兼容版本）
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn os_queue_write_head_c(
+    queue_id: u32,
+    buffer_addr: *mut core::ffi::c_void,
+    _buffer_size: u32,
+    timeout: u32
+) -> u32 {
+    los_queue_write_head(queue_id, buffer_addr, _buffer_size, timeout)
+}
