@@ -79,26 +79,80 @@ fn os_shell_cmd_convert_tsk_status(task_status: TaskStatus) -> &'static str {
 /// 获取任务水线信息
 fn os_shell_cmd_task_water_line_get(all_task_array: *const TaskCB) {
     unsafe {
+        // 初始化有效任务计数
+        let mut valid_tasks = 0;
+
         for loop_idx in 0..KERNEL_TSK_LIMIT {
+            // 跳过明显无效的任务
+            if valid_tasks > 32 {
+                // 假设系统不会超过32个正常任务
+                print_common!("检测到过多可能的有效任务，可能是任务控制块数组已损坏\n");
+                break;
+            }
+
             let task_cb = all_task_array.offset(loop_idx as isize);
 
             // 跳过未使用的任务
-            if (*task_cb).task_status == OS_TASK_STATUS_UNUSED {
+            if (*task_cb).task_status & OS_TASK_STATUS_UNUSED != TaskStatus::empty() {
                 continue;
             }
 
-            // 获取栈指针地址
-            let stack_bottom = (((*task_cb).top_of_stack as usize) + (*task_cb).stack_size as usize)
-                as *const usize;
-            let stack_top = (*task_cb).top_of_stack as *const usize;
-
+            // 获取任务ID
             let task_id = (*task_cb).task_id as usize;
-            let water_line_ptr = core::ptr::addr_of_mut!(G_TASK_WATER_LINE[task_id]) as *mut u32;
+            let task_idx = task_id % (LOSCFG_BASE_CORE_TSK_LIMIT as usize);
 
-            // 修正：解引用指针并传递引用，处理返回结果
-            match get_stack_waterline(&*stack_top, &*stack_bottom) {
+            print_common!("Task ID: {}, mapped index: {}\n", task_id, task_idx);
+
+            // 安全计算栈指针地址，防止溢出
+            let top_of_stack = (*task_cb).top_of_stack as usize;
+            let stack_size = (*task_cb).stack_size as usize;
+
+            // 检查栈大小是否合理
+            if stack_size > 0x1000000 {
+                // 16MB作为合理的最大栈大小
+                print_common!(
+                    "警告: 任务 {} 栈大小异常: {}，跳过水线计算\n",
+                    task_id,
+                    stack_size
+                );
+                // 设置水线为0
+                G_TASK_WATER_LINE[task_idx] = 0;
+                continue;
+            }
+
+            // 使用checked_add防止溢出
+            let bottom_addr = match top_of_stack.checked_add(stack_size) {
+                Some(addr) => addr as *const usize,
+                None => {
+                    print_common!("警告: 任务 {} 栈地址计算溢出，跳过水线计算\n", task_id);
+                    // 设置水线为0
+                    G_TASK_WATER_LINE[task_idx] = 0;
+                    continue;
+                }
+            };
+
+            let stack_top = top_of_stack as *const usize;
+
+            let water_line_ptr = core::ptr::addr_of_mut!(G_TASK_WATER_LINE[task_idx]) as *mut u32;
+
+            // 增加额外的有效性检查
+            if task_id > 100000
+                || (*task_cb).priority > 32
+                || (stack_size > 0x100000 && stack_size < 0xF0000000)
+            {
+                continue; // 跳过明显异常的任务
+            }
+
+            // 对于看起来有效的任务，递增计数
+            valid_tasks += 1;
+
+            // 安全获取栈水线
+            match get_stack_waterline(&*stack_top, &*bottom_addr) {
                 Ok(value) => *water_line_ptr = value,
-                Err(_) => *water_line_ptr = 0, // 错误时设置为零
+                Err(_) => {
+                    print_common!("警告: 无法计算任务 {} 水线\n", task_id);
+                    *water_line_ptr = 0;
+                }
             }
         }
     }
@@ -135,28 +189,60 @@ fn os_shell_cmd_tsk_info_data(all_task_array: *const TaskCB) {
                 continue;
             }
 
-            let task_entry_ptr = match (*task_cb).task_entry {
-                Some(func) => func as usize,
-                None => 0,
+            // 获取任务ID和安全索引
+            let task_id = (*task_cb).task_id as usize;
+            let task_idx = task_id % (LOSCFG_BASE_CORE_TSK_LIMIT as usize);
+
+            // 打印任务基本信息
+            let task_entry_ptr = (*task_cb).task_entry.map(|f| f as usize).unwrap_or(0);
+
+            // 安全获取任务名称
+            let task_name = if (*task_cb).task_name.is_null() {
+                "<unnamed>"
+            } else {
+                // 尝试计算字符串长度（有限制地）
+                let mut name_len = 0;
+                let max_len = 32; // 名称最大长度限制
+
+                while name_len < max_len {
+                    if *(*task_cb).task_name.add(name_len) == 0 {
+                        break;
+                    }
+                    name_len += 1;
+                }
+
+                if name_len > 0 {
+                    match core::str::from_utf8(core::slice::from_raw_parts(
+                        (*task_cb).task_name,
+                        name_len,
+                    )) {
+                        Ok(s) => s,
+                        Err(_) => "<invalid>",
+                    }
+                } else {
+                    "<empty>"
+                }
             };
 
             print_common!(
                 "{:<23}0x{:08x}        0x{:<5x}",
-                (*task_cb).name(),
+                task_name,
                 task_entry_ptr,
                 (*task_cb).task_id
             );
 
+            // 使用安全索引访问水线数组
             print_common!(
                 "{:<11}{:<13}0x{:<11x}0x{:<11x}  0x{:08x}   0x{:08x}   ",
                 (*task_cb).priority,
                 os_shell_cmd_convert_tsk_status((*task_cb).task_status),
                 (*task_cb).stack_size,
-                G_TASK_WATER_LINE[(*task_cb).task_id as usize],
+                G_TASK_WATER_LINE[task_idx], // 使用安全索引
                 (*task_cb).stack_pointer as usize,
                 (*task_cb).top_of_stack as usize
             );
 
+            // 其他打印内容保持不变
             #[cfg(feature = "base_ipc_event")]
             print_common!("0x{:<6x}", (*task_cb).event_mask);
 
@@ -176,13 +262,13 @@ fn os_shell_cmd_tsk_info_get(task_id: u32) -> u32 {
         if task_id == OS_ALL_TASK_MASK {
             // 使用Rust数组初始化语法代替memset_s
             G_TASK_WATER_LINE = [0; LOSCFG_BASE_CORE_TSK_LIMIT as usize];
-            
+
             // 直接使用原始任务数组，避免内存分配和复制
             let tcb_array = g_taskCBArray;
-            
+
             // 获取水线信息
             os_shell_cmd_task_water_line_get(tcb_array);
-            
+
             // 打印任务信息
             os_shell_cmd_tsk_info_title();
             os_shell_cmd_tsk_info_data(tcb_array);
