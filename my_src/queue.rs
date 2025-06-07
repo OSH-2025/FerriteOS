@@ -210,3 +210,241 @@ pub fn os_queue_init() -> u32 {
         LOS_OK
     }
 }
+
+/// 内部函数：检查队列创建参数的有效性
+#[inline]
+fn os_queue_create_parameter_check_internal(len: u16, queue_id: *const u32, max_msg_size: u16) -> u32 {
+    // 检查队列ID指针是否为空
+    if queue_id.is_null() {
+        return LOS_ERRNO_QUEUE_CREAT_PTR_NULL;
+    }
+
+    // 检查消息大小是否超过限制 (OS_NULL_SHORT - sizeof(UINT32))
+    // 假设OS_NULL_SHORT为0xFFFF，sizeof(UINT32)为4
+    const OS_NULL_SHORT_MINUS_U32: u16 = 0xFFFF - 4;
+    if max_msg_size > OS_NULL_SHORT_MINUS_U32 {
+        return LOS_ERRNO_QUEUE_SIZE_TOO_BIG;
+    }
+
+    // 检查队列长度和消息大小是否为0
+    if len == 0 || max_msg_size == 0 {
+        return LOS_ERRNO_QUEUE_PARA_ISZERO;
+    }
+
+    LOS_OK
+}
+
+/// 检查队列创建参数的有效性
+/// 
+/// # 参数
+/// 
+/// * `len` - 队列长度
+/// * `queue_id` - 队列ID指针（可为NULL）
+/// * `max_msg_size` - 最大消息大小
+/// 
+/// # 返回值
+/// 
+/// * `LOS_OK` - 参数有效
+/// * 其他错误码表示参数无效
+pub fn os_queue_create_parameter_check(len: u16, queue_id: *const u32, max_msg_size: u16) -> u32 {
+    os_queue_create_parameter_check_internal(len, queue_id, max_msg_size)
+}
+
+// 调度器操作的简单模拟
+// 在实际实现中，这些应该是与调度器交互的函数
+struct SchedulerGuard {
+    _private: (),
+}
+
+impl SchedulerGuard {
+    #[inline]
+    fn new() -> Self {
+        // 这里应该调用实际的SCHEDULER_LOCK函数
+        // 简化处理，未实现实际的锁定逻辑
+        Self { _private: () }
+    }
+}
+
+impl Drop for SchedulerGuard {
+    #[inline]
+    fn drop(&mut self) {
+        // 这里应该调用实际的SCHEDULER_UNLOCK函数
+        // 简化处理，未实现实际的解锁逻辑
+    }
+}
+
+// 任务相关结构和方法
+struct TaskEntry {
+    // 简化结构，实际应包含更多字段
+    entry: usize,
+}
+
+fn os_curr_task_get() -> &'static TaskEntry {
+    // 简化实现，实际应返回当前任务
+    static TASK: TaskEntry = TaskEntry { entry: 0 };
+    &TASK
+}
+
+// 调试钩子
+fn os_queue_dbg_update_hook(_queue_id: u32, _task_entry: *const u8) {
+    // 简化实现，实际应更新调试信息
+}
+
+// 检查钩子
+fn os_queue_check_hook() {
+    // 简化实现，实际应进行检查
+}
+
+// 跟踪记录
+#[inline]
+fn los_trace(_event: u32, _queue_id: u32, _len: u16, _msg_size: u16, _queue: usize, _mem_type: u8) {
+    // 简化实现，实际应记录跟踪信息
+}
+
+/// 内部函数：创建一个队列
+/// 
+/// # 参数
+/// 
+/// * `len` - 队列长度
+/// * `queue_id` - 用于存储队列ID的指针
+/// * `msg_size` - 消息大小
+/// * `queue` - 队列处理程序指针
+/// * `queue_mem_type` - 队列内存类型
+/// 
+/// # 返回值
+/// 
+/// * `LOS_OK` - 创建成功
+/// * 其他错误码表示创建失败
+fn os_queue_create_internal(
+    len: u16, 
+    queue_id: *mut u32, 
+    msg_size: u16,
+    queue: *mut u8, 
+    queue_mem_type: u8
+) -> u32 {
+    // 创建调度器保护
+    let _guard = SchedulerGuard::new();
+    
+    // 检查是否有空闲队列可用
+    unsafe {
+        if los_list_empty(&mut G_FREE_QUEUE_LIST as *mut _) {
+            // 释放锁（通过守卫的Drop）
+            os_queue_check_hook();
+            return LOS_ERRNO_QUEUE_CB_UNAVAILABLE;
+        }
+        
+        // 获取空闲队列列表中的第一个节点
+        let unused_queue = los_dl_list_first(&mut G_FREE_QUEUE_LIST as *mut _);
+        
+        // 从链表中删除该节点
+        los_list_delete(unused_queue);
+        
+        // 获取队列控制块
+        let queue_cb = get_queue_list(unused_queue);
+        
+        // 初始化队列控制块
+        (*queue_cb).queue_len = len;
+        (*queue_cb).queue_size = msg_size;
+        (*queue_cb).queue_handle = queue;
+        (*queue_cb).queue_state = LOS_USED;
+        (*queue_cb).queue_mem_type = queue_mem_type;
+        (*queue_cb).readable_writable_cnt[QueueReadWrite::OS_QUEUE_READ as usize] = 0;
+        (*queue_cb).readable_writable_cnt[QueueReadWrite::OS_QUEUE_WRITE as usize] = len;
+        (*queue_cb).queue_head = 0;
+        (*queue_cb).queue_tail = 0;
+        
+        // 初始化各种链表
+        los_list_init(&mut (*queue_cb).read_write_list[QueueReadWrite::OS_QUEUE_READ as usize] as *mut _);
+        los_list_init(&mut (*queue_cb).read_write_list[QueueReadWrite::OS_QUEUE_WRITE as usize] as *mut _);
+        los_list_init(&mut (*queue_cb).mem_list as *mut _);
+        
+        // 调用调试钩子
+        os_queue_dbg_update_hook((*queue_cb).queue_id, os_curr_task_get().entry as *const u8);
+        
+        // 守卫在这里结束，自动解锁
+        
+        // 保存队列ID到输出参数
+        *queue_id = (*queue_cb).queue_id;
+        
+        // 记录跟踪信息
+        los_trace(0 /* QUEUE_CREATE */, *queue_id, len, msg_size - 4 /* sizeof(UINT32) */, 
+                   queue as usize, queue_mem_type);
+        
+        // 返回成功
+        LOS_OK
+    }
+}
+
+/// 创建一个队列，使用动态内存分配
+///
+/// # 参数
+///
+/// * `queue_name` - 队列名称（在当前实现中未使用）
+/// * `len` - 队列长度
+/// * `queue_id` - 用于存储队列ID的指针
+/// * `flags` - 队列标志（在当前实现中未使用）
+/// * `max_msg_size` - 最大消息大小
+///
+/// # 返回值
+///
+/// * `LOS_OK` - 创建成功
+/// * `LOS_ERRNO_QUEUE_CB_UNAVAILABLE` - 没有空闲队列控制块
+/// * `LOS_ERRNO_QUEUE_CREATE_NO_MEMORY` - 内存分配失败
+/// * 其他错误码表示创建失败
+// #[no_mangle]
+pub fn os_queue_create(
+    queue_name: *const u8,
+    len: u16,
+    queue_id: *mut u32,
+    flags: u32,
+    max_msg_size: u16
+) -> u32 {
+    // 忽略未使用的参数，避免编译器警告
+    let _queue_name = queue_name;
+    let _flags = flags;
+    
+    // 检查参数有效性
+    let ret = os_queue_create_parameter_check_internal(len, queue_id, max_msg_size);
+    if ret != LOS_OK {
+        return ret;
+    }
+    
+    // 消息头需要额外的4个字节来存储消息长度
+    let msg_size = max_msg_size + 4;
+    
+    // 计算所需的队列内存大小
+    let queue_size = msg_size as u32 * len as u32;
+    
+    // 分配内存
+    unsafe {
+        let queue = LOS_MemAlloc(m_aucSysMem1, queue_size) as *mut u8;
+        if queue.is_null() {
+            return LOS_ERRNO_QUEUE_CREATE_NO_MEMORY;
+        }
+        
+        // 创建队列
+        let ret = os_queue_create_internal(len, queue_id, msg_size, queue, OS_QUEUE_ALLOC_DYNAMIC);
+        if ret != LOS_OK {
+            // 创建失败，释放内存
+            LOS_MemFree(m_aucSysMem1, queue as *mut core::ffi::c_void);
+            return ret;
+        }
+        
+        // 返回创建结果
+        ret
+    }
+}
+
+/// 创建一个队列的C API兼容版本
+///
+/// 此函数提供给C代码调用的接口
+// #[no_mangle]
+pub extern "C" fn os_queue_create_c(
+    queue_name: *const u8,
+    len: u16,
+    queue_id: *mut u32,
+    flags: u32,
+    max_msg_size: u16
+) -> u32 {
+    os_queue_create(queue_name, len, queue_id, flags, max_msg_size)
+}
