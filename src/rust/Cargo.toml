@@ -21,9 +21,17 @@ default = [
 	"backtrace",
 	"shell",
 	"software_timer",
-	"log-debug",
+	"log-error",
 	"mutex-waitmode-prio",
 	"queue-static-allocation",
+
+	"mem_leakcheck",
+	"base_core_swtmr",
+	"base_ipc_sem",
+	"base_ipc_mux",
+	"base_ipc_queue",
+	"mem_task_stat",
+	"base_ipc_event"
 ]
 software_timer = []
 software_timer_in_isr = []
@@ -40,6 +48,7 @@ shell = []
 shell_excinfo_dump = []
 exc_interaction = []
 
+# 日志级别features
 log-emergency = []
 log-common = []
 log-error = []
@@ -56,3 +65,12 @@ mutex-waitmode-prio = []
 mutex-waitmode-fifo = []
 
 queue-static-allocation = []
+
+
+mem_leakcheck = []
+base_core_swtmr = []
+base_ipc_sem = []
+base_ipc_mux = []
+base_ipc_queue = []
+mem_task_stat = []
+base_ipc_event = []
