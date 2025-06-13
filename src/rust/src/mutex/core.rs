@@ -60,10 +60,6 @@ fn pend_operation(
 fn post_operation(run_task: &mut TaskCB, mutex: &mut MutexControlBlock) -> bool {
     if !mutex.has_waiting_tasks() {
         mutex.clear_owner();
-        #[cfg(feature = "debug-mutex-deadlock")]
-        {
-            todo!("Implement debug deadlock handling");
-        }
         return false;
     }
     // // 获取第一个等待的任务
@@ -77,11 +73,6 @@ fn post_operation(run_task: &mut TaskCB, mutex: &mut MutexControlBlock) -> bool 
     mutex.set_count(1);
     mutex.set_owner(resumed_task);
 
-    #[cfg(feature = "debug-mutex-deadlock")]
-    {
-        todo!("Implement debug deadlock handling");
-    }
-
     // 唤醒任务
     task_wake(resumed_task);
 
@@ -91,10 +82,6 @@ fn post_operation(run_task: &mut TaskCB, mutex: &mut MutexControlBlock) -> bool 
 /// 互斥锁系统初始化
 pub fn mutex_init() {
     MutexManager::initialize();
-    #[cfg(feature = "debug-mutex")]
-    {
-        crate::mutex::debug::init_mutex_debug();
-    }
 }
 
 /// 创建互斥锁
@@ -103,23 +90,10 @@ pub fn mutex_create() -> SystemResult<MutexId> {
 
     if !MutexManager::has_available_mutex() {
         restore_interrupt_state(int_save);
-        #[cfg(feature = "debug-mutex")]
-        {
-            crate::mutex::debug::check_mutex_usage();
-        }
         return Err(MutexError::AllBusy.into());
     };
     let id = MutexManager::allocate();
 
-    #[cfg(feature = "debug-mutex")]
-    {
-        if let Some(current) = current_task() {
-            crate::mutex::debug::update_mutex_creator(
-                handle,
-                Some(unsafe { (*current).task_entry }),
-            );
-        }
-    }
     restore_interrupt_state(int_save);
     Ok(id)
 }
@@ -135,10 +109,6 @@ pub fn mutex_delete(id: MutexId) -> SystemResult<()> {
 
     match result {
         Ok(()) => {
-            #[cfg(feature = "debug-mutex")]
-            {
-                crate::mutex::debug::update_mutex_creator(handle, None);
-            }
             restore_interrupt_state(int_save);
             Ok(())
         }
@@ -165,22 +135,12 @@ pub fn mutex_pend(id: MutexId, timeout: u32) -> SystemResult<()> {
         return Err(MutexError::Invalid.into());
     }
 
-    #[cfg(feature = "debug-mutex")]
-    {
-        todo!("Implement mutex debug logging");
-    }
-
     if is_interrupt_active() {
         return Err(MutexError::PendInterrupt.into());
     }
 
     // 如果互斥锁未被锁定
     if mutex.get_count() == 0 {
-        #[cfg(feature = "debug-mutex-deadlock")]
-        {
-            crate::mutex::debug::add_deadlock_node(unsafe { (*current).task_id }, mutex);
-        }
-
         mutex.increment_count();
         mutex.set_owner(run_task);
         restore_interrupt_state(int_save);
@@ -228,11 +188,6 @@ pub fn mutex_post(id: MutexId) -> SystemResult<()> {
     // 参数检查
     if mutex.is_unused() || !mutex.matches_id(id) {
         return Err(MutexError::Invalid.into());
-    }
-
-    #[cfg(feature = "debug-mutex")]
-    {
-        todo!("Implement mutex debug logging");
     }
 
     if is_interrupt_active() {

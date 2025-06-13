@@ -122,8 +122,7 @@ pub fn set_current_task_priority(priority: u16) -> SystemResult<()> {
 ///
 /// # Safety
 /// 调用者必须确保任务控制块有效且优先级值合法
-#[unsafe(export_name = "OsTaskPriModify")]
-pub extern "C" fn modify_task_priority_raw(task_cb: &mut TaskCB, priority: u16) {
+pub fn modify_task_priority_raw(task_cb: &mut TaskCB, priority: u16) {
     if task_cb.task_status.contains(TaskStatus::READY) {
         // 从就绪队列中移除任务
         priority_queue_remove(&mut task_cb.pend_list);

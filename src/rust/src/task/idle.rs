@@ -44,14 +44,6 @@ fn idle_task() {
     }
 }
 
-// TODO 移除 extern "C" 函数
-#[unsafe(export_name = "OsGetIdleTaskId")]
-pub extern "C" fn get_idle_task_id() -> u32 {
-    // 获取当前CPU的percpu结构，返回空闲任务ID
-    let percpu = os_percpu_get();
-    percpu.idle_task_id
-}
-
 pub fn idle_task_create() -> SystemResult<()> {
     // 初始化任务参数
     let mut task_init_param = TaskInitParam {

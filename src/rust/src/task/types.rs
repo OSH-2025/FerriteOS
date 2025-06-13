@@ -30,9 +30,6 @@ pub struct TaskInitParam {
 
     /// 任务名称
     pub name: *const c_char,
-
-    /// 任务属性标志
-    pub task_attr: TaskAttr,
 }
 
 impl Default for TaskInitParam {
@@ -43,15 +40,7 @@ impl Default for TaskInitParam {
             args: core::ptr::null_mut(),
             stack_size: 0,
             name: core::ptr::null(),
-            task_attr: TaskAttr::empty(),
         }
-    }
-}
-
-impl TaskInitParam {
-    #[inline]
-    pub fn is_detached(&self) -> bool {
-        self.task_attr.contains(TaskAttr::DETACHED)
     }
 }
 
@@ -162,20 +151,6 @@ impl TaskCB {
         self.task_flags = TaskFlags::empty();
     }
 
-    // #[inline]
-    // pub fn is_detached(&self) -> bool {
-    //     self.task_flags.contains(TaskFlags::DETACHED)
-    // }
-
-    #[inline]
-    pub fn set_detached(&mut self, detached: bool) {
-        if detached {
-            self.task_flags.insert(TaskFlags::DETACHED);
-        } else {
-            self.task_flags.remove(TaskFlags::DETACHED);
-        }
-    }
-
     #[inline]
     pub fn is_system_task(&self) -> bool {
         self.task_flags.contains(TaskFlags::SYSTEM)
@@ -260,19 +235,8 @@ bitflags! {
     #[derive(Debug, Copy, Clone, Eq, PartialEq)]
     #[repr(transparent)]
     pub struct TaskFlags: u16 {
-        /// 任务自动删除标志
-        const DETACHED = 0x0001;
         /// 系统级任务标志
         const SYSTEM = 0x0002;
-    }
-}
-
-bitflags! {
-    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-    #[repr(transparent)]
-    pub struct TaskAttr: u32 {
-        /// 任务属性：分离
-        const DETACHED = 0x0100;
     }
 }
 
@@ -285,11 +249,5 @@ bitflags! {
         const KILL = 1;
         /// 挂起任务信号
         const SUSPEND = 2;
-    }
-}
-
-impl From<u32> for TaskAttr {
-    fn from(value: u32) -> Self {
-        Self::from_bits_truncate(value)
     }
 }

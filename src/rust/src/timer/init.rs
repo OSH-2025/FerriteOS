@@ -63,7 +63,6 @@ fn timer_task_create() -> SystemResult<()> {
     use crate::config::TIMER_TASK_STACK_SIZE;
     use crate::task::global::get_tcb_from_id;
     use crate::task::manager::create::task_create;
-    use crate::task::types::TaskAttr;
     use crate::task::types::TaskEntryFunc;
     use crate::task::types::TaskInitParam;
     use core::mem::transmute;
@@ -76,7 +75,6 @@ fn timer_task_create() -> SystemResult<()> {
         stack_size: TIMER_TASK_STACK_SIZE,
         name: b"Swt_Task\0".as_ptr(),
         priority: 0,
-        task_attr: TaskAttr::DETACHED,
         ..Default::default()
     };
 

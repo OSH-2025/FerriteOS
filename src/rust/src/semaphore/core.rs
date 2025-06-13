@@ -20,10 +20,6 @@ use crate::{
 /// 初始化信号量系统
 pub fn init_semaphore_system() {
     SemaphoreManager::initialize();
-    #[cfg(feature = "debug-semaphore")]
-    {
-        todo!("Debug semaphore initialization");
-    }
 }
 
 /// 创建计数信号量
@@ -34,18 +30,10 @@ pub fn create_semaphore(count: u16) -> SystemResult<SemaphoreId> {
     let int_save = disable_interrupts();
     match SemaphoreManager::allocate(SemaphoreType::Counting, count) {
         Ok(semaphore_id) => {
-            #[cfg(feature = "debug-semaphore")]
-            {
-                todo!("Semaphore created with ID: {:?}", semaphore_id);
-            }
             restore_interrupt_state(int_save);
             Ok(semaphore_id)
         }
         Err(e) => {
-            #[cfg(feature = "debug-semaphore")]
-            {
-                todo!("No available semaphore to allocate");
-            }
             restore_interrupt_state(int_save);
             Err(e)
         }
@@ -60,18 +48,10 @@ pub fn create_binary_semaphore(count: u16) -> SystemResult<SemaphoreId> {
     let int_save = disable_interrupts();
     match SemaphoreManager::allocate(SemaphoreType::Counting, count) {
         Ok(semaphore_id) => {
-            #[cfg(feature = "debug-semaphore")]
-            {
-                todo!("Semaphore created with ID: {:?}", semaphore_id);
-            }
             restore_interrupt_state(int_save);
             Ok(semaphore_id)
         }
         Err(e) => {
-            #[cfg(feature = "debug-semaphore")]
-            {
-                todo!("No available semaphore to allocate");
-            }
             restore_interrupt_state(int_save);
             Err(e)
         }
@@ -83,10 +63,6 @@ pub fn delete_semaphore(id: SemaphoreId) -> SystemResult<()> {
     let int_save = disable_interrupts();
     match SemaphoreManager::deallocate(id) {
         Ok(_) => {
-            #[cfg(feature = "debug-semaphore")]
-            {
-                todo!("Semaphore deleted with ID: {:?}", handle);
-            }
             restore_interrupt_state(int_save);
             Ok(())
         }
@@ -120,11 +96,6 @@ pub fn semaphore_pend(handle: SemaphoreId, timeout: u32) -> SystemResult<()> {
     if semaphore.is_unused() || !semaphore.matches_id(handle) {
         restore_interrupt_state(int_save);
         return Err(SemaphoreError::Invalid.into());
-    }
-
-    #[cfg(feature = "debug-semaphore")]
-    {
-        todo!("Semaphore pend called for ID: {:?}", handle);
     }
 
     if semaphore.get_count() > 0 {
@@ -162,11 +133,6 @@ pub fn semaphore_post(handle: SemaphoreId) -> SystemResult<()> {
     if semaphore.is_unused() || !semaphore.matches_id(handle) {
         restore_interrupt_state(int_save);
         return Err(SemaphoreError::Invalid.into());
-    }
-
-    #[cfg(feature = "debug-semaphore")]
-    {
-        todo!("Semaphore post called for ID: {:?}", handle);
     }
 
     let max_count = semaphore.max_count();

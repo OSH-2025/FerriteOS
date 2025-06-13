@@ -39,9 +39,6 @@ fn check_task_stack(old_task: &TaskCB, new_task: &TaskCB) {
     }
 }
 
-/// 初始化任务监控模块
-pub fn init_task_monitor() {}
-
 /// 注册任务切换钩子函数
 pub fn register_task_switch_hook(hook: TaskSwitchHook) {
     unsafe { USER_TASK_SWITCH_HOOK = hook };

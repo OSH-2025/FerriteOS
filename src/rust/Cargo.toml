@@ -25,9 +25,10 @@ default = [
 ]
 time_slice = []
 task_monitor = []
+task_static_allocation = []
+
 backtrace = []
 
-task_static_allocation = []
 shell = []
 
 log-emergency = []
@@ -36,12 +37,6 @@ log-error = []
 log-warning = []
 log-info = []
 log-debug = []
-
-debug-mutex = []
-debug-mutex-deadlock = []
-debug-semaphore = []
-debug-queue = []
-debug_sched_statistics = []
 
 mutex-waitmode-prio = []
 mutex-waitmode-fifo = []

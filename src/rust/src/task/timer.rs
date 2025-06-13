@@ -11,16 +11,14 @@ use crate::{
     },
 };
 
-#[unsafe(export_name = "OsTaskAdd2TimerList")]
-pub extern "C" fn add_to_timer_list(task_cb: &mut TaskCB, timeout: u32) {
+pub fn add_to_timer_list(task_cb: &mut TaskCB, timeout: u32) {
     // 设置排序链表值
     task_cb.sort_list.set_timeout(timeout);
     let sort_link_header = &mut os_percpu_get().task_sort_link;
     add_to_sort_link(sort_link_header, &mut task_cb.sort_list);
 }
 
-#[unsafe(export_name = "OsTimerListDelete")]
-pub extern "C" fn delete_from_timer_list(task_cb: &mut TaskCB) {
+pub fn delete_from_timer_list(task_cb: &mut TaskCB) {
     let sort_link_header = &mut os_percpu_get().task_sort_link;
     delete_from_sort_link(sort_link_header, &mut (*task_cb).sort_list);
 }

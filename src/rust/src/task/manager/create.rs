@@ -146,7 +146,6 @@ fn init_task_cb(
 
     // 设置任务标志
     task_cb.clear_all_flags();
-    task_cb.set_detached(init_param.is_detached());
 
     // 栈类型标志：0-动态分配栈空间；1-用户提供栈空间
     task_cb.usr_stack = if use_usr_stack { 1 } else { 0 };
@@ -158,19 +157,6 @@ fn init_task_cb(
     #[cfg(feature = "time_slice")]
     {
         task_cb.time_slice = 0;
-    }
-
-    // 调度统计相关
-    #[cfg(feature = "debug_sched_statistics")]
-    {
-        // 清零调度统计信息
-        unsafe {
-            core::ptr::write_bytes(
-                &mut task_cb.sched_stat as *mut _ as *mut u8,
-                0,
-                core::mem::size_of::<SchedStat>(),
-            );
-        }
     }
 }
 

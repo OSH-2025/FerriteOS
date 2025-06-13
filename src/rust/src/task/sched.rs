@@ -148,7 +148,6 @@ pub extern "C" fn schedule_reschedule() {
         // TODO
         #[cfg(feature = "task_monitor")]
         check_task_switch(run_task, &mut *new_task);
-        // OsTaskTimeUpdateHook(runTask->taskId, LOS_TickCountGet());
         // OsSchedStatistics(runTask, newTask);
 
         #[cfg(feature = "time_slice")]

@@ -46,22 +46,3 @@ pub fn task_wake(resumed_task: &mut TaskCB) {
         priority_queue_insert_at_back(&mut resumed_task.pend_list, resumed_task.priority as u32);
     }
 }
-
-// TODO remove this
-#[unsafe(export_name = "OsTaskWait")]
-pub extern "C" fn os_task_wait(list: *mut LinkedList, timeout: u32) {
-    let list = unsafe { list.as_mut().expect("list pointer must not be null") };
-    task_wait(list, timeout);
-}
-
-// TODO remove this
-/// C兼容的任务唤醒函数
-#[unsafe(export_name = "OsTaskWake")]
-pub extern "C" fn os_task_wake(resumed_task: *mut TaskCB) {
-    let resumed_task = unsafe {
-        resumed_task
-            .as_mut()
-            .expect("resumed_task pointer must not be null")
-    };
-    task_wake(resumed_task);
-}

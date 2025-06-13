@@ -20,12 +20,6 @@ use crate::{
 #[inline]
 pub fn init_queue_system() {
     QueueManager::initialize();
-
-    // 初始化队列调试功能（如果启用）
-    #[cfg(feature = "debug-queue")]
-    {
-        todo!("Implement queue debug initialization");
-    }
 }
 
 /// 内部队列创建函数
@@ -43,22 +37,10 @@ fn create_queue_internal(
         // 恢复中断状态
         restore_interrupt_state(int_save);
 
-        // 在调试模式下检查队列
-        #[cfg(feature = "debug-queue")]
-        {
-            debug::check_queues();
-        }
-
         return Err(QueueError::Unavailable.into());
     }
 
     let queue_id = QueueManager::allocate(queue_mem, mem_type, queue_len, queue_size);
-
-    // 调试信息更新
-    #[cfg(feature = "debug-queue")]
-    {
-        todo!("Update queue debug info after allocation");
-    }
 
     // 恢复中断状态
     restore_interrupt_state(int_save);
@@ -167,11 +149,6 @@ pub fn delete_queue(queue_id: QueueId) -> SystemResult<()> {
     let mem_type = queue.get_mem_type();
 
     QueueManager::deallocate(index);
-
-    #[cfg(feature = "debug-queue")]
-    {
-        todo!("Update queue debug info after deletion");
-    }
 
     // 恢复中断状态
     restore_interrupt_state(int_save);

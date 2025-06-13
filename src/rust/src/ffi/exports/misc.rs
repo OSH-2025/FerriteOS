@@ -28,8 +28,3 @@ pub extern "C" fn los_msleep(msecs: u32) {
 pub extern "C" fn os_dump_mem_byte(length: usize, addr: usize) {
     dump_region(addr, length);
 }
-
-#[unsafe(export_name = "OsArraySort")]
-pub extern "C" fn os_array_sort() {
-    todo!("OsArraySort is not implemented yet");
-}

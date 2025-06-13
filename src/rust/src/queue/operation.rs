@@ -103,13 +103,6 @@ fn check_queue_read_parameters(
         return Err(QueueError::ReadSizeInvalid.into());
     }
 
-    // 调试信息更新
-    #[cfg(feature = "debug-queue")]
-    {
-        todo!("Update queue time for read operation");
-        // debug::update_queue_time(queue_id.as_u32());
-    }
-
     // 检查在中断中是否尝试非零超时等待
     if timeout != 0 && is_interrupt_active() {
         return Err(QueueError::ReadInInterrupt.into());
@@ -138,13 +131,6 @@ fn check_queue_write_parameters(
     // 检查缓冲区大小是否为零
     if *buffer_size == 0 {
         return Err(QueueError::WriteSizeIsZero.into());
-    }
-
-    // 调试信息更新
-    #[cfg(feature = "debug-queue")]
-    {
-        todo!("Update queue time for write operation");
-        // debug::update_queue_time(queue_id.as_u32());
     }
 
     // 检查在中断中是否尝试非零超时等待
