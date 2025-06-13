@@ -2,6 +2,7 @@
 src/.vscode
 src/arch
 src/build
+src/demo
 src/demos
 src/drivers
 src/kernel
