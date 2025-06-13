@@ -30,8 +30,10 @@ pub fn timer_init() -> SystemResult<()> {
 }
 
 #[cfg(not(feature = "timer-in-isr"))]
-fn timer_task() {
+extern "C" fn timer_task(_arg: *mut core::ffi::c_void) {
+    use crate::queue::operation::queue_read;
     use crate::timer::types::TIMER_HANDLE_ITEM_SIZE;
+    use core::{ffi::c_void, ptr::addr_of_mut};
 
     let mut read_size = TIMER_HANDLE_ITEM_SIZE as u32;
     // 获取当前CPU的软件定时器队列
@@ -40,9 +42,7 @@ fn timer_task() {
 
     // 无限循环处理软件定时器回调
     loop {
-        use core::{ffi::c_void, ptr::addr_of_mut};
         // 从队列中读取定时器处理项
-        use crate::queue::operation::queue_read;
         let ret = queue_read(
             timer_queue_id,
             addr_of_mut!(timer_handler_item) as *mut c_void,
@@ -63,15 +63,13 @@ fn timer_task_create() -> SystemResult<()> {
     use crate::config::TIMER_TASK_STACK_SIZE;
     use crate::task::global::get_tcb_from_id;
     use crate::task::manager::create::task_create;
-    use crate::task::types::TaskEntryFunc;
     use crate::task::types::TaskInitParam;
-    use core::mem::transmute;
 
     let mut timer_task_id: u32 = 0;
 
     // 创建任务参数结构
     let mut timer_task_init_param = TaskInitParam {
-        task_entry: unsafe { transmute::<_, TaskEntryFunc>(timer_task as usize) },
+        task_entry: Some(timer_task),
         stack_size: TIMER_TASK_STACK_SIZE,
         name: b"Swt_Task\0".as_ptr(),
         priority: 0,

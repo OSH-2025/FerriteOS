@@ -8,11 +8,11 @@ use crate::{
     task::{
         global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         manager::create::task_create,
-        types::{TaskCB, TaskEntryFunc, TaskInitParam},
+        types::{TaskCB, TaskInitParam},
     },
     utils::list::LinkedList,
 };
-use core::{ffi::c_void, mem::transmute};
+use core::ffi::c_void;
 
 fn los_task_recycle() {
     let int_save = disable_interrupts();
@@ -37,7 +37,7 @@ fn los_task_recycle() {
     restore_interrupt_state(int_save);
 }
 
-fn idle_task() {
+extern "C" fn idle_task(_arg: *mut c_void) {
     loop {
         los_task_recycle();
         wfi();
@@ -47,7 +47,7 @@ fn idle_task() {
 pub fn idle_task_create() -> SystemResult<()> {
     // 初始化任务参数
     let mut task_init_param = TaskInitParam {
-        task_entry: unsafe { transmute::<_, TaskEntryFunc>(idle_task as usize) },
+        task_entry: Some(idle_task),
         priority: TASK_PRIORITY_LOWEST,
         stack_size: TASK_IDLE_STACK_SIZE,
         name: b"IdleCore000\0".as_ptr(),
