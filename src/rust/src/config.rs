@@ -1,6 +1,5 @@
 pub const OK: u32 = 0;
 pub const NOK: u32 = 1;
-pub const OS_INVALID: u32 = u32::MAX;
 pub const WAIT_FOREVER: u32 = u32::MAX;
 
 #[cfg(feature = "time_slice")]
@@ -30,3 +29,7 @@ pub const SEM_LIMIT: u32 = 1024;
 
 /// queue
 pub const QUEUE_LIMIT: u32 = 1024;
+
+/// software timer
+pub const TIMER_LIMIT: u32 = 1024;
+pub const TIMER_TASK_STACK_SIZE: u32 = 24576;
