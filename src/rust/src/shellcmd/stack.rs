@@ -6,6 +6,7 @@ use crate::shellcmd::types::{CmdType, ShellCmd};
 use crate::stack::get_stack_waterline;
 use crate::stack::global::get_stack_info;
 use core::ffi::c_char;
+// use crate::stack::types::StackInfo;
 
 // 常量定义
 const OS_STACK_MAGIC_WORD: usize = 0xCCCCCCCC;
@@ -85,12 +86,89 @@ pub fn os_exc_stack_info() {
                 stack_size,
                 size
             );
+
+            // print_common!(
+            //     "{:11p}      {:<5}    {:<10p}     0x{:<8x}   0x{:<4x}\n",
+            //     stack_info[index].stack_name, // 直接打印指针地址
+            //     LOSCFG_KERNEL_CORE_NUM - 1 - cpu_id,
+            //     stack_top,
+            //     stack_size,
+            //     size
+            // );
         }
     }
 
     // 检查栈是否溢出
     os_exc_stack_check();
 }
+
+// /// 显示栈信息
+// #[unsafe(export_name = "OsExcStackInfo")]
+// pub fn os_exc_stack_info() {
+//     // 获取栈信息
+//     let (maybe_stack_info, stack_num) = get_stack_info();
+//     let stack_info = match maybe_stack_info {
+//         Some(info) => info,
+//         None => return,
+//     };
+
+//     // 打印表头
+//     print_stack_info_header();
+
+//     // 分别处理每个栈
+//     for index in 0..stack_num as usize {
+//         process_stack_info(stack_info, index);
+//     }
+// }
+
+// /// 打印栈信息表头
+// fn print_stack_info_header() {
+//     print_common!(
+//         "\n stack name    cpu id     stack addr     total size   used size\n ----------    ------     ---------      --------     --------\n"
+//     );
+// }
+
+// /// 处理单个栈的信息
+// fn process_stack_info(stack_info: &[StackInfo], index: usize) {
+//     for cpu_id in 0..LOSCFG_KERNEL_CORE_NUM {
+//         print_single_cpu_stack(stack_info, index, cpu_id);
+//     }
+// }
+
+// /// 打印单个CPU的栈信息
+// fn print_single_cpu_stack(stack_info: &[StackInfo], index: usize, cpu_id: u32) {
+//     // 计算当前CPU的栈顶和栈底指针
+//     let stack_offset = cpu_id * stack_info[index].stack_size;
+//     let stack_top_addr = (stack_info[index].stack_addr as usize) + (stack_offset as usize);
+//     let stack_top = stack_top_addr as *mut usize;
+//     let stack_size = stack_info[index].stack_size;
+//     let stack_addr = unsafe {
+//         stack_top.add(stack_size as usize / core::mem::size_of::<usize>())
+//     };
+
+//     // 获取栈使用量
+//     let size = get_stack_usage(stack_top, stack_addr);
+
+//     // 打印栈信息
+//     print_common!(
+//         "{:11}      {:<5}    {:<10p}     0x{:<8x}   0x{:<4x}\n",
+//         c_str_to_str(stack_info[index].stack_name),
+//         LOSCFG_KERNEL_CORE_NUM - 1 - cpu_id,
+//         stack_top,
+//         stack_size,
+//         size
+//     );
+// }
+
+// /// 获取栈使用量
+// fn get_stack_usage(stack_top: *mut usize, stack_addr: *mut usize) -> u32 {
+//     unsafe {
+//         match get_stack_waterline(&*stack_top, &*stack_addr) {
+//             Ok(size) => size,
+//             Err(_) => 0,
+//         }
+//     }
+// }
 
 /// 将 C 字符串转换为 Rust 字符串，处理空指针和无效 UTF-8 的情况
 fn c_str_to_str(c_str: *const c_char) -> &'static str {
@@ -115,9 +193,10 @@ pub extern "C" fn rust_stack_cmd(_argc: i32, _argv: *const *const u8) -> u32 {
 }
 
 // 注册stack命令
+#[unsafe(no_mangle)]
 #[used]
-#[unsafe(link_section = ".shell.cmds")]
-pub static STACK_SHELL_CMD: ShellCmd = ShellCmd {
+#[unsafe(link_section = ".liteos.table.shellcmd.data")]
+pub static stack_shellcmd: ShellCmd = ShellCmd {
     cmd_type: CmdType::Ex,
     cmd_key: b"stack\0".as_ptr() as *const c_char,
     para_num: 1,

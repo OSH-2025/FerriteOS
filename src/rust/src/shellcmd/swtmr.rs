@@ -6,7 +6,7 @@ use core::ffi::c_char;
 
 // 导入所需的软件定时器相关结构和函数
 // 这里假设已经在 ffi::exports::swtmr 模块中导出了相关函数
-use crate::shellcmd::types::{LosSwtmrCB, g_swtmr_cb_array};
+use crate::shellcmd::types::{LosSwtmrCB, g_swtmrCBArray};
 
 // 常量定义
 // const SWTMR_STRLEN: usize = 12;
@@ -25,7 +25,7 @@ static SWTMR_STATUS_STRINGS: [&str; 3] = ["UnUsed", "Created", "Ticking"];
 fn os_print_swtmr_msg(swtmr: &LosSwtmrCB) {
     print_common!(
         "0x{:08x}  {:<7}  {:<6}   {:<6}   0x{:08x}  {:p}\n",
-        swtmr.timer_id % LOSCFG_BASE_CORE_SWTMR_LIMIT as u32,
+        (swtmr.timer_id as u32) % (LOSCFG_BASE_CORE_SWTMR_LIMIT as u32),
         SWTMR_STATUS_STRINGS[swtmr.state as usize],
         SWTMR_MODE_STRINGS[swtmr.mode as usize],
         swtmr.interval,
@@ -69,7 +69,7 @@ pub fn cmd_swtmr(argc: i32, argv: *const *const u8) -> u32 {
         // 计算未使用的定时器数量
         let mut num = 0;
         for i in 0..LOSCFG_BASE_CORE_SWTMR_LIMIT as usize {
-            if (*g_swtmr_cb_array.add(i)).state == 0 {
+            if (*g_swtmrCBArray.add(i)).state == 0 {
                 num += 1;
             }
         }
@@ -86,7 +86,7 @@ pub fn cmd_swtmr(argc: i32, argv: *const *const u8) -> u32 {
         if timer_id == OS_ALL_SWTMR_MASK {
             // 打印所有活动定时器
             for i in 0..LOSCFG_BASE_CORE_SWTMR_LIMIT as usize {
-                let swtmr = &*g_swtmr_cb_array.add(i);
+                let swtmr = &*g_swtmrCBArray.add(i);
                 if swtmr.state != 0 {
                     os_print_swtmr_msg(swtmr);
                 }
@@ -95,8 +95,8 @@ pub fn cmd_swtmr(argc: i32, argv: *const *const u8) -> u32 {
             // 打印指定ID的定时器
             let mut found = false;
             for i in 0..LOSCFG_BASE_CORE_SWTMR_LIMIT as usize {
-                let swtmr = &*g_swtmr_cb_array.add(i);
-                if (timer_id == (swtmr.timer_id % LOSCFG_BASE_CORE_SWTMR_LIMIT as u32) as usize)
+                let swtmr = &*g_swtmrCBArray.add(i);
+                if (timer_id == ((swtmr.timer_id as u32) % (LOSCFG_BASE_CORE_SWTMR_LIMIT as u32)) as usize)
                     && (swtmr.state != 0)
                 {
                     os_print_swtmr_msg(swtmr);
@@ -154,9 +154,10 @@ pub unsafe extern "C" fn rust_swtmr_cmd(argc: i32, argv: *const *const u8) -> u3
 
 // 注册swtmr命令
 #[cfg(feature = "base_core_swtmr")]
-#[used]
-#[unsafe(link_section = ".shell.cmds")]
-pub static SWTMR_SHELL_CMD: ShellCmd = ShellCmd {
+#[unsafe(no_mangle)]  // 防止编译器修改符号名
+#[used] // 防止未使用的静态项被优化掉
+#[unsafe(link_section = ".liteos.table.shellcmd.data")] // 使用与C代码相同的段名
+pub static swtmr_shellcmd: ShellCmd = ShellCmd {
     cmd_type: CmdType::Ex,
     cmd_key: b"swtmr\0".as_ptr() as *const c_char,
     para_num: 1,
