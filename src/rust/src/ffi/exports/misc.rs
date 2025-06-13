@@ -29,7 +29,6 @@ pub extern "C" fn os_dump_mem_byte(length: usize, addr: usize) {
     dump_region(addr, length);
 }
 
-// TODO
 #[unsafe(export_name = "OsArraySort")]
 pub extern "C" fn os_array_sort() {
     todo!("OsArraySort is not implemented yet");
