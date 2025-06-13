@@ -1,7 +1,7 @@
 use crate::{
     config::TASK_LIMIT,
     interrupt::{disable_interrupts, is_interrupt_active, restore_interrupt_state},
-    mem::{defs::m_aucSysMem1, memory::los_mem_free, memstat::os_memstat_task_clear},
+    memory::free,
     percpu::can_preempt_in_scheduler,
     result::{SystemError, SystemResult},
     task::{
@@ -13,7 +13,7 @@ use crate::{
     },
     utils::list::LinkedList,
 };
-use core::ptr::null_mut;
+use core::{ffi::c_void, ptr::null_mut};
 
 /// 处理正在运行任务的删除操作
 fn handle_running_task_deletion(task_cb: &mut TaskCB) {
@@ -55,12 +55,7 @@ fn perform_task_deletion(task_cb: &mut TaskCB, use_usr_stack: bool) -> bool {
         // 释放任务栈内存
         if !use_usr_stack {
             let task_stack = (*task_cb).top_of_stack;
-            unsafe {
-                los_mem_free(
-                    m_aucSysMem1 as *mut core::ffi::c_void,
-                    task_stack as *mut core::ffi::c_void,
-                );
-            }
+            free(task_stack as *mut c_void);
         }
 
         task_cb.top_of_stack = null_mut();
@@ -144,15 +139,8 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
     task_cb.task_status.insert(TaskStatus::UNUSED);
 
     // 清除事件相关信息
-    #[cfg(feature = "ipc_event")]
-    {
-        task_cb.event.event_id = u32::MAX;
-        task_cb.event_mask = 0;
-    }
-
-    // 清除内存相关信息
-    #[cfg(feature = "memory_task_statistics")]
-    os_memstat_task_clear(task_id);
+    task_cb.event.event_id = u32::MAX;
+    task_cb.event_mask = 0;
 
     // 执行任务删除操作，如果需要重新调度则执行
     if perform_task_deletion(task_cb, task_cb.usr_stack != 0) {

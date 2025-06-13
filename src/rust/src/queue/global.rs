@@ -31,7 +31,7 @@ impl QueueManager {
 
     /// 检查是否有可用的消息队列
     #[inline]
-    pub fn has_available_queue() -> bool {
+    pub fn has_available() -> bool {
         !LinkedList::is_empty(&raw const UNUSED_QUEUE_LIST)
     }
 

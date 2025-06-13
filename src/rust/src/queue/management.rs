@@ -5,10 +5,7 @@ use core::ffi::c_void;
 use crate::{
     config::QUEUE_LIMIT,
     interrupt::{disable_interrupts, restore_interrupt_state},
-    mem::{
-        defs::m_aucSysMem1,
-        memory::{los_mem_alloc, los_mem_free},
-    },
+    memory::{free, malloc},
     queue::{
         error::QueueError,
         global::QueueManager,
@@ -42,7 +39,7 @@ fn create_queue_internal(
     let int_save = disable_interrupts();
 
     // 临界区开始 - 检查是否有可用队列控制块
-    if !QueueManager::has_available_queue() {
+    if !QueueManager::has_available() {
         // 恢复中断状态
         restore_interrupt_state(int_save);
 
@@ -83,8 +80,7 @@ pub fn create_queue(len: u16, msg_size: u16) -> SystemResult<QueueId> {
     let queue_size = msg_size + 4; // 4字节用于存储消息长度
 
     // 为队列分配内存
-    let queue_mem =
-        unsafe { los_mem_alloc(m_aucSysMem1 as *mut c_void, len as u32 * queue_size as u32) };
+    let queue_mem = malloc(len as usize * queue_size as usize);
     if queue_mem.is_null() {
         return Err(QueueError::CreateNoMemory.into());
     }
@@ -95,9 +91,7 @@ pub fn create_queue(len: u16, msg_size: u16) -> SystemResult<QueueId> {
         Ok(queue_id) => Ok(queue_id),
         Err(err) => {
             // 创建失败，释放已分配的内存
-            unsafe {
-                los_mem_free(m_aucSysMem1 as *mut c_void, queue_mem as *mut c_void);
-            }
+            free(queue_mem as *mut c_void);
             Err(err)
         }
     }
@@ -184,9 +178,7 @@ pub fn delete_queue(queue_id: QueueId) -> SystemResult<()> {
 
     // 如果是动态分配的队列，释放内存
     if mem_type == QueueMemoryType::Dynamic {
-        unsafe {
-            los_mem_free(m_aucSysMem1 as *mut c_void, queue_mem as *mut c_void);
-        }
+        free(queue_mem as *mut c_void);
     }
 
     Ok(())
