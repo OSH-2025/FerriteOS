@@ -1,4 +1,3 @@
-#[cfg(feature = "ipc_event")]
 use crate::event::types::EventCB;
 use crate::{
     container_of,
@@ -87,12 +86,6 @@ pub struct TaskCB {
     /// 任务入口函数
     pub task_entry: TaskEntryFunc,
 
-    #[cfg(feature = "compat_posix")]
-    pub thread_join: *mut c_void,
-
-    #[cfg(feature = "compat_posix")]
-    pub thread_join_retval: *mut c_void,
-
     /// 任务参数
     pub args: *mut c_void,
 
@@ -106,19 +99,13 @@ pub struct TaskCB {
     pub sort_list: SortLinkList,
 
     /// 事件控制块
-    #[cfg(feature = "ipc_event")]
     pub event: EventCB,
 
     /// 事件掩码
-    #[cfg(feature = "ipc_event")]
     pub event_mask: u32,
 
     /// 事件模式
-    #[cfg(feature = "ipc_event")]
     pub event_mode: u32,
-
-    /// 分配给队列的内存
-    pub msg: *mut c_void,
 
     /// 优先级位图
     pub priority_bitmap: u32,
@@ -143,21 +130,13 @@ impl TaskCB {
         top_of_stack: core::ptr::null_mut(),
         task_id: 0,
         task_entry: None,
-        #[cfg(feature = "compat_posix")]
-        thread_join: core::ptr::null_mut(),
-        #[cfg(feature = "compat_posix")]
-        thread_join_retval: core::ptr::null_mut(),
         args: core::ptr::null_mut(),
         task_name: core::ptr::null(),
         pend_list: LinkedList::UNINIT,
         sort_list: SortLinkList::UNINIT,
-        #[cfg(feature = "ipc_event")]
         event: EventCB::new(),
-        #[cfg(feature = "ipc_event")]
         event_mask: 0,
-        #[cfg(feature = "ipc_event")]
         event_mode: 0,
-        msg: core::ptr::null_mut(),
         priority_bitmap: 0,
         signal: TaskSignal::empty(),
         #[cfg(feature = "time_slice")]
