@@ -2,7 +2,6 @@ use crate::{config::TIMER_LIMIT, utils::list::LinkedList};
 
 use crate::timer::types::{TimerControlBlock, TimerHandler, TimerMode, TimerState};
 
-#[unsafe(export_name = "g_swtmrFreeList")]
 pub static mut UNUSED_TIMER_LIST: LinkedList = LinkedList::new();
 
 #[unsafe(export_name = "g_swtmrCBArray")]

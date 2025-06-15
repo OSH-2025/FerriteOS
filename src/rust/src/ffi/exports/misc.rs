@@ -1,19 +1,8 @@
 use crate::{
-    task::manager::delay::task_delay,
-    tick::milliseconds_to_ticks,
-    utils::{align::align_up, memdump::dump_region},
+    task::manager::delay::task_delay, tick::milliseconds_to_ticks, utils::memdump::dump_region,
 };
 
-#[unsafe(export_name = "LOS_Align")]
-pub extern "C" fn los_align(addr: u32, boundary: u32) -> u32 {
-    return align_up(addr, boundary);
-}
-
 /// 毫秒级休眠
-///
-/// # 参数
-///
-/// * `msecs` - 休眠毫秒数
 #[unsafe(export_name = "LOS_Msleep")]
 pub extern "C" fn los_msleep(msecs: u32) {
     let interval = if msecs == 0 {
