@@ -33,12 +33,6 @@ unsafe extern "C" {
         top_stack: *mut c_void,
     ) -> *mut c_void;
 
-    #[link_name = "ArchBackTrace"]
-    unsafe fn c_arch_back_trace();
-
-    #[link_name = "ArchBackTraceWithSp"]
-    unsafe fn c_arch_back_trace_with_sp(ptr: *mut c_void);
-
     #[link_name = "ArchIrqInit"]
     unsafe fn c_arch_irq_init();
 
@@ -121,16 +115,6 @@ pub fn wfi() {
 #[inline]
 pub fn task_stack_init(task_id: u32, stack_size: u32, top_stack: *mut c_void) -> *mut c_void {
     unsafe { c_task_stack_init(task_id, stack_size, top_stack) }
-}
-
-#[inline]
-pub fn arch_back_trace() {
-    unsafe { c_arch_back_trace() }
-}
-
-#[inline]
-pub fn arch_back_trace_with_sp(ptr: *mut c_void) {
-    unsafe { c_arch_back_trace_with_sp(ptr) }
 }
 
 #[inline]

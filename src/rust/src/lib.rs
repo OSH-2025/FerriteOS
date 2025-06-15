@@ -5,9 +5,7 @@ use semihosting::println;
 extern crate alloc;
 
 mod config;
-mod error;
 mod event;
-mod exception;
 mod ffi;
 mod interrupt;
 mod memory;

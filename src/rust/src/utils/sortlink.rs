@@ -1,4 +1,4 @@
-use crate::{container_of, exception::backtrace::back_trace, utils::list::LinkedList};
+use crate::{container_of, utils::list::LinkedList};
 
 pub const OS_TSK_HIGH_BITS: u32 = 3;
 pub const OS_TSK_LOW_BITS: u32 = 32 - OS_TSK_HIGH_BITS;
@@ -216,7 +216,7 @@ fn os_check_sort_link(list_head: *mut LinkedList, list_node: *mut LinkedList) {
             tmp = (*tmp).prev;
         }
     }
-    back_trace();
+    panic!("Sort link node is not in the correct list");
 }
 
 #[unsafe(export_name = "OsDeleteSortLink")]

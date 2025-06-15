@@ -1,7 +1,5 @@
 pub mod bitmap;
-pub mod err;
 pub mod event;
-pub mod exc;
 pub mod hwi;
 pub mod misc;
 pub mod mutex;
