@@ -1,4 +1,6 @@
 //! 消息队列类型定义
+use semihosting::println;
+
 use crate::{container_of, utils::list::LinkedList};
 
 /// 队列操作类型
@@ -407,11 +409,41 @@ impl QueueControlBlock {
         self.queue_mem = core::ptr::null_mut();
         self.increment_id_counter();
     }
+
+    /// 获取队列信息
+    #[inline]
+    pub fn get_info(&self) -> QueueInfo {
+        QueueInfo {
+            queue_id: self.queue_id.0,
+            queue_len: self.queue_len,
+            queue_size: self.queue_size,
+            queue_head: self.queue_head,
+            queue_tail: self.queue_tail,
+            writable_count: self.writable_count,
+            readable_count: self.readable_count,
+        }
+    }
+
+    /// 打印队列信息
+    #[inline]
+    pub fn print_info(&self) {
+        let info = self.get_info();
+        println!(
+            "Queue Info: ID: {}, Length: {}, Size: {}, Head: {}, Tail: {}, Writable: {}, Readable: {}",
+            info.queue_id,
+            info.queue_len,
+            info.queue_size,
+            info.queue_head,
+            info.queue_tail,
+            info.writable_count,
+            info.readable_count
+        );
+    }
 }
 
 /// 队列信息结构体
 #[repr(C)]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct QueueInfo {
     /// 队列ID
     pub queue_id: u32,

@@ -5,11 +5,9 @@ use crate::{
 };
 
 /// 全部信号量控制块数组
-#[unsafe(export_name = "g_allQueue")]
 pub static mut QUEUE_POOL: [QueueControlBlock; QUEUE_LIMIT as usize] =
     [QueueControlBlock::UNINT; QUEUE_LIMIT as usize];
 
-#[unsafe(export_name = "g_freeQueueList")]
 pub static mut UNUSED_QUEUE_LIST: LinkedList = LinkedList::new();
 
 pub struct QueueManager;
@@ -65,5 +63,29 @@ impl QueueManager {
             &raw mut UNUSED_QUEUE_LIST,
             &raw mut queue.write_waiting_list,
         );
+    }
+
+    /// 获取当前使用的消息队列数量
+    #[inline]
+    #[unsafe(export_name = "OsUsedQueueCountGet")]
+    pub fn get_used_count() -> usize {
+        #[allow(static_mut_refs)]
+        unsafe {
+            QUEUE_POOL.iter().filter(|queue| !queue.is_unused()).count()
+        }
+    }
+
+    /// 打印当前使用的消息队列信息
+    #[inline]
+    #[unsafe(export_name = "OsUsedQueueInfoPrint")]
+    pub fn print_used_info() {
+        #[allow(static_mut_refs)]
+        unsafe {
+            for queue in QUEUE_POOL.iter() {
+                if !queue.is_unused() {
+                    queue.print_info();
+                }
+            }
+        }
     }
 }

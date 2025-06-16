@@ -18,7 +18,6 @@ pub fn get_queue_info(queue_id: QueueId, queue_info: &mut QueueInfo) -> SystemRe
     }
 
     // 清零队列信息结构体
-    *queue_info = QueueInfo::default();
 
     // 保存中断状态并禁用中断
     let int_save = disable_interrupts();
@@ -34,14 +33,7 @@ pub fn get_queue_info(queue_id: QueueId, queue_info: &mut QueueInfo) -> SystemRe
     }
 
     // 填充队列信息
-    queue_info.queue_id = queue_id.into();
-    queue_info.queue_len = queue.queue_len;
-    queue_info.queue_size = queue.queue_size;
-    queue_info.queue_head = queue.get_head();
-    queue_info.queue_tail = queue.get_tail();
-    queue_info.readable_count = queue.readable_count;
-    queue_info.writable_count = queue.writable_count;
-
+    *queue_info = queue.get_info();
     // 恢复中断状态
     restore_interrupt_state(int_save);
 

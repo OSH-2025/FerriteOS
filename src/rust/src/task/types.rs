@@ -161,6 +161,11 @@ impl TaskCB {
         self.task_flags.insert(TaskFlags::SYSTEM);
     }
 
+    #[inline]
+    pub fn is_unused(&self) -> bool {
+        self.task_status == TaskStatus::UNUSED
+    }
+
     // #[inline]
     // pub fn set_signal(&mut self, signal: TaskSignal) {
     //     self.signal.insert(signal);
