@@ -93,8 +93,7 @@ impl From<QueueId> for u32 {
 }
 
 /// 队列控制块
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct QueueControlBlock {
     /// 队列数据存储区域
     pub queue_mem: *mut u8,
@@ -133,8 +132,12 @@ pub struct QueueControlBlock {
     pub write_waiting_list: LinkedList,
 }
 
+unsafe impl Send for QueueControlBlock {}
+unsafe impl Sync for QueueControlBlock {}
+
 impl QueueControlBlock {
-    pub const UNINT: Self = Self {
+    /// 创建一个新的未初始化队列控制块
+    pub const UNINIT: Self = Self {
         queue_mem: core::ptr::null_mut(),
         queue_state: QueueState::Unused,
         queue_mem_type: QueueMemoryType::Dynamic,

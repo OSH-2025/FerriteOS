@@ -1,20 +1,19 @@
 //! 消息队列操作功能实现
-
-use core::ffi::c_void;
-use core::ptr::{addr_of, copy};
-
 use crate::config::QUEUE_LIMIT;
 use crate::ffi::bindings::get_current_task;
-use crate::interrupt::{disable_interrupts, is_interrupt_active, restore_interrupt_state};
+use crate::interrupt::is_interrupt_active;
 use crate::percpu::can_preempt_in_scheduler;
 use crate::queue::error::QueueError;
-use crate::queue::global::QueueManager;
+use crate::queue::global::QUEUE_POOL;
 use crate::queue::types::{QueueControlBlock, QueueId, QueueOperationType};
 use crate::result::SystemResult;
 use crate::task::sched::{schedule, schedule_reschedule};
 use crate::task::sync::wait::{task_wait, task_wake};
 use crate::task::types::{TaskCB, TaskStatus};
 use crate::utils::list::LinkedList;
+use core::ffi::c_void;
+use core::ptr::{addr_of, copy};
+use critical_section::with;
 
 /// 从队列读取数据
 pub fn queue_read(
@@ -242,82 +241,79 @@ fn queue_operate(
     buffer_size: &mut u32,
     timeout: u32,
 ) -> SystemResult<()> {
-    // 获取队列控制块
-    let queue_cb = QueueManager::get_queue_by_index(queue_id.get_index() as usize);
+    let index: u16 = queue_id.get_index();
+    let res = with(|cs| {
+        let mut queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
+        let mut queue = queue_pool.get_mut(index as usize).unwrap();
+        // 检查队列操作参数
+        match check_queue_operate_params(queue, queue_id, operate_type, buffer_size) {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        // 检查是否有可读/可写资源
+        if queue.has_available_resources(operate_type) {
+            // 减少可读/可写计数
+            queue.decrement_resource_count(operate_type);
+        } else {
+            // 如果没有等待时间，直接返回队列空或满错误
+            if timeout == 0 {
+                return Err(if operate_type.is_read() {
+                    QueueError::IsEmpty.into()
+                } else {
+                    QueueError::IsFull.into()
+                });
+            }
 
-    // 保存中断状态并禁用中断
-    let int_save = disable_interrupts();
+            // 检查是否可以在调度锁中等待
+            if !can_preempt_in_scheduler() {
+                return Err(QueueError::PendInLock.into());
+            }
 
-    // 检查队列操作参数
-    match check_queue_operate_params(queue_cb, queue_id, operate_type, buffer_size) {
-        Ok(_) => {}
-        Err(e) => {
-            restore_interrupt_state(int_save);
-            return Err(e);
+            // 让当前任务等待队列
+            let wait_list = queue.get_wait_list(operate_type);
+
+            task_wait(wait_list, timeout);
+            drop(queue_pool);
+
+            // 重新调度
+            schedule_reschedule();
+
+            // 检查是否超时
+            let task = get_current_task();
+            if task.task_status.contains(TaskStatus::TIMEOUT) {
+                task.task_status.remove(TaskStatus::TIMEOUT);
+                return Err(QueueError::Timeout.into());
+            }
+            queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
+            queue = queue_pool.get_mut(index as usize).unwrap();
         }
+        // 执行队列缓冲区操作
+        queue_buffer_operate(queue, operate_type, buffer, buffer_size);
+
+        // 检查是否有等待的任务需要唤醒
+        if !queue.is_opposite_wait_list_empty(operate_type) {
+            // 唤醒等待的任务
+            let resumed_task = TaskCB::from_pend_list(LinkedList::first(
+                queue.get_opposite_wait_list(operate_type),
+            ));
+            task_wake(resumed_task);
+            Ok(true)
+        } else {
+            // 增加对应的可读/可写计数
+            queue.increment_opposite_resource_count(operate_type);
+            Ok(false)
+        }
+    });
+    match res {
+        Ok(need_schedule) => {
+            // 如果需要调度，则执行调度
+            if need_schedule {
+                schedule();
+            }
+            Ok(())
+        }
+        Err(e) => Err(e),
     }
-
-    // 检查是否有可读/可写资源
-    if !queue_cb.has_available_resources(operate_type) {
-        // 如果没有等待时间，直接返回队列空或满错误
-        if timeout == 0 {
-            restore_interrupt_state(int_save);
-            return Err(if operate_type.is_read() {
-                QueueError::IsEmpty.into()
-            } else {
-                QueueError::IsFull.into()
-            });
-        }
-
-        // 检查是否可以在调度锁中等待
-        if !can_preempt_in_scheduler() {
-            restore_interrupt_state(int_save);
-            return Err(QueueError::PendInLock.into());
-        }
-
-        // 让当前任务等待队列
-        let wait_list = queue_cb.get_wait_list(operate_type);
-        task_wait(wait_list, timeout);
-
-        // 重新调度
-        schedule_reschedule();
-        restore_interrupt_state(int_save);
-        let int_save = disable_interrupts();
-
-        // 检查是否超时
-        let task = get_current_task();
-        if task.task_status.contains(TaskStatus::TIMEOUT) {
-            task.task_status.remove(TaskStatus::TIMEOUT);
-            restore_interrupt_state(int_save);
-            return Err(QueueError::Timeout.into());
-        }
-    } else {
-        // 减少可读/可写计数
-        queue_cb.decrement_resource_count(operate_type);
-    }
-
-    // 执行队列缓冲区操作
-    queue_buffer_operate(queue_cb, operate_type, buffer, buffer_size);
-
-    // 检查是否有等待的任务需要唤醒
-    if !queue_cb.is_opposite_wait_list_empty(operate_type) {
-        // 唤醒等待的任务
-        let resumed_task = TaskCB::from_pend_list(LinkedList::first(
-            queue_cb.get_opposite_wait_list(operate_type),
-        ));
-        task_wake(resumed_task);
-
-        // 恢复中断状态
-        restore_interrupt_state(int_save);
-
-        // 重新调度
-        schedule();
-    } else {
-        // 增加对应的可读/可写计数
-        queue_cb.increment_opposite_resource_count(operate_type);
-
-        // 恢复中断状态
-        restore_interrupt_state(int_save);
-    }
-    Ok(())
 }

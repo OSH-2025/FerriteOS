@@ -1,25 +1,35 @@
 //! 消息队列核心实现
-
-use core::ffi::c_void;
-
 use crate::{
     config::QUEUE_LIMIT,
-    interrupt::{disable_interrupts, restore_interrupt_state},
     memory::{free, malloc},
     queue::{
         error::QueueError,
-        global::QueueManager,
-        types::{QueueId, QueueMemoryType},
+        global::{QUEUE_POOL, UNUSED_QUEUE_LIST},
+        types::{QueueControlBlock, QueueId, QueueMemoryType},
     },
     result::SystemResult,
+    utils::list::LinkedList,
 };
+use core::ffi::c_void;
+use critical_section::with;
 
 /// 初始化队列系统
 ///
 /// 此函数设置全局队列池并初始化空闲队列列表
 #[inline]
 pub fn init_queue_system() {
-    QueueManager::initialize();
+    with(|cs| {
+        let mut queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
+        let mut unused_list = UNUSED_QUEUE_LIST.borrow_ref_mut(cs);
+        unused_list.init_ref();
+        queue_pool
+            .iter_mut()
+            .enumerate()
+            .for_each(|(index, queue)| {
+                queue.set_id(QueueId(index as u32));
+                unused_list.tail_insert_ref(&raw mut queue.write_waiting_list);
+            });
+    })
 }
 
 /// 内部队列创建函数
@@ -29,23 +39,21 @@ fn create_queue_internal(
     queue_len: u16,
     queue_size: u16,
 ) -> SystemResult<QueueId> {
-    // 保存中断状态并禁用中断
-    let int_save = disable_interrupts();
+    // 临界区开始
+    with(|cs| {
+        // 检查是否有可用队列控制块
+        let unused_list = UNUSED_QUEUE_LIST.borrow_ref(cs);
+        if unused_list.is_empty_ref() {
+            return Err(QueueError::Unavailable.into());
+        }
 
-    // 临界区开始 - 检查是否有可用队列控制块
-    if !QueueManager::has_available() {
-        // 恢复中断状态
-        restore_interrupt_state(int_save);
-
-        return Err(QueueError::Unavailable.into());
-    }
-
-    let queue_id = QueueManager::allocate(queue_mem, mem_type, queue_len, queue_size);
-
-    // 恢复中断状态
-    restore_interrupt_state(int_save);
-
-    Ok(queue_id)
+        let node = unused_list.first_ref();
+        LinkedList::remove(node);
+        let queue = QueueControlBlock::from_list(node);
+        queue.initialize(queue_mem, mem_type, queue_len, queue_size);
+        let queue_id = queue.get_id();
+        Ok(queue_id)
+    })
 }
 
 /// 创建动态内存队列
@@ -119,44 +127,46 @@ pub fn delete_queue(queue_id: QueueId) -> SystemResult<()> {
         return Err(QueueError::NotFound.into());
     }
 
-    // 获取队列控制块
-    let queue = QueueManager::get_queue_by_index(index as usize);
+    let res = with(|cs| {
+        // 获取队列控制块
+        let mut queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
+        let queue = queue_pool.get_mut(index as usize).unwrap();
 
-    // 保存中断状态并禁用中断
-    let int_save = disable_interrupts();
+        // 临界区开始 - 验证队列状态
+        if !queue.matches_id(queue_id) || queue.is_unused() {
+            return Err(QueueError::NotCreate.into());
+        }
 
-    // 临界区开始 - 验证队列状态
-    if !queue.matches_id(queue_id) || queue.is_unused() {
-        // 队列不存在或未创建
-        restore_interrupt_state(int_save);
-        return Err(QueueError::NotCreate.into());
+        // 检查是否有任务在等待队列
+        if queue.has_waiting_tasks() {
+            return Err(QueueError::InTaskUse.into());
+        }
+
+        // 检查队列是否存在读写不一致
+        if queue.is_read_write_inconsistent() {
+            return Err(QueueError::InTaskWrite.into());
+        }
+
+        // 保存队列内存指针以便后续释放
+        let queue_mem = queue.queue_mem;
+        let mem_type = queue.get_mem_type();
+
+        // 回收队列资源
+        queue.reset();
+        let mut unused_list = UNUSED_QUEUE_LIST.borrow_ref_mut(cs);
+        unused_list.tail_insert_ref(&raw mut queue.write_waiting_list);
+
+        Ok((queue_mem, mem_type))
+    });
+
+    match res {
+        Ok((queue_mem, mem_type)) => {
+            // 如果是静态分配的队列，直接返回
+            if mem_type == QueueMemoryType::Dynamic {
+                free(queue_mem as *mut c_void);
+            }
+            return Ok(());
+        }
+        Err(e) => return Err(e),
     }
-
-    // 检查是否有任务在等待队列
-    if queue.has_waiting_tasks() {
-        restore_interrupt_state(int_save);
-        return Err(QueueError::InTaskUse.into());
-    }
-
-    // 检查队列是否存在读写不一致
-    if queue.is_read_write_inconsistent() {
-        restore_interrupt_state(int_save);
-        return Err(QueueError::InTaskWrite.into());
-    }
-
-    // 保存队列内存指针以便后续释放
-    let queue_mem = queue.queue_mem;
-    let mem_type = queue.get_mem_type();
-
-    QueueManager::deallocate(index);
-
-    // 恢复中断状态
-    restore_interrupt_state(int_save);
-
-    // 如果是动态分配的队列，释放内存
-    if mem_type == QueueMemoryType::Dynamic {
-        free(queue_mem as *mut c_void);
-    }
-
-    Ok(())
 }
