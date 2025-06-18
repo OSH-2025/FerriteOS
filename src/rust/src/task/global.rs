@@ -6,8 +6,7 @@ use core::sync::atomic::{AtomicU32, Ordering};
 
 /// 任务控制块数组
 #[unsafe(export_name = "g_taskCBArray")]
-pub static mut TASK_CB_ARRAY: [TaskCB; TASK_LIMIT as usize + 1] =
-    [TaskCB::UNINIT; TASK_LIMIT as usize + 1];
+pub static mut TASK_CB_ARRAY: [TaskCB; TASK_LIMIT as usize] = [TaskCB::UNINIT; TASK_LIMIT as usize];
 
 /// 空闲任务列表
 pub static mut FREE_TASK_LIST: LinkedList = LinkedList::UNINIT;
@@ -33,7 +32,7 @@ pub extern "C" fn print_task_info() {
     unsafe {
         let task_array_ptr = addr_of!(TASK_CB_ARRAY);
         let task_slice =
-            core::slice::from_raw_parts(task_array_ptr.cast::<TaskCB>(), TASK_LIMIT as usize + 1);
+            core::slice::from_raw_parts(task_array_ptr.cast::<TaskCB>(), TASK_LIMIT as usize);
         for task_cb in task_slice.iter() {
             if task_cb.is_unused() {
                 continue;

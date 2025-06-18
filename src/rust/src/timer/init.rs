@@ -13,7 +13,7 @@ pub fn timer_init() -> SystemResult<()> {
     {
         // 创建定时器处理队列
         use crate::{config::TIMER_LIMIT, queue::management::create_queue, timer::TimerError};
-        match create_queue(TIMER_LIMIT as u16, 4) {
+        match create_queue(TIMER_LIMIT as usize, 4) {
             Ok(queue_id) => os_percpu_get().set_timer_queue_id(queue_id),
             Err(_) => return Err(TimerError::QueueCreateFailed.into()),
         }
@@ -33,24 +33,25 @@ pub fn timer_init() -> SystemResult<()> {
 extern "C" fn timer_task(_arg: *mut core::ffi::c_void) {
     use crate::queue::operation::queue_read;
     use crate::timer::types::TIMER_HANDLE_ITEM_SIZE;
-    use core::{ffi::c_void, ptr::addr_of_mut};
+    use core::ptr::addr_of_mut;
 
-    let mut read_size = TIMER_HANDLE_ITEM_SIZE as u32;
     // 获取当前CPU的软件定时器队列
     let timer_queue_id = os_percpu_get().get_timer_queue_id();
-    let mut timer_handler_item = TimerHandlerItem::UNINIT;
+    let mut timer_handler_item = TimerHandlerItem::new(None);
+    // 将timer_handler_item转为切片
+    let timer_handler_item_slice = unsafe {
+        core::slice::from_raw_parts_mut(
+            addr_of_mut!(timer_handler_item) as *mut u8,
+            TIMER_HANDLE_ITEM_SIZE,
+        )
+    };
 
     // 无限循环处理软件定时器回调
     loop {
         // 从队列中读取定时器处理项
-        let ret = queue_read(
-            timer_queue_id,
-            addr_of_mut!(timer_handler_item) as *mut c_void,
-            &mut read_size,
-            u32::MAX,
-        );
+        let ret = queue_read(timer_queue_id, timer_handler_item_slice, u32::MAX);
         // 检查读取结果和读取大小
-        if ret.is_ok() && read_size == TIMER_HANDLE_ITEM_SIZE as u32 {
+        if ret.is_ok() && ret.unwrap() == TIMER_HANDLE_ITEM_SIZE {
             // 如果处理函数有效，则执行处理函数
             if let Some(handler) = timer_handler_item.handler {
                 handler();

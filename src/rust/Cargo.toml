@@ -21,7 +21,6 @@ default = [
 	"shell",
 	"log-debug",
 	"mutex-waitmode-prio",
-	"queue-static-allocation",
 ]
 time_slice = []
 task_monitor = []
@@ -39,6 +38,5 @@ log-debug = []
 mutex-waitmode-prio = []
 mutex-waitmode-fifo = []
 
-queue-static-allocation = []
 
 timer-in-isr = []

@@ -1,7 +1,7 @@
 //! 消息队列类型定义
-use semihosting::println;
-
 use crate::{container_of, utils::list::LinkedList};
+use alloc::{boxed::Box, vec::Vec};
+use semihosting::println;
 
 /// 队列操作类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,16 +28,6 @@ impl QueueOperationType {
     pub fn is_write(&self) -> bool {
         !self.is_read()
     }
-}
-
-/// 队列内存分配类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum QueueMemoryType {
-    /// 动态分配
-    Dynamic = 0,
-    /// 静态分配
-    Static = 1,
 }
 
 /// 队列状态
@@ -96,34 +86,31 @@ impl From<QueueId> for u32 {
 #[derive(Debug)]
 pub struct QueueControlBlock {
     /// 队列数据存储区域
-    pub queue_mem: *mut u8,
+    pub queue_mem: Option<Box<[u8]>>,
+
+    /// 队列长度（最大消息数量）
+    pub capacity: usize,
+
+    /// 每个消息的大小（字节）
+    pub slot_size: usize,
 
     /// 队列状态
     pub queue_state: QueueState,
-
-    /// 队列内存类型
-    pub queue_mem_type: QueueMemoryType,
-
-    /// 队列长度（最大消息数量）
-    pub queue_len: u16,
-
-    /// 每个消息的大小（字节）
-    pub queue_size: u16,
 
     /// 队列ID
     pub queue_id: QueueId,
 
     /// 队列头指针
-    pub queue_head: u16,
+    pub queue_head: usize,
 
     /// 队列尾指针
-    pub queue_tail: u16,
+    pub queue_tail: usize,
 
     /// 可读计数
-    pub readable_count: u16,
+    pub readable_count: usize,
 
     /// 可写计数
-    pub writable_count: u16,
+    pub writable_count: usize,
 
     /// 读等待链表
     pub read_waiting_list: LinkedList,
@@ -132,17 +119,18 @@ pub struct QueueControlBlock {
     pub write_waiting_list: LinkedList,
 }
 
-unsafe impl Send for QueueControlBlock {}
-unsafe impl Sync for QueueControlBlock {}
+// unsafe impl Send for QueueControlBlock {}
+// unsafe impl Sync for QueueControlBlock {}
 
 impl QueueControlBlock {
+    pub const MESSAGE_LEN_BYTES: usize = 4; // 消息长度字段的字节数
+
     /// 创建一个新的未初始化队列控制块
     pub const UNINIT: Self = Self {
-        queue_mem: core::ptr::null_mut(),
+        queue_mem: None,
         queue_state: QueueState::Unused,
-        queue_mem_type: QueueMemoryType::Dynamic,
-        queue_len: 0,
-        queue_size: 0,
+        capacity: 0,
+        slot_size: 0,
         queue_id: QueueId(0),
         queue_head: 0,
         queue_tail: 0,
@@ -156,11 +144,10 @@ impl QueueControlBlock {
     #[allow(dead_code)]
     pub const fn new() -> Self {
         Self {
-            queue_mem: core::ptr::null_mut(),
+            queue_mem: None,
             queue_state: QueueState::Unused,
-            queue_mem_type: QueueMemoryType::Dynamic,
-            queue_len: 0,
-            queue_size: 0,
+            capacity: 0,
+            slot_size: 0,
             queue_id: QueueId(0),
             queue_head: 0,
             queue_tail: 0,
@@ -188,16 +175,6 @@ impl QueueControlBlock {
         self.get_state() == QueueState::Unused
     }
 
-    #[inline]
-    pub fn set_mem_type(&mut self, mem_type: QueueMemoryType) {
-        self.queue_mem_type = mem_type;
-    }
-
-    #[inline]
-    pub fn get_mem_type(&self) -> QueueMemoryType {
-        self.queue_mem_type
-    }
-
     /// 队列ID
     #[inline]
     pub fn get_id(&self) -> QueueId {
@@ -219,6 +196,11 @@ impl QueueControlBlock {
     #[inline]
     pub fn increment_id_counter(&mut self) {
         self.queue_id = self.queue_id.increment_count();
+    }
+
+    #[inline]
+    pub fn get_slot_size(&self) -> usize {
+        self.slot_size
     }
 
     /// 检查是否有任务等待读取
@@ -253,7 +235,7 @@ impl QueueControlBlock {
 
     #[inline]
     pub fn is_read_write_inconsistent(&self) -> bool {
-        (self.readable_count + self.writable_count) != self.queue_len
+        (self.readable_count + self.writable_count) != self.capacity
     }
 
     #[inline]
@@ -262,20 +244,10 @@ impl QueueControlBlock {
         unsafe { &mut *ptr }
     }
 
-    #[inline]
-    pub fn get_head(&self) -> u16 {
-        self.queue_head
-    }
-
-    #[inline]
-    pub fn get_tail(&self) -> u16 {
-        self.queue_tail
-    }
-
     /// 将队列头指针向前移动一个位置（考虑循环）
     #[inline]
     pub fn advance_head(&mut self) {
-        if self.queue_head + 1 == self.queue_len {
+        if self.queue_head + 1 == self.capacity {
             self.queue_head = 0;
         } else {
             self.queue_head += 1;
@@ -286,7 +258,7 @@ impl QueueControlBlock {
     #[inline]
     pub fn retreat_head(&mut self) {
         if self.queue_head == 0 {
-            self.queue_head = self.queue_len - 1;
+            self.queue_head = self.capacity - 1;
         } else {
             self.queue_head -= 1;
         }
@@ -295,7 +267,7 @@ impl QueueControlBlock {
     /// 将队列尾指针向前移动一个位置（考虑循环）
     #[inline]
     pub fn advance_tail(&mut self) {
-        if self.queue_tail + 1 == self.queue_len {
+        if self.queue_tail + 1 == self.capacity {
             self.queue_tail = 0;
         } else {
             self.queue_tail += 1;
@@ -307,7 +279,7 @@ impl QueueControlBlock {
     #[allow(dead_code)]
     pub fn retreat_tail(&mut self) {
         if self.queue_tail == 0 {
-            self.queue_tail = self.queue_len - 1;
+            self.queue_tail = self.capacity - 1;
         } else {
             self.queue_tail -= 1;
         }
@@ -385,22 +357,21 @@ impl QueueControlBlock {
     }
 
     /// 初始化队列
-    pub fn initialize(
-        &mut self,
-        queue_mem: *mut u8,
-        mem_type: QueueMemoryType,
-        queue_len: u16,
-        queue_size: u16,
-    ) {
-        self.queue_mem = queue_mem;
+    pub fn initialize(&mut self, capacity: usize, slot_size: usize) {
+        // 为队列分配内存
+        let total_size = capacity * slot_size;
+        let mut queue_data: Vec<u8> = Vec::with_capacity(total_size);
+        queue_data.resize(total_size, 0);
+        let queue_mem = queue_data.into_boxed_slice();
+
+        self.queue_mem = Some(queue_mem);
         self.set_state(QueueState::Used);
-        self.set_mem_type(mem_type);
-        self.queue_len = queue_len;
-        self.queue_size = queue_size;
+        self.capacity = capacity;
+        self.slot_size = slot_size;
         self.queue_head = 0;
         self.queue_tail = 0;
         self.readable_count = 0;
-        self.writable_count = queue_len;
+        self.writable_count = capacity;
         LinkedList::init(&raw mut self.read_waiting_list);
         LinkedList::init(&raw mut self.write_waiting_list);
     }
@@ -409,21 +380,85 @@ impl QueueControlBlock {
     #[inline]
     pub fn reset(&mut self) {
         self.set_state(QueueState::Unused);
-        self.queue_mem = core::ptr::null_mut();
+        self.queue_mem = None;
         self.increment_id_counter();
     }
 
+    #[inline]
+    pub fn enqueue_back(&mut self, message_data: &[u8]) {
+        let queue_mem_slice = self.queue_mem.as_mut().unwrap();
+        // 计算当前槽位在底层 Box<[u8]> 中的起始和结束索引
+        let slot_start_idx = self.queue_tail * self.slot_size;
+        let slot_end_idx = slot_start_idx + self.slot_size;
+
+        // 获取当前槽位的可变切片，准备写入数据
+        let current_slot = &mut queue_mem_slice[slot_start_idx..slot_end_idx];
+
+        // 1. 将消息数据拷贝到槽位的前部
+        current_slot[0..message_data.len()].copy_from_slice(message_data);
+
+        // 2. 将消息长度（u16）编码并存储到槽位的末尾
+        let message_len = message_data.len();
+        let len_bytes = message_len.to_le_bytes(); // 或 to_be_bytes()，根据你的字节序需求选择
+
+        let len_start_idx = self.slot_size - Self::MESSAGE_LEN_BYTES;
+        current_slot[len_start_idx..].copy_from_slice(&len_bytes);
+
+        // 更新队列指针和计数
+        self.advance_tail();
+    }
+
+    #[inline]
+    pub fn enqueue_front(&mut self, message_data: &[u8]) {
+        // 更新队列指针和计数
+        self.retreat_head();
+        let queue_mem_slice = self.queue_mem.as_mut().unwrap();
+        // 计算当前槽位在底层 Box<[u8]> 中的起始和结束索引
+        let slot_start_idx = self.queue_head * self.slot_size;
+        let slot_end_idx = slot_start_idx + self.slot_size;
+
+        // 获取当前槽位的可变切片，准备写入数据
+        let current_slot = &mut queue_mem_slice[slot_start_idx..slot_end_idx];
+
+        // 1. 将消息数据拷贝到槽位的前部
+        current_slot[0..message_data.len()].copy_from_slice(message_data);
+
+        // 2. 将消息长度（u16）编码并存储到槽位的末尾
+        let message_len = message_data.len();
+        let len_bytes = message_len.to_le_bytes(); // 或 to_be_bytes()，根据你的字节序需求选择
+
+        let len_start_idx = self.slot_size - Self::MESSAGE_LEN_BYTES;
+        current_slot[len_start_idx..].copy_from_slice(&len_bytes);
+    }
+
+    #[inline]
+    pub fn dequeue_front(&mut self, buffer: &mut [u8], buffer_size: &mut usize) {
+        // 获取当前槽位的切片
+        let queue_mem_slice = self.queue_mem.as_ref().unwrap();
+        let slot_start_idx = self.queue_head * self.slot_size;
+        let slot_end_idx = slot_start_idx + self.slot_size;
+
+        let current_slot = &queue_mem_slice[slot_start_idx..slot_end_idx];
+
+        let len_start_idx = self.slot_size - Self::MESSAGE_LEN_BYTES;
+        let len_bytes_slice = &current_slot[len_start_idx..];
+        let message_len = usize::from_le_bytes(len_bytes_slice.try_into().unwrap());
+        // 将数据从队列槽位复制到调用者提供的缓冲区
+        buffer[0..message_len].copy_from_slice(&current_slot[0..message_len]);
+        *buffer_size = message_len;
+        self.advance_head();
+    }
     /// 获取队列信息
     #[inline]
     pub fn get_info(&self) -> QueueInfo {
         QueueInfo {
             queue_id: self.queue_id.0,
-            queue_len: self.queue_len,
-            queue_size: self.queue_size,
-            queue_head: self.queue_head,
-            queue_tail: self.queue_tail,
-            writable_count: self.writable_count,
-            readable_count: self.readable_count,
+            queue_len: self.capacity as u16,
+            queue_size: self.slot_size as u16,
+            queue_head: self.queue_head as u16,
+            queue_tail: self.queue_tail as u16,
+            writable_count: self.writable_count as u16,
+            readable_count: self.readable_count as u16,
         }
     }
 

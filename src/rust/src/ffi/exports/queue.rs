@@ -25,34 +25,7 @@ pub extern "C" fn los_queue_create(len: u16, queue_id: *mut u32, max_msg_size: u
     }
 
     // 调用内部实现创建队列
-    match create_queue(len, max_msg_size) {
-        Ok(id) => {
-            // 创建成功，将ID写入输出参数
-            unsafe { *queue_id = id.into() };
-            OK
-        }
-        Err(e) => e.into(), // 错误转换为对应的错误码
-    }
-}
-
-#[cfg(feature = "queue-static-allocation")]
-#[unsafe(export_name = "LOS_QueueCreateStatic")]
-pub extern "C" fn los_queue_create_static(
-    len: u16,
-    queue_id: *mut u32,
-    max_msg_size: u16,
-    queue_mem: *mut u8,
-    mem_size: u16,
-) -> u32 {
-    use crate::queue::management::create_static_queue;
-
-    // 检查指针是否为空
-    if queue_id.is_null() {
-        return QueueError::CreatePtrNull.into();
-    }
-
-    // 调用内部实现创建静态队列
-    match create_static_queue(len, max_msg_size, queue_mem, mem_size) {
+    match create_queue(len as usize, max_msg_size as usize) {
         Ok(id) => {
             // 创建成功，将ID写入输出参数
             unsafe { *queue_id = id.into() };
@@ -94,12 +67,19 @@ pub extern "C" fn los_queue_read(
     buffer_size: *mut u32,
     timeout: u32,
 ) -> u32 {
-    if buffer_size.is_null() {
+    if buffer_addr.is_null() || buffer_size.is_null() {
         return QueueError::ReadPtrNull.into();
     }
     unsafe {
-        match queue_read(QueueId(queue_id), buffer_addr, &mut *buffer_size, timeout) {
-            Ok(_) => OK,
+        // 将buffer转为切片
+        let buffer_slice =
+            core::slice::from_raw_parts_mut(buffer_addr as *mut u8, *buffer_size as usize);
+        match queue_read(QueueId(queue_id), buffer_slice, timeout) {
+            Ok(read_size) => {
+                // 更新输出参数
+                *buffer_size = read_size as u32;
+                OK
+            }
             Err(e) => e.into(),
         }
     }
@@ -113,9 +93,16 @@ pub extern "C" fn los_queue_write_head(
     buffer_size: u32,
     timeout: u32,
 ) -> u32 {
-    match queue_write_head(QueueId(queue_id), buffer_addr, buffer_size, timeout) {
-        Ok(_) => OK,
-        Err(e) => e.into(),
+    if buffer_addr.is_null() {
+        return QueueError::WritePtrNull.into();
+    }
+    unsafe {
+        let buffer_slice =
+            core::slice::from_raw_parts_mut(buffer_addr as *mut u8, buffer_size as usize);
+        match queue_write_head(QueueId(queue_id), buffer_slice, timeout) {
+            Ok(_) => OK,
+            Err(e) => e.into(),
+        }
     }
 }
 
@@ -127,8 +114,16 @@ pub extern "C" fn los_queue_write(
     buffer_size: u32,
     timeout: u32,
 ) -> u32 {
-    match queue_write(QueueId(queue_id), buffer_addr, buffer_size, timeout) {
-        Ok(_) => OK,
-        Err(e) => e.into(),
+    if buffer_addr.is_null() {
+        return QueueError::WritePtrNull.into();
+    }
+    unsafe {
+        // 将buffer_addr转换为切片
+        let buffer_slice =
+            core::slice::from_raw_parts_mut(buffer_addr as *mut u8, buffer_size as usize);
+        match queue_write(QueueId(queue_id), buffer_slice, timeout) {
+            Ok(_) => OK,
+            Err(e) => e.into(),
+        }
     }
 }

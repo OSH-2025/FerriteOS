@@ -11,80 +11,50 @@ use crate::task::sched::{schedule, schedule_reschedule};
 use crate::task::sync::wait::{task_wait, task_wake};
 use crate::task::types::{TaskCB, TaskStatus};
 use crate::utils::list::LinkedList;
-use core::ffi::c_void;
-use core::ptr::{addr_of, copy};
 use critical_section::with;
 
 /// 从队列读取数据
-pub fn queue_read(
-    queue_id: QueueId,
-    buffer: *mut c_void,
-    buffer_size: &mut u32,
-    timeout: u32,
-) -> SystemResult<()> {
+pub fn queue_read(queue_id: QueueId, buffer: &mut [u8], timeout: u32) -> SystemResult<usize> {
+    let mut size = buffer.len();
     // 检查参数
-    check_queue_read_parameters(queue_id, buffer, buffer_size, timeout)?;
-
+    check_queue_read_parameters(queue_id, size, timeout)?;
     // 创建读操作类型
     let operate_type = QueueOperationType::ReadHead;
-
     // 执行队列操作
-    queue_operate(queue_id, operate_type, buffer, buffer_size, timeout)
+    queue_operate(queue_id, operate_type, buffer, &mut size, timeout)?;
+    Ok(size)
 }
 
 /// 从队列头部写入数据
-pub fn queue_write_head(
-    queue_id: QueueId,
-    buffer: *const c_void,
-    buffer_size: u32,
-    timeout: u32,
-) -> SystemResult<()> {
+pub fn queue_write_head(queue_id: QueueId, buffer: &mut [u8], timeout: u32) -> SystemResult<()> {
     // 检查参数
-    let mut size = buffer_size;
-    check_queue_write_parameters(queue_id, buffer, &size, timeout)?;
+    let mut size = buffer.len();
+    check_queue_write_parameters(queue_id, size, timeout)?;
 
     // 创建写操作类型
     let operate_type = QueueOperationType::WriteHead;
 
     // 执行队列操作
-    queue_operate(
-        queue_id,
-        operate_type,
-        buffer as *mut c_void,
-        &mut size,
-        timeout,
-    )
+    queue_operate(queue_id, operate_type, buffer, &mut size, timeout)
 }
 
 /// 从队列尾部写入数据
-pub fn queue_write(
-    queue_id: QueueId,
-    buffer: *const c_void,
-    buffer_size: u32,
-    timeout: u32,
-) -> SystemResult<()> {
+pub fn queue_write(queue_id: QueueId, buffer: &mut [u8], timeout: u32) -> SystemResult<()> {
     // 检查参数
-    let mut size = buffer_size;
-    check_queue_write_parameters(queue_id, buffer, &size, timeout)?;
+    let mut size = buffer.len();
+    check_queue_write_parameters(queue_id, size, timeout)?;
 
     // 创建写操作类型
     let operate_type = QueueOperationType::WriteTail;
 
     // 执行队列操作
-    queue_operate(
-        queue_id,
-        operate_type,
-        buffer as *mut c_void,
-        &mut size,
-        timeout,
-    )
+    queue_operate(queue_id, operate_type, buffer, &mut size, timeout)
 }
 
 /// 检查队列读取参数
 fn check_queue_read_parameters(
     queue_id: QueueId,
-    buffer: *const c_void,
-    buffer_size: &u32,
+    buffer_size: usize,
     timeout: u32,
 ) -> SystemResult<()> {
     // 检查队列ID是否有效
@@ -92,13 +62,8 @@ fn check_queue_read_parameters(
         return Err(QueueError::Invalid.into());
     }
 
-    // 检查缓冲区指针是否为空
-    if buffer.is_null() {
-        return Err(QueueError::ReadPtrNull.into());
-    }
-
     // 检查缓冲区大小是否有效
-    if *buffer_size == 0 || *buffer_size > (u16::MAX - 4) as u32 {
+    if buffer_size == 0 || buffer_size > (usize::MAX - QueueControlBlock::MESSAGE_LEN_BYTES) {
         return Err(QueueError::ReadSizeInvalid.into());
     }
 
@@ -113,8 +78,7 @@ fn check_queue_read_parameters(
 /// 检查队列写入参数
 fn check_queue_write_parameters(
     queue_id: QueueId,
-    buffer: *const c_void,
-    buffer_size: &u32,
+    buffer_size: usize,
     timeout: u32,
 ) -> SystemResult<()> {
     // 检查队列ID是否有效
@@ -122,13 +86,8 @@ fn check_queue_write_parameters(
         return Err(QueueError::Invalid.into());
     }
 
-    // 检查缓冲区指针是否为空
-    if buffer.is_null() {
-        return Err(QueueError::WritePtrNull.into());
-    }
-
     // 检查缓冲区大小是否为零
-    if *buffer_size == 0 {
+    if buffer_size == 0 {
         return Err(QueueError::WriteSizeIsZero.into());
     }
 
@@ -144,69 +103,21 @@ fn check_queue_write_parameters(
 fn queue_buffer_operate(
     queue_cb: &mut QueueControlBlock,
     operate_type: QueueOperationType,
-    buffer: *mut c_void,
-    buffer_size: &mut u32,
+    buffer: &mut [u8],
+    buffer_size: &mut usize,
 ) {
-    let queue_position;
-
     // 根据操作类型获取队列位置并更新队列头/尾指针
     match operate_type {
         QueueOperationType::ReadHead => {
-            queue_position = queue_cb.get_head();
-            queue_cb.advance_head();
+            queue_cb.dequeue_front(buffer, buffer_size);
         }
         QueueOperationType::WriteHead => {
-            queue_cb.retreat_head();
-            queue_position = queue_cb.get_head();
+            queue_cb.enqueue_front(buffer);
         }
         QueueOperationType::WriteTail => {
-            queue_position = queue_cb.get_tail();
-            queue_cb.advance_tail();
+            queue_cb.enqueue_back(buffer);
         }
-    }
-
-    // 计算队列节点地址
-    let queue_node = unsafe {
-        queue_cb
-            .queue_mem
-            .add((queue_position as usize) * (queue_cb.queue_size as usize))
     };
-
-    // 根据操作类型执行读取或写入
-    if operate_type.is_read() {
-        let msg_data_size: u32 = 0;
-        unsafe {
-            // 读取消息大小
-            copy(
-                queue_node.add(queue_cb.queue_size as usize - 4) as *const u8,
-                addr_of!(msg_data_size) as *mut u8,
-                4,
-            );
-
-            // 复制消息到用户缓冲区
-            copy(
-                queue_node as *const u8,
-                buffer as *mut u8,
-                msg_data_size as usize,
-            );
-        }
-        // 返回实际读取的大小
-        *buffer_size = msg_data_size;
-    } else {
-        // 写入消息到队列
-        unsafe {
-            copy(
-                buffer as *const u8,
-                queue_node as *mut u8,
-                *buffer_size as usize,
-            );
-            copy(
-                &raw const *buffer_size as *const u8,
-                queue_node.add(queue_cb.queue_size as usize - 4) as *mut u8,
-                4,
-            );
-        }
-    }
 }
 
 /// 检查队列操作参数
@@ -214,7 +125,7 @@ fn check_queue_operate_params(
     queue_cb: &QueueControlBlock,
     queue_id: QueueId,
     operate_type: QueueOperationType,
-    buffer_size: &u32,
+    buffer_size: usize,
 ) -> SystemResult<()> {
     // 检查队列是否存在且有效
     if !queue_cb.matches_id(queue_id) || queue_cb.is_unused() {
@@ -223,10 +134,10 @@ fn check_queue_operate_params(
 
     // 检查缓冲区大小是否适合操作类型
     if operate_type.is_read() {
-        if *buffer_size < (queue_cb.queue_size as u32 - 4) {
+        if buffer_size < (queue_cb.get_slot_size() - QueueControlBlock::MESSAGE_LEN_BYTES) {
             return Err(QueueError::ReadSizeTooSmall.into());
         }
-    } else if *buffer_size > (queue_cb.queue_size as u32 - 4) {
+    } else if buffer_size > (queue_cb.get_slot_size() - QueueControlBlock::MESSAGE_LEN_BYTES) {
         return Err(QueueError::WriteSizeTooBig.into());
     }
 
@@ -237,8 +148,8 @@ fn check_queue_operate_params(
 fn queue_operate(
     queue_id: QueueId,
     operate_type: QueueOperationType,
-    buffer: *mut c_void,
-    buffer_size: &mut u32,
+    buffer: &mut [u8],
+    buffer_size: &mut usize,
     timeout: u32,
 ) -> SystemResult<()> {
     let index: u16 = queue_id.get_index();
@@ -246,7 +157,7 @@ fn queue_operate(
         let mut queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
         let mut queue = queue_pool.get_mut(index as usize).unwrap();
         // 检查队列操作参数
-        match check_queue_operate_params(queue, queue_id, operate_type, buffer_size) {
+        match check_queue_operate_params(queue, queue_id, operate_type, *buffer_size) {
             Ok(_) => {}
             Err(e) => {
                 return Err(e);

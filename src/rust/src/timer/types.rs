@@ -11,8 +11,6 @@ pub struct TimerHandlerItem {
 }
 
 impl TimerHandlerItem {
-    pub const UNINIT: TimerHandlerItem = TimerHandlerItem { handler: None };
-
     #[inline]
     pub fn new(handler: TimerHandler) -> Self {
         TimerHandlerItem { handler }

@@ -48,19 +48,22 @@ pub fn timer_scan() {
             // 根据编译选项选择不同的处理方式
             #[cfg(not(feature = "timer-in-isr"))]
             {
-                use core::ffi::c_void;
-
                 use crate::{
                     queue::operation::queue_write,
                     timer::types::{TIMER_HANDLE_ITEM_SIZE, TimerHandlerItem},
                 };
+                use core::ptr::addr_of_mut;
 
-                let timer_handler_item = TimerHandlerItem::new(timer.get_handler());
+                let mut timer_handler_item = TimerHandlerItem::new(timer.get_handler());
+                // 将定时器处理项转换为切片
+                let timer_handler_item_slice = core::slice::from_raw_parts_mut(
+                    addr_of_mut!(timer_handler_item) as *mut u8,
+                    TIMER_HANDLE_ITEM_SIZE,
+                );
                 // 写入队列
                 let _ = queue_write(
                     os_percpu_get().swtmr_handler_queue.into(),
-                    addr_of!(timer_handler_item) as *const c_void,
-                    TIMER_HANDLE_ITEM_SIZE as u32,
+                    timer_handler_item_slice,
                     0,
                 );
             }

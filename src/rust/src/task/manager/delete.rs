@@ -15,19 +15,6 @@ use crate::{
 };
 use core::{ffi::c_void, ptr::null_mut};
 
-/// 处理正在运行任务的删除操作
-fn handle_running_task_deletion(task_cb: &mut TaskCB) {
-    // 获取特殊任务控制块
-    let run_task = get_tcb_from_id(TASK_LIMIT);
-    // 保存任务信息
-    run_task.task_id = task_cb.task_id;
-    run_task.task_status = task_cb.task_status;
-    run_task.top_of_stack = task_cb.top_of_stack;
-    run_task.task_name = task_cb.task_name;
-    // 标记为未使用
-    task_cb.task_status = TaskStatus::UNUSED;
-}
-
 /// 执行任务删除操作
 fn perform_task_deletion(task_cb: &mut TaskCB, use_usr_stack: bool) -> bool {
     // 检查任务是否在运行中
@@ -44,8 +31,6 @@ fn perform_task_deletion(task_cb: &mut TaskCB, use_usr_stack: bool) -> bool {
         {
             LinkedList::tail_insert(&raw mut TASK_RECYCLE_LIST, &mut task_cb.pend_list);
         }
-        // 处理运行中任务的删除
-        handle_running_task_deletion(task_cb);
         return true;
     } else {
         // 处理非运行状态的任务删除
@@ -86,15 +71,15 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
         return Err(SystemError::Task(TaskError::InvalidId));
     }
 
+    // 锁定调度器
+    let int_save = disable_interrupts();
+
     // 获取任务控制块
     let task_cb = get_tcb_from_id(task_id);
 
     if task_cb.is_system_task() {
         return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
-
-    // 锁定调度器
-    let int_save = disable_interrupts();
 
     // 获取任务状态
     let temp_status = task_cb.task_status;
