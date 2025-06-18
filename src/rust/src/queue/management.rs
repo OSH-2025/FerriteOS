@@ -4,28 +4,24 @@ use crate::{
     queue::{
         error::QueueError,
         global::{QUEUE_POOL, UNUSED_QUEUE_LIST},
-        types::{QueueControlBlock, QueueId},
+        types::QueueId,
     },
     result::SystemResult,
-    utils::list::LinkedList,
 };
 use critical_section::with;
 
 /// 初始化队列系统
-///
-/// 此函数设置全局队列池并初始化空闲队列列表
 #[inline]
 pub fn init_queue_system() {
     with(|cs| {
         let mut queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
         let mut unused_list = UNUSED_QUEUE_LIST.borrow_ref_mut(cs);
-        unused_list.init_ref();
         queue_pool
             .iter_mut()
             .enumerate()
             .for_each(|(index, queue)| {
                 queue.set_id(QueueId(index as u32));
-                unused_list.tail_insert_ref(&raw mut queue.write_waiting_list);
+                unused_list.push_back(index);
             });
     })
 }
@@ -35,14 +31,10 @@ fn create_queue_internal(capacity: usize, slot_size: usize) -> SystemResult<Queu
     // 临界区开始
     with(|cs| {
         // 检查是否有可用队列控制块
-        let unused_list = UNUSED_QUEUE_LIST.borrow_ref(cs);
-        if unused_list.is_empty_ref() {
-            return Err(QueueError::Unavailable.into());
-        }
-
-        let node = unused_list.first_ref();
-        LinkedList::remove(node);
-        let queue = QueueControlBlock::from_list(node);
+        let mut unused_list = UNUSED_QUEUE_LIST.borrow_ref_mut(cs);
+        let index = unused_list.pop_front().ok_or(QueueError::Unavailable)?;
+        let mut queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
+        let queue = queue_pool.get_mut(index).unwrap();
         queue.initialize(capacity, slot_size);
         let queue_id = queue.get_id();
         Ok(queue_id)
@@ -100,7 +92,8 @@ pub fn delete_queue(queue_id: QueueId) -> SystemResult<()> {
         // 回收队列资源
         queue.reset();
         let mut unused_list = UNUSED_QUEUE_LIST.borrow_ref_mut(cs);
-        unused_list.tail_insert_ref(&raw mut queue.write_waiting_list);
+        // 将队列索引添加到未使用列表
+        unused_list.push_back(index as usize);
 
         Ok(())
     })

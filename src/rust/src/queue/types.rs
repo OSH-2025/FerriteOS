@@ -1,5 +1,5 @@
 //! 消息队列类型定义
-use crate::{container_of, utils::list::LinkedList};
+use crate::utils::list::LinkedList;
 use alloc::{boxed::Box, vec::Vec};
 use semihosting::println;
 
@@ -119,9 +119,6 @@ pub struct QueueControlBlock {
     pub write_waiting_list: LinkedList,
 }
 
-// unsafe impl Send for QueueControlBlock {}
-// unsafe impl Sync for QueueControlBlock {}
-
 impl QueueControlBlock {
     pub const MESSAGE_LEN_BYTES: usize = 4; // 消息长度字段的字节数
 
@@ -236,12 +233,6 @@ impl QueueControlBlock {
     #[inline]
     pub fn is_read_write_inconsistent(&self) -> bool {
         (self.readable_count + self.writable_count) != self.capacity
-    }
-
-    #[inline]
-    pub fn from_list(list: *const LinkedList) -> &'static mut Self {
-        let ptr = container_of!(list, Self, write_waiting_list);
-        unsafe { &mut *ptr }
     }
 
     /// 将队列头指针向前移动一个位置（考虑循环）

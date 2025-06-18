@@ -38,5 +38,4 @@ log-debug = []
 mutex-waitmode-prio = []
 mutex-waitmode-fifo = []
 
-
 timer-in-isr = []

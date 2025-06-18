@@ -100,17 +100,6 @@ impl LinkedList {
     pub fn last(list: *const LinkedList) -> *mut LinkedList {
         unsafe { (*list).prev }
     }
-
-    // #[inline]
-    // pub fn remove_first(list: *const LinkedList) -> Option<*mut LinkedList> {
-    //     if LinkedList::is_empty(list) {
-    //         None
-    //     } else {
-    //         let first_node = LinkedList::first(list);
-    //         LinkedList::remove(first_node);
-    //         Some(first_node)
-    //     }
-    // }
 }
 
 #[macro_export]
