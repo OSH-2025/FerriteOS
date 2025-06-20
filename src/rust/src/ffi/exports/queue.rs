@@ -51,9 +51,10 @@ pub extern "C" fn los_queue_info_get(queue_id: u32, queue_info: *mut QueueInfo) 
     if queue_info.is_null() {
         return QueueError::PtrNull.into();
     }
+    let queue_info = unsafe { &mut *queue_info };
 
     // 调用内部实现获取队列信息
-    match get_queue_info(queue_id.into(), unsafe { &mut *queue_info }) {
+    match get_queue_info(queue_id.into(), queue_info) {
         Ok(_) => OK,
         Err(e) => e.into(),
     }

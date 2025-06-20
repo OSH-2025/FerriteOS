@@ -18,15 +18,11 @@ pub fn get_queue_info(queue_id: QueueId, queue_info: &mut QueueInfo) -> SystemRe
         return Err(QueueError::NotFound.into());
     }
 
-    // 保存中断状态并禁用中断
-    // let int_save = disable_interrupts();
     with(|cs| {
         let mut queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
         let queue = queue_pool.get_mut(index as usize).unwrap();
         // 临界区开始 - 验证队列状态
         if !queue.matches_id(queue_id) || queue.is_unused() {
-            // 队列不存在或未创建
-            // restore_interrupt_state(int_save);
             return Err(QueueError::NotCreate.into());
         }
 
