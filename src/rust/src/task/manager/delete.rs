@@ -1,7 +1,7 @@
 use crate::{
     config::TASK_LIMIT,
     interrupt::{disable_interrupts, is_interrupt_active, restore_interrupt_state},
-    mem::{defs::m_aucSysMem1, memory::los_mem_free, memstat::os_memstat_task_clear},
+    memory::free,
     percpu::can_preempt_in_scheduler,
     result::{SystemError, SystemResult},
     task::{
@@ -13,20 +13,7 @@ use crate::{
     },
     utils::list::LinkedList,
 };
-use core::ptr::null_mut;
-
-/// 处理正在运行任务的删除操作
-fn handle_running_task_deletion(task_cb: &mut TaskCB) {
-    // 获取特殊任务控制块
-    let run_task = get_tcb_from_id(TASK_LIMIT);
-    // 保存任务信息
-    run_task.task_id = task_cb.task_id;
-    run_task.task_status = task_cb.task_status;
-    run_task.top_of_stack = task_cb.top_of_stack;
-    run_task.task_name = task_cb.task_name;
-    // 标记为未使用
-    task_cb.task_status = TaskStatus::UNUSED;
-}
+use core::{ffi::c_void, ptr::null_mut};
 
 /// 执行任务删除操作
 fn perform_task_deletion(task_cb: &mut TaskCB, use_usr_stack: bool) -> bool {
@@ -44,8 +31,6 @@ fn perform_task_deletion(task_cb: &mut TaskCB, use_usr_stack: bool) -> bool {
         {
             LinkedList::tail_insert(&raw mut TASK_RECYCLE_LIST, &mut task_cb.pend_list);
         }
-        // 处理运行中任务的删除
-        handle_running_task_deletion(task_cb);
         return true;
     } else {
         // 处理非运行状态的任务删除
@@ -55,12 +40,7 @@ fn perform_task_deletion(task_cb: &mut TaskCB, use_usr_stack: bool) -> bool {
         // 释放任务栈内存
         if !use_usr_stack {
             let task_stack = (*task_cb).top_of_stack;
-            unsafe {
-                los_mem_free(
-                    m_aucSysMem1 as *mut core::ffi::c_void,
-                    task_stack as *mut core::ffi::c_void,
-                );
-            }
+            free(task_stack as *mut c_void);
         }
 
         task_cb.top_of_stack = null_mut();
@@ -91,15 +71,15 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
         return Err(SystemError::Task(TaskError::InvalidId));
     }
 
+    // 锁定调度器
+    let int_save = disable_interrupts();
+
     // 获取任务控制块
     let task_cb = get_tcb_from_id(task_id);
 
     if task_cb.is_system_task() {
         return Err(SystemError::Task(TaskError::OperateSystemTask));
     }
-
-    // 锁定调度器
-    let int_save = disable_interrupts();
 
     // 获取任务状态
     let temp_status = task_cb.task_status;
@@ -144,15 +124,8 @@ pub fn task_delete(task_id: u32) -> SystemResult<()> {
     task_cb.task_status.insert(TaskStatus::UNUSED);
 
     // 清除事件相关信息
-    #[cfg(feature = "ipc_event")]
-    {
-        task_cb.event.event_id = u32::MAX;
-        task_cb.event_mask = 0;
-    }
-
-    // 清除内存相关信息
-    #[cfg(feature = "memory_task_statistics")]
-    os_memstat_task_clear(task_id);
+    task_cb.event.event_id = u32::MAX;
+    task_cb.event_mask = 0;
 
     // 执行任务删除操作，如果需要重新调度则执行
     if perform_task_deletion(task_cb, task_cb.usr_stack != 0) {

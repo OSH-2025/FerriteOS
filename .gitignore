@@ -3,7 +3,6 @@ src/.vscode
 src/arch
 src/build
 src/demo
-src/demos
 src/drivers
 src/kernel
 src/lib
@@ -12,7 +11,6 @@ src/rust/target
 src/shell
 src/targets
 src/test
-src/tests
 src/tools
 src/.config
 src/.config.old

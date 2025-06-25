@@ -1,4 +1,3 @@
-#[cfg(feature = "ipc_event")]
 use crate::event::types::EventCB;
 use crate::{
     container_of,
@@ -31,9 +30,6 @@ pub struct TaskInitParam {
 
     /// 任务名称
     pub name: *const c_char,
-
-    /// 任务属性标志
-    pub task_attr: TaskAttr,
 }
 
 impl Default for TaskInitParam {
@@ -44,15 +40,7 @@ impl Default for TaskInitParam {
             args: core::ptr::null_mut(),
             stack_size: 0,
             name: core::ptr::null(),
-            task_attr: TaskAttr::empty(),
         }
-    }
-}
-
-impl TaskInitParam {
-    #[inline]
-    pub fn is_detached(&self) -> bool {
-        self.task_attr.contains(TaskAttr::DETACHED)
     }
 }
 
@@ -87,12 +75,6 @@ pub struct TaskCB {
     /// 任务入口函数
     pub task_entry: TaskEntryFunc,
 
-    #[cfg(feature = "compat_posix")]
-    pub thread_join: *mut c_void,
-
-    #[cfg(feature = "compat_posix")]
-    pub thread_join_retval: *mut c_void,
-
     /// 任务参数
     pub args: *mut c_void,
 
@@ -106,19 +88,13 @@ pub struct TaskCB {
     pub sort_list: SortLinkList,
 
     /// 事件控制块
-    #[cfg(feature = "ipc_event")]
     pub event: EventCB,
 
     /// 事件掩码
-    #[cfg(feature = "ipc_event")]
     pub event_mask: u32,
 
     /// 事件模式
-    #[cfg(feature = "ipc_event")]
     pub event_mode: u32,
-
-    /// 分配给队列的内存
-    pub msg: *mut c_void,
 
     /// 优先级位图
     pub priority_bitmap: u32,
@@ -143,21 +119,13 @@ impl TaskCB {
         top_of_stack: core::ptr::null_mut(),
         task_id: 0,
         task_entry: None,
-        #[cfg(feature = "compat_posix")]
-        thread_join: core::ptr::null_mut(),
-        #[cfg(feature = "compat_posix")]
-        thread_join_retval: core::ptr::null_mut(),
         args: core::ptr::null_mut(),
         task_name: core::ptr::null(),
         pend_list: LinkedList::UNINIT,
         sort_list: SortLinkList::UNINIT,
-        #[cfg(feature = "ipc_event")]
         event: EventCB::new(),
-        #[cfg(feature = "ipc_event")]
         event_mask: 0,
-        #[cfg(feature = "ipc_event")]
         event_mode: 0,
-        msg: core::ptr::null_mut(),
         priority_bitmap: 0,
         signal: TaskSignal::empty(),
         #[cfg(feature = "time_slice")]
@@ -183,20 +151,6 @@ impl TaskCB {
         self.task_flags = TaskFlags::empty();
     }
 
-    // #[inline]
-    // pub fn is_detached(&self) -> bool {
-    //     self.task_flags.contains(TaskFlags::DETACHED)
-    // }
-
-    #[inline]
-    pub fn set_detached(&mut self, detached: bool) {
-        if detached {
-            self.task_flags.insert(TaskFlags::DETACHED);
-        } else {
-            self.task_flags.remove(TaskFlags::DETACHED);
-        }
-    }
-
     #[inline]
     pub fn is_system_task(&self) -> bool {
         self.task_flags.contains(TaskFlags::SYSTEM)
@@ -205,6 +159,11 @@ impl TaskCB {
     #[inline]
     pub fn set_system_task(&mut self) {
         self.task_flags.insert(TaskFlags::SYSTEM);
+    }
+
+    #[inline]
+    pub fn is_unused(&self) -> bool {
+        self.task_status == TaskStatus::UNUSED
     }
 
     // #[inline]
@@ -281,19 +240,8 @@ bitflags! {
     #[derive(Debug, Copy, Clone, Eq, PartialEq)]
     #[repr(transparent)]
     pub struct TaskFlags: u16 {
-        /// 任务自动删除标志
-        const DETACHED = 0x0001;
         /// 系统级任务标志
         const SYSTEM = 0x0002;
-    }
-}
-
-bitflags! {
-    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-    #[repr(transparent)]
-    pub struct TaskAttr: u32 {
-        /// 任务属性：分离
-        const DETACHED = 0x0100;
     }
 }
 
@@ -306,11 +254,5 @@ bitflags! {
         const KILL = 1;
         /// 挂起任务信号
         const SUSPEND = 2;
-    }
-}
-
-impl From<u32> for TaskAttr {
-    fn from(value: u32) -> Self {
-        Self::from_bits_truncate(value)
     }
 }

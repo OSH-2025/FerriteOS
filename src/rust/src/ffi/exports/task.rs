@@ -1,5 +1,5 @@
 #[cfg(feature = "task_monitor")]
-use crate::task::monitor::{TaskSwitchHook, init_task_monitor, register_task_switch_hook};
+use crate::task::monitor::{TaskSwitchHook, register_task_switch_hook};
 use crate::{
     config::OK,
     result::SystemError,
@@ -31,7 +31,6 @@ pub struct CTaskInitParam {
     pub args: *mut c_void,
     pub stack_size: u32,
     pub name: *const c_char,
-    pub reserved: u32,
 }
 
 impl From<CTaskInitParam> for TaskInitParam {
@@ -42,7 +41,6 @@ impl From<CTaskInitParam> for TaskInitParam {
             args: c_task_init_param.args,
             stack_size: c_task_init_param.stack_size,
             name: c_task_init_param.name,
-            task_attr: c_task_init_param.reserved.into(),
         }
     }
 }
@@ -55,7 +53,6 @@ impl From<TaskInitParam> for CTaskInitParam {
             args: rust_param.args,
             stack_size: rust_param.stack_size,
             name: rust_param.name,
-            reserved: rust_param.task_attr.bits(),
         }
     }
 }
@@ -162,9 +159,8 @@ pub extern "C" fn os_idle_task_create() -> u32 {
 }
 
 #[unsafe(export_name = "OsTaskInit")]
-pub extern "C" fn os_task_init() -> u32 {
+pub extern "C" fn os_task_init() {
     init_task_system();
-    OK
 }
 
 #[unsafe(export_name = "LOS_TaskDelete")]
@@ -245,12 +241,6 @@ pub extern "C" fn los_task_unlock() {
 #[unsafe(export_name = "OsTaskProcSignal")]
 pub extern "C" fn os_task_proc_signal() -> u32 {
     process_task_signals()
-}
-
-#[cfg(feature = "task_monitor")]
-#[unsafe(export_name = "OsTaskMonInit")]
-pub extern "C" fn os_task_mon_init() {
-    init_task_monitor();
 }
 
 #[cfg(feature = "task_monitor")]

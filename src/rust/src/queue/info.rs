@@ -1,9 +1,10 @@
+use critical_section::with;
+
 use crate::{
     config::QUEUE_LIMIT,
-    interrupt::{disable_interrupts, restore_interrupt_state},
     queue::{
         error::QueueError,
-        global::QueueManager,
+        global::QUEUE_POOL,
         types::{QueueId, QueueInfo},
     },
     result::SystemResult,
@@ -17,33 +18,45 @@ pub fn get_queue_info(queue_id: QueueId, queue_info: &mut QueueInfo) -> SystemRe
         return Err(QueueError::NotFound.into());
     }
 
-    // 清零队列信息结构体
-    *queue_info = QueueInfo::default();
+    with(|cs| {
+        let mut queue_pool = QUEUE_POOL.borrow_ref_mut(cs);
+        let queue = queue_pool.get_mut(index as usize).unwrap();
+        // 临界区开始 - 验证队列状态
+        if !queue.matches_id(queue_id) || queue.is_unused() {
+            return Err(QueueError::NotCreate.into());
+        }
 
-    // 保存中断状态并禁用中断
-    let int_save = disable_interrupts();
+        // 填充队列信息
+        *queue_info = queue.get_info();
+        // restore_interrupt_state(int_save);
+        Ok(())
+    })
+}
 
-    // 获取队列控制块
-    let queue = QueueManager::get_queue_by_index(index as usize);
+/// 获取当前使用的消息队列数量
+#[inline]
+#[unsafe(export_name = "OsUsedQueueCountGet")]
+pub fn get_used_count() -> usize {
+    with(|cs| {
+        QUEUE_POOL
+            .borrow_ref(cs)
+            .iter()
+            .filter(|queue| !queue.is_unused())
+            .count()
+    })
+}
 
-    // 临界区开始 - 验证队列状态
-    if !queue.matches_id(queue_id) || queue.is_unused() {
-        // 队列不存在或未创建
-        restore_interrupt_state(int_save);
-        return Err(QueueError::NotCreate.into());
-    }
-
-    // 填充队列信息
-    queue_info.queue_id = queue_id.into();
-    queue_info.queue_len = queue.queue_len;
-    queue_info.queue_size = queue.queue_size;
-    queue_info.queue_head = queue.get_head();
-    queue_info.queue_tail = queue.get_tail();
-    queue_info.readable_count = queue.readable_count;
-    queue_info.writable_count = queue.writable_count;
-
-    // 恢复中断状态
-    restore_interrupt_state(int_save);
-
-    Ok(())
+/// 打印当前使用的消息队列信息
+#[inline]
+#[unsafe(export_name = "OsUsedQueueInfoPrint")]
+pub fn print_used_info() {
+    with(|cs| {
+        QUEUE_POOL
+            .borrow_ref(cs)
+            .iter()
+            .filter(|queue| !queue.is_unused())
+            .for_each(|queue| {
+                queue.print_info();
+            });
+    })
 }
