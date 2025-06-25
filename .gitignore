@@ -8,6 +8,7 @@ src/kernel
 src/lib
 src/out
 src/rust/target
+src/unsafe-fix/target
 src/shell
 src/targets
 src/test
