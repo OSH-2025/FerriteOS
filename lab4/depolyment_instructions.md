@@ -1,6 +1,14 @@
 # llama.cpp 部署 LLM 说明文档
 
-[TOC]
+- [llama.cpp 部署 LLM 说明文档](#llamacpp-部署-llm-说明文档)
+  - [部署过程](#部署过程)
+    - [1. llama.cpp 下载编译](#1-llamacpp-下载编译)
+    - [2. 大模型下载](#2-大模型下载)
+    - [3. 运行模型](#3-运行模型)
+  - [性能测试](#性能测试)
+  - [性能优化](#性能优化)
+  - [RPC 分布式部署](#rpc-分布式部署)
+
 
 > 本次实验在 WSL-Ubuntu 上完成，GPU 型号为 NVIDIA GeForce RTX 3060
 
