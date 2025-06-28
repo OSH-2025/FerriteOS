@@ -42,6 +42,9 @@ time ./build/bin/llama-cli -m ./models/Llama-3.2-3B-Instruct-Q6_K.gguf -n 1 #-p 
 
 ## 测试与优化结果分析
 
+
+> 注：为减少多次图片链接造成的麻烦，且 llama-bench 默认输出形式恰为 markdown 表格格式，本实验测试直接复制 llama-bench 工具的输出结果
+
 ### 1. 测试结果
 
 **输出速度**：
