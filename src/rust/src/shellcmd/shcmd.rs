@@ -205,7 +205,89 @@ fn os_tab_match_file(_cmd_key: *mut c_char, _len: *mut u32) -> i32 {
 /// Tab 匹配命令
 unsafe fn os_tab_match_cmd(cmd_key: *mut c_char, len: *mut u32) -> i32 {
     // 简化实现，暂时返回成功
-    0
+    let mut count = 0i32;
+    let mut cmd_item_guard: *mut CmdItemNode = ptr::null_mut();
+    let mut cmd_major = cmd_key;
+
+    // 去除左边的空格
+    while *cmd_major == SPACE {
+        cmd_major = cmd_major.add(1);
+    }
+
+    // 检查命令列表是否为空
+    if LosListNode::is_empty(core::ptr::addr_of!(G_CMD_INFO.cmd_list.list)) {
+        return OS_ERROR as i32;
+    }
+
+    // 遍历命令列表查找匹配项
+    let mut current = G_CMD_INFO.cmd_list.list.next;
+    let list_head_ptr = core::ptr::addr_of!(G_CMD_INFO.cmd_list.list);
+    
+    while !current.is_null() && current != list_head_ptr as *mut _ {
+        let cur_cmd_item = container_of!(current, CmdItemNode, list);
+        let cmd_key_ptr = (*(*cur_cmd_item).cmd).cmd_key;
+        let major_len = strlen(cmd_major);
+        
+        let ret = strncmp(cmd_major, cmd_key_ptr, major_len);
+        
+        if ret > 0 {
+            current = (*current).next;
+            continue;
+        } else if ret != 0 {
+            break;
+        }
+
+        // 找到匹配项
+        if count == 0 {
+            cmd_item_guard = cur_cmd_item;
+        }
+        count += 1;
+        current = (*current).next;
+    }
+
+    // 没有找到匹配项
+    if cmd_item_guard.is_null() {
+        return 0;
+    }
+
+    // 如果只有一个匹配项，进行自动补全
+    if count == 1 {
+        os_complete_str(
+            (*(*cmd_item_guard).cmd).cmd_key,
+            cmd_major,
+            cmd_key,
+            len
+        );
+    }
+
+    let ret = count;
+    
+    // 如果有多个匹配项，显示所有可能的命令
+    if count > 1 {
+        print_common!("\n");
+        let mut temp_count = count;
+        let mut temp_guard = cmd_item_guard;
+        
+        while temp_count > 0 {
+            let cmd_key_str = (*(*temp_guard).cmd).cmd_key;
+            let cmd_key_len = strlen(cmd_key_str);
+            let cmd_key_slice = slice::from_raw_parts(
+                cmd_key_str as *const u8, 
+                cmd_key_len
+            );
+            
+            if let Ok(cmd_str) = str::from_utf8(cmd_key_slice) {
+                print_common!("{}  ", cmd_str);
+            }
+            
+            // 移动到下一个节点
+            temp_guard = container_of!((*temp_guard).list.next, CmdItemNode, list);
+            temp_count -= 1;
+        }
+        print_common!("\n");
+    }
+
+    ret
 }
 
 
