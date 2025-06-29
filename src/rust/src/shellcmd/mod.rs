@@ -2,8 +2,10 @@
 
 pub mod hwi;
 pub mod mempt;
-// pub mod stack;
+pub mod stack;
 pub mod swtmr;
 pub mod sysinfo;
 pub mod task;
 pub mod types;
+
+pub mod help;
