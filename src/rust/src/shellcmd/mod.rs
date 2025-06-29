@@ -9,3 +9,4 @@ pub mod task;
 pub mod types;
 
 pub mod help;
+pub mod shcmd;
