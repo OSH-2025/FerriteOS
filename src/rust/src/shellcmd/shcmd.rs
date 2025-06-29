@@ -204,7 +204,6 @@ fn os_tab_match_file(_cmd_key: *mut c_char, _len: *mut u32) -> i32 {
 
 /// Tab 匹配命令
 unsafe fn os_tab_match_cmd(cmd_key: *mut c_char, len: *mut u32) -> i32 {
-    // 简化实现，暂时返回成功
     let mut count = 0i32;
     let mut cmd_item_guard: *mut CmdItemNode = ptr::null_mut();
     let mut cmd_major = cmd_key;
@@ -526,4 +525,92 @@ pub unsafe fn os_shell_history_show(value: u32, shell_cb: *mut ShellCB) {
         print_common!("\x08 \x08"); // backspace
         (*shell_cb).shell_buf_offset -= 1;
     }
+}
+
+// 执行命令
+#[unsafe(export_name = "OsCmdExec")]
+pub unsafe fn os_cmd_exec(cmd_parsed: *mut CmdParsed, cmd_str: *mut c_char) -> u32 {
+    if cmd_str.is_null() || strlen(cmd_str) == 0 {
+        return OS_ERROR;
+    }
+
+    let ret = os_cmd_parse(cmd_str, cmd_parsed);
+    if ret != 0 {
+        return ret;
+    }
+
+    // 简化实现，暂时返回成功
+    0
+}
+
+// 初始化命令系统
+#[unsafe(export_name = "OsCmdInit")]
+pub unsafe fn os_cmd_init() -> u32 {
+    if G_CMD_INFO.init_flag {
+        return 0;
+    }
+
+    G_CMD_INFO.list_num = 0;
+    LosListNode::init(core::ptr::addr_of_mut!(G_CMD_INFO.cmd_list.list));
+
+    if los_mux_create(core::ptr::addr_of_mut!(G_CMD_INFO.cmd_mut_ex)) != 0 {
+        return OS_ERROR;
+    }
+
+
+    G_CMD_INFO.init_flag = true;
+    0
+}
+
+// 销毁命令系统
+#[unsafe(export_name = "OsCmdDeInit")]
+pub unsafe fn os_cmd_deinit() {
+    if !G_CMD_INFO.init_flag {
+        return;
+    }
+
+    if G_CMD_INFO.cmd_mut_ex != 0 {
+        los_mux_delete(G_CMD_INFO.cmd_mut_ex);
+        G_CMD_INFO.cmd_mut_ex = 0;
+    }
+
+    G_CMD_INFO.init_flag = false;
+}
+
+// 命令注册函数
+pub unsafe fn os_cmd_reg(
+    cmd_type: CmdType,
+    cmd_key: *mut c_char,
+    para_num: u32,
+    cmd_proc: unsafe extern "C" fn(u32, *const *const c_char) -> u32,
+) -> u32 {
+    if cmd_key.is_null() || para_num > CMD_MAX_PARAS as u32 {
+        return OS_ERROR;
+    }
+
+    if !os_cmd_key_check(cmd_key) {
+        return OS_ERROR;
+    }
+
+    let cmd_item = los_mem_alloc(m_aucSysMem0 as *mut c_void, core::mem::size_of::<CmdItem>() as u32) as *mut CmdItem;
+    if cmd_item.is_null() {
+        return OS_ERROR;
+    }
+
+    let cmd_item_node = los_mem_alloc(m_aucSysMem0 as *mut c_void, core::mem::size_of::<CmdItemNode>() as u32) as *mut CmdItemNode;
+    if cmd_item_node.is_null() {
+        los_mem_free(m_aucSysMem0 as *mut c_void, cmd_item as *mut c_void);
+        return OS_ERROR;
+    }
+
+    (*cmd_item).cmd_type = cmd_type;
+    (*cmd_item).cmd_key = cmd_key;
+    (*cmd_item).para_num = para_num;
+    (*cmd_item).cmd_hook = cmd_proc;
+
+    (*cmd_item_node).cmd = cmd_item;
+    os_cmd_ascending_insert(cmd_item_node);
+
+    G_CMD_INFO.list_num += 1;
+    0
 }
