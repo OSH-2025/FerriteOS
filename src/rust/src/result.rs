@@ -1,7 +1,7 @@
 use crate::{
     event::error::EventError, interrupt::error::InterruptError, mutex::error::MutexError,
     queue::error::QueueError, semaphore::error::SemaphoreError, stack::error::StackError,
-    task::error::TaskError,
+    task::error::TaskError, timer::TimerError,
 };
 
 pub type SystemResult<T> = Result<T, SystemError>;
@@ -23,6 +23,8 @@ pub enum SystemError {
     Semaphore(SemaphoreError),
     /// 消息队列相关错误
     Queue(QueueError),
+    /// 定时器相关错误
+    Timer(TimerError),
     /// 未知错误码
     Unknown(u32),
 }
@@ -69,6 +71,12 @@ impl From<QueueError> for SystemError {
     }
 }
 
+impl From<TimerError> for SystemError {
+    fn from(err: TimerError) -> Self {
+        SystemError::Timer(err)
+    }
+}
+
 impl From<SystemError> for u32 {
     fn from(error: SystemError) -> Self {
         match error {
@@ -79,6 +87,7 @@ impl From<SystemError> for u32 {
             SystemError::Mutex(err) => u32::from(err),
             SystemError::Semaphore(err) => u32::from(err),
             SystemError::Queue(err) => u32::from(err),
+            SystemError::Timer(err) => u32::from(err),
             SystemError::Unknown(errno) => errno,
         }
     }
@@ -94,6 +103,7 @@ impl core::fmt::Display for SystemError {
             SystemError::Mutex(err) => write!(f, "Mutex error: {}", err),
             SystemError::Semaphore(err) => write!(f, "Semaphore error: {}", err),
             SystemError::Queue(err) => write!(f, "Queue error: {}", err),
+            SystemError::Timer(err) => write!(f, "Timer error: {}", err),
             SystemError::Unknown(code) => write!(f, "Unknown error: 0x{:08x}", code),
         }
     }
@@ -121,6 +131,8 @@ impl From<ErrorCode> for SystemResult<()> {
                 Err(SystemError::Semaphore(semaphore_error))
             } else if let Ok(queue_error) = QueueError::try_from(errno) {
                 Err(SystemError::Queue(queue_error))
+            } else if let Ok(timer_error) = TimerError::try_from(errno) {
+                Err(SystemError::Timer(timer_error))
             } else {
                 Err(SystemError::Unknown(errno))
             }

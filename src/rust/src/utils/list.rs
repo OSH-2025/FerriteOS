@@ -5,6 +5,9 @@ pub struct LinkedList {
     pub next: *mut LinkedList,
 }
 
+unsafe impl Send for LinkedList {}
+unsafe impl Sync for LinkedList {}
+
 impl LinkedList {
     pub const fn new() -> Self {
         Self {
@@ -24,6 +27,13 @@ impl LinkedList {
             (*list).prev = list;
             (*list).next = list;
         }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn init_ref(&mut self) {
+        self.prev = self as *mut LinkedList;
+        self.next = self as *mut LinkedList;
     }
 
     #[inline]
@@ -49,6 +59,12 @@ impl LinkedList {
     }
 
     #[inline]
+    #[allow(dead_code)]
+    pub fn tail_insert_ref(&mut self, node: *mut LinkedList) {
+        LinkedList::insert(self.prev, node);
+    }
+
+    #[inline]
     pub fn remove(node: *mut LinkedList) {
         unsafe {
             (*(*node).next).prev = (*node).prev;
@@ -64,25 +80,26 @@ impl LinkedList {
     }
 
     #[inline]
+    #[allow(dead_code)]
+    pub fn is_empty_ref(&self) -> bool {
+        self.next as *const LinkedList == self
+    }
+
+    #[inline]
     pub fn first(list: *const LinkedList) -> *mut LinkedList {
         unsafe { (*list).next }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn first_ref(&self) -> *mut LinkedList {
+        self.next
     }
 
     #[inline]
     pub fn last(list: *const LinkedList) -> *mut LinkedList {
         unsafe { (*list).prev }
     }
-
-    // #[inline]
-    // pub fn remove_first(list: *const LinkedList) -> Option<*mut LinkedList> {
-    //     if LinkedList::is_empty(list) {
-    //         None
-    //     } else {
-    //         let first_node = LinkedList::first(list);
-    //         LinkedList::remove(first_node);
-    //         Some(first_node)
-    //     }
-    // }
 }
 
 #[macro_export]

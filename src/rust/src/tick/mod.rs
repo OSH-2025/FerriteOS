@@ -2,6 +2,7 @@ use crate::{
     ffi::bindings::{hal_clock_init, hal_clock_start},
     interrupt::{disable_interrupts, restore_interrupt_state},
     task::timer::task_scan,
+    timer::timer_scan,
 };
 use global::increment_tick_count;
 pub mod global;
@@ -21,9 +22,6 @@ pub fn start_tick() {
 }
 
 pub fn handle_tick() {
-    #[cfg(feature = "software_timer")]
-    use crate::swtmr::swtmr_scan;
-
     #[cfg(feature = "time_slice")]
     use crate::task::sched::timeslice_check;
 
@@ -43,9 +41,8 @@ pub fn handle_tick() {
     // 处理任务超时
     task_scan();
 
-    // 处理软件定时器（如果启用）
-    #[cfg(feature = "software_timer")]
-    swtmr_scan();
+    // 处理软件定时器
+    timer_scan();
 }
 
 pub mod clock {

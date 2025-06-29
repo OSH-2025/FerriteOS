@@ -24,8 +24,6 @@ pub fn init_task_system() {
     // 初始化优先级队列
     init_priority_queue();
 
-    // TODO OsMuxDlockCheckInitHook
-
     // 为每个CPU核心初始化排序链接
     let percpu_array = os_percpu_get();
     os_sort_link_init(&mut percpu_array.task_sort_link);

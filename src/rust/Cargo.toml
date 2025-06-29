@@ -7,47 +7,27 @@ edition = "2024"
 semihosting = { version = "0.1", features = ["stdio", "panic-handler"] }
 bitflags = { version = "2.9.1" }
 heapless = { version = "0.8" }
+linked_list_allocator = { version = "0.10.5" }
+critical-section = { version = "1.0", features = ["restore-state-u32"] }
 
 [lib]
 crate-type = ["staticlib"]
 
 [features]
 default = [
-	"memory_task_statistics",
 	"time_slice",
 	"task_static_allocation",
-	"ipc_event",
 	"task_monitor",
-	"backtrace",
 	"shell",
-	"software_timer",
-	"log-error",
+	"log-debug",
 	"mutex-waitmode-prio",
-	"queue-static-allocation",
-
-	"base_core_swtmr",
-	"base_ipc_sem",
-	"base_ipc_mux",
-	"base_ipc_queue",
-	"mem_task_stat",
-	"base_ipc_event"
 ]
-software_timer = []
-software_timer_in_isr = []
 time_slice = []
 task_monitor = []
-ipc_event = []
-backtrace = []
-
-compat_posix = []
-debug_sched_statistics = []
-memory_task_statistics = []
 task_static_allocation = []
-shell = []
-shell_excinfo_dump = []
-exc_interaction = []
 
-# 日志级别features
+shell = []
+
 log-emergency = []
 log-common = []
 log-error = []
@@ -55,21 +35,7 @@ log-warning = []
 log-info = []
 log-debug = []
 
-debug-mutex = []
-debug-mutex-deadlock = []
-debug-semaphore = []
-debug-queue = []
-
 mutex-waitmode-prio = []
 mutex-waitmode-fifo = []
 
-queue-static-allocation = []
-
-
-mem_leakcheck = []
-base_core_swtmr = []
-base_ipc_sem = []
-base_ipc_mux = []
-base_ipc_queue = []
-mem_task_stat = []
-base_ipc_event = []
+timer-in-isr = []

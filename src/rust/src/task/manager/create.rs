@@ -4,10 +4,7 @@ use crate::{
     },
     ffi::bindings::task_stack_init,
     interrupt::{disable_interrupts, restore_interrupt_state},
-    mem::{
-        defs::{m_aucSysMem0, os_sys_mem_size},
-        memory::los_mem_alloc_align,
-    },
+    memory::{memalign, os_sys_mem_size},
     result::{SystemError, SystemResult},
     task::{
         error::TaskError,
@@ -98,8 +95,7 @@ fn check_task_create_param_static(
 }
 
 fn allocate_task_stack(stack_size: u32) -> SystemResult<*mut core::ffi::c_void> {
-    let pool = unsafe { m_aucSysMem0 as *mut core::ffi::c_void };
-    let top_stack = los_mem_alloc_align(pool, stack_size, STACK_POINT_ALIGN_SIZE);
+    let top_stack = memalign(stack_size as usize, STACK_POINT_ALIGN_SIZE as usize);
     if top_stack.is_null() {
         return Err(SystemError::Task(TaskError::OutOfMemory));
     }
@@ -132,19 +128,12 @@ fn init_task_cb(
     task_cb.top_of_stack = top_stack;
     task_cb.stack_size = init_param.stack_size;
 
-    #[cfg(feature = "compat_posix")]
-    {
-        task_cb.thread_join = core::ptr::null_mut();
-        task_cb.thread_join_retval = core::ptr::null_mut();
-    }
-
     // 任务状态和优先级
     task_cb.task_status = TaskStatus::SUSPEND;
     task_cb.priority = init_param.priority;
     task_cb.priority_bitmap = 0;
     task_cb.task_entry = init_param.task_entry;
 
-    #[cfg(feature = "ipc_event")]
     {
         LinkedList::init(&raw mut task_cb.event.wait_list);
         task_cb.event.event_id = 0;
@@ -153,11 +142,10 @@ fn init_task_cb(
 
     // 任务名称和消息
     task_cb.task_name = init_param.name;
-    task_cb.msg = core::ptr::null_mut();
+    // task_cb.msg = core::ptr::null_mut();
 
     // 设置任务标志
     task_cb.clear_all_flags();
-    task_cb.set_detached(init_param.is_detached());
 
     // 栈类型标志：0-动态分配栈空间；1-用户提供栈空间
     task_cb.usr_stack = if use_usr_stack { 1 } else { 0 };
@@ -169,19 +157,6 @@ fn init_task_cb(
     #[cfg(feature = "time_slice")]
     {
         task_cb.time_slice = 0;
-    }
-
-    // 调度统计相关
-    #[cfg(feature = "debug_sched_statistics")]
-    {
-        // 清零调度统计信息
-        unsafe {
-            core::ptr::write_bytes(
-                &mut task_cb.sched_stat as *mut _ as *mut u8,
-                0,
-                core::mem::size_of::<SchedStat>(),
-            );
-        }
     }
 }
 
@@ -296,13 +271,6 @@ pub fn task_create(task_id: &mut u32, init_param: &mut TaskInitParam) -> SystemR
     // 首先创建任务
     task_create_only(task_id, init_param)?;
     // 启动任务
-    // unsafe {
-    //     crate::utils::printf::dprintf(
-    //         b"Creating task [%d]: %s\n\0" as *const core::ffi::c_char,
-    //         *task_id,
-    //         init_param.name,
-    //     )
-    // };
     task_resume(*task_id);
     Ok(())
 }

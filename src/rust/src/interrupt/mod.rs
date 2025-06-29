@@ -167,9 +167,6 @@ pub fn handle_interrupt(_hwi_num: u32, hwi_form: &mut InterruptHandler) {
     // 增加中断嵌套计数
     irq_nesting_count_inc();
 
-    #[cfg(feature = "debug_sched_statistics")]
-    OsHwiStatistics(_hwi_num);
-
     // 增加响应计数
     hwi_form.increment_count();
 

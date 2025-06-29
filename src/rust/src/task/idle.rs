@@ -2,17 +2,17 @@ use crate::{
     config::{TASK_IDLE_STACK_SIZE, TASK_PRIORITY_LOWEST},
     ffi::bindings::wfi,
     interrupt::{disable_interrupts, restore_interrupt_state},
-    mem::{defs::m_aucSysMem0, memory::los_mem_free},
+    memory::free,
     percpu::os_percpu_get,
     result::SystemResult,
     task::{
         global::{FREE_TASK_LIST, TASK_RECYCLE_LIST, get_tcb_from_id},
         manager::create::task_create,
-        types::{TaskCB, TaskEntryFunc, TaskInitParam},
+        types::{TaskCB, TaskInitParam},
     },
     utils::list::LinkedList,
 };
-use core::mem::transmute;
+use core::ffi::c_void;
 
 fn los_task_recycle() {
     let int_save = disable_interrupts();
@@ -29,10 +29,7 @@ fn los_task_recycle() {
 
             // 将任务控制块添加到空闲列表
             LinkedList::insert(&raw mut FREE_TASK_LIST, &mut task_cb.pend_list);
-            los_mem_free(
-                m_aucSysMem0 as *mut core::ffi::c_void,
-                task_cb.top_of_stack as *mut core::ffi::c_void,
-            );
+            free(task_cb.top_of_stack as *mut c_void);
             // 重置栈顶指针
             task_cb.top_of_stack = core::ptr::null_mut();
         }
@@ -40,25 +37,17 @@ fn los_task_recycle() {
     restore_interrupt_state(int_save);
 }
 
-fn idle_task() {
+extern "C" fn idle_task(_arg: *mut c_void) {
     loop {
         los_task_recycle();
         wfi();
     }
 }
 
-// TODO 移除 extern "C" 函数
-#[unsafe(export_name = "OsGetIdleTaskId")]
-pub extern "C" fn get_idle_task_id() -> u32 {
-    // 获取当前CPU的percpu结构，返回空闲任务ID
-    let percpu = os_percpu_get();
-    percpu.idle_task_id
-}
-
 pub fn idle_task_create() -> SystemResult<()> {
     // 初始化任务参数
     let mut task_init_param = TaskInitParam {
-        task_entry: unsafe { transmute::<_, TaskEntryFunc>(idle_task as usize) },
+        task_entry: Some(idle_task),
         priority: TASK_PRIORITY_LOWEST,
         stack_size: TASK_IDLE_STACK_SIZE,
         name: b"IdleCore000\0".as_ptr(),

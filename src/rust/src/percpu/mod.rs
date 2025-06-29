@@ -1,5 +1,6 @@
 use crate::{
     interrupt::{disable_interrupts, restore_interrupt_state},
+    queue::types::QueueId,
     utils::sortlink::SortLinkAttribute,
 };
 
@@ -25,7 +26,7 @@ pub struct Percpu {
     pub swtmr_handler_queue: u32,
 
     /// 软件定时器任务ID
-    pub swtmr_task_id: u32,
+    pub timer_task_id: u32,
 
     /// 调度器标志位
     pub needs_reschedule: u32,
@@ -38,9 +39,24 @@ impl Percpu {
         idle_task_id: 0,
         task_lock_cnt: 0,
         swtmr_handler_queue: 0,
-        swtmr_task_id: 0,
+        timer_task_id: 0,
         needs_reschedule: 0,
     };
+
+    #[inline]
+    pub fn get_timer_queue_id(&self) -> QueueId {
+        self.swtmr_handler_queue.into()
+    }
+
+    #[inline]
+    pub fn set_timer_queue_id(&mut self, queue_id: QueueId) {
+        self.swtmr_handler_queue = queue_id.into();
+    }
+
+    #[inline]
+    pub fn set_timer_task_id(&mut self, task_id: u32) {
+        self.timer_task_id = task_id;
+    }
 }
 
 #[unsafe(export_name = "g_percpu")]

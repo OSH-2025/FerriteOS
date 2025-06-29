@@ -26,10 +26,8 @@ pub fn init_priority_queue() {
     }
 }
 
-// TODO remove extern "C" when stable
 /// 将任务节点插入优先级队列头部
-#[unsafe(export_name = "OsPriQueueEnqueueHead")]
-pub extern "C" fn priority_queue_insert_at_front(priqueue_item: &mut LinkedList, priority: u32) {
+pub fn priority_queue_insert_at_front(priqueue_item: &mut LinkedList, priority: u32) {
     assert!(priqueue_item.next.is_null(), "节点next指针必须为null");
     unsafe {
         // 如果该优先级队列为空，则在位图中设置对应位
@@ -42,10 +40,8 @@ pub extern "C" fn priority_queue_insert_at_front(priqueue_item: &mut LinkedList,
     }
 }
 
-// TODO remove extern "C" when stable
 /// 将任务节点插入优先级队列尾部
-#[unsafe(export_name = "OsPriQueueEnqueue")]
-pub extern "C" fn priority_queue_insert_at_back(priqueue_item: &mut LinkedList, priority: u32) {
+pub fn priority_queue_insert_at_back(priqueue_item: &mut LinkedList, priority: u32) {
     assert!(priqueue_item.next.is_null(), "节点next指针必须为null");
     unsafe {
         // 如果该优先级队列为空，则在位图中设置对应位
@@ -59,8 +55,7 @@ pub extern "C" fn priority_queue_insert_at_back(priqueue_item: &mut LinkedList, 
 }
 
 /// 从优先级队列中移除任务节点
-#[unsafe(export_name = "OsPriQueueDequeue")]
-pub extern "C" fn priority_queue_remove(priqueue_item: &mut LinkedList) {
+pub fn priority_queue_remove(priqueue_item: &mut LinkedList) {
     // 从链表中删除节点
     LinkedList::remove(priqueue_item);
 
@@ -119,8 +114,7 @@ pub extern "C" fn priority_queue_get_top_task() -> *mut TaskCB {
 }
 
 /// 任务重新调度函数
-#[unsafe(export_name = "OsSchedResched")]
-pub extern "C" fn schedule_reschedule() {
+pub fn schedule_reschedule() {
     assert!(arch_int_locked());
 
     // 检查是否可以进行调度
@@ -145,11 +139,8 @@ pub extern "C" fn schedule_reschedule() {
         run_task.task_status.remove(TaskStatus::RUNNING);
         (*new_task).task_status.insert(TaskStatus::RUNNING);
 
-        // TODO
         #[cfg(feature = "task_monitor")]
         check_task_switch(run_task, &mut *new_task);
-        // OsTaskTimeUpdateHook(runTask->taskId, LOS_TickCountGet());
-        // OsSchedStatistics(runTask, newTask);
 
         #[cfg(feature = "time_slice")]
         if (*new_task).time_slice == 0 {

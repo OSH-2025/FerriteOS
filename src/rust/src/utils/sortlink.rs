@@ -24,6 +24,13 @@ impl SortLinkList {
         idx_roll_num: 0,
     };
 
+    pub const fn new() -> Self {
+        Self {
+            sort_link_node: LinkedList::new(),
+            idx_roll_num: 0,
+        }
+    }
+
     #[inline]
     pub fn set_timeout(&mut self, timeout: u32) {
         self.idx_roll_num = timeout;
@@ -70,6 +77,12 @@ impl SortLinkList {
     #[inline]
     pub fn roll_num_dec(&mut self) {
         self.roll_num_sub_value(1);
+    }
+
+    #[inline]
+    pub fn from_list(list: *const LinkedList) -> &'static mut Self {
+        let ptr = container_of!(list, Self, sort_link_node);
+        unsafe { &mut *ptr }
     }
 }
 
@@ -203,7 +216,7 @@ fn os_check_sort_link(list_head: *mut LinkedList, list_node: *mut LinkedList) {
             tmp = (*tmp).prev;
         }
     }
-    // TODO OsBackTrace
+    panic!("Sort link node is not in the correct list");
 }
 
 #[unsafe(export_name = "OsDeleteSortLink")]
@@ -250,10 +263,9 @@ fn os_calc_expire_time(roll_num: u32, sort_index: u32, cur_sort_index: u16) -> u
     ((roll_num - 1) << OS_TSK_SORTLINK_LOGLEN) + sort_index
 }
 
-#[unsafe(export_name = "OsSortLinkGetNextExpireTime")]
-pub extern "C" fn os_sort_link_get_next_expire_time(
-    sort_link_header: &mut SortLinkAttribute,
-) -> u32 {
+#[deprecated]
+#[allow(dead_code)]
+pub fn os_sort_link_get_next_expire_time(sort_link_header: &mut SortLinkAttribute) -> u32 {
     let mut min_sort_index = u32::MAX;
     let mut min_roll_num = OS_TSK_LOW_BITS_MASK;
 
@@ -296,11 +308,9 @@ pub extern "C" fn os_sort_link_get_next_expire_time(
 /// 更新排序链表中所有节点的到期时间
 ///
 /// 当系统休眠或跳过一段时间后，需要调整所有定时器的到期时间
-#[unsafe(export_name = "OsSortLinkUpdateExpireTime")]
-pub extern "C" fn os_sort_link_update_expire_time(
-    sleep_ticks: u32,
-    sort_link_header: &mut SortLinkAttribute,
-) {
+#[deprecated]
+#[allow(dead_code)]
+pub fn os_sort_link_update_expire_time(sleep_ticks: u32, sort_link_header: &mut SortLinkAttribute) {
     // 如果跳过的时钟周期为0，直接返回
     if sleep_ticks == 0 {
         return;
@@ -349,8 +359,8 @@ pub extern "C" fn os_sort_link_update_expire_time(
 ///
 /// 计算从链表头到目标节点的累积轮数，然后转换为过期时间
 #[unsafe(export_name = "OsSortLinkGetTargetExpireTime")]
-pub extern "C" fn os_sort_link_get_target_expire_time(
-    sort_link_header: &mut SortLinkAttribute,
+pub extern "C" fn get_target_expire_time(
+    sort_link_header: &SortLinkAttribute,
     target_sort_list: &SortLinkList,
 ) -> u32 {
     // 获取目标节点的排序索引和初始轮数
@@ -359,7 +369,7 @@ pub extern "C" fn os_sort_link_get_target_expire_time(
 
     unsafe {
         // 获取对应桶的链表头
-        let list_object = &raw mut sort_link_header.sort_link[sort_index as usize];
+        let list_object = &raw const sort_link_header.sort_link[sort_index as usize];
 
         // 从链表的第一个节点开始
         let mut list_sorted = container_of!((*list_object).next, SortLinkList, sort_link_node);
