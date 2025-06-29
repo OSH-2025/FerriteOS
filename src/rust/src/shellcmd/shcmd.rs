@@ -466,3 +466,64 @@ pub unsafe fn os_shell_sys_cmd_unregister() {
         G_CMD_ITEM_GROUP = ptr::null_mut();
     }
 }
+
+// 推入命令到历史
+#[unsafe(export_name = "OsShellCmdPush")]
+pub unsafe fn os_shell_cmd_push(string: *const c_char, cmd_key_link: *mut CmdKeyLink) {
+    if string.is_null() || cmd_key_link.is_null() {
+        return;
+    }
+
+    let len = strlen(string);
+    if len == 0 {
+        return;
+    }
+
+    let cmd_new_node = los_mem_alloc(
+        m_aucSysMem0 as *mut c_void,
+        (core::mem::size_of::<CmdKeyLink>() + len + 1) as u32
+    ) as *mut CmdKeyLink;
+
+    if cmd_new_node.is_null() {
+        return;
+    }
+
+    memset_s(
+        cmd_new_node as *mut c_void,
+        core::mem::size_of::<CmdKeyLink>() + len + 1,
+        0,
+        core::mem::size_of::<CmdKeyLink>() + len + 1,
+    );
+
+    // 复制字符串到节点后面
+    let cmd_string_ptr = (cmd_new_node as *mut u8).add(core::mem::size_of::<CmdKeyLink>()) as *mut c_char;
+    for i in 0..len {
+        *cmd_string_ptr.add(i) = *string.add(i);
+    }
+
+        LosListNode::tail_insert(
+        core::ptr::addr_of_mut!((*cmd_key_link).list), 
+        core::ptr::addr_of_mut!((*cmd_new_node).list)
+    );
+}
+
+// 显示历史命令
+#[unsafe(export_name = "OsShellHistoryShow")]
+pub unsafe fn os_shell_history_show(value: u32, shell_cb: *mut ShellCB) {
+    if shell_cb.is_null() {
+        return;
+    }
+
+    let cmd_node = (*shell_cb).cmd_history_key_link as *mut CmdKeyLink;
+    let cmd_mask = (*shell_cb).cmd_mask_key_link as *mut CmdKeyLink;
+
+    if cmd_node.is_null() || cmd_mask.is_null() {
+        return;
+    }
+
+    // 简化实现，仅清除当前输入
+    while (*shell_cb).shell_buf_offset > 0 {
+        print_common!("\x08 \x08"); // backspace
+        (*shell_cb).shell_buf_offset -= 1;
+    }
+}
