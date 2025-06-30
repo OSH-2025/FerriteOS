@@ -502,7 +502,7 @@ test/
 
 这一层测试的目的是验证内核**内部模块**的正确性。它关注单个函数或一个模块内部的逻辑是否符合预期，覆盖各种边界条件和异常情况，确保底层功能的稳定可靠。
 
-<img src="D:\md_pdf\osh大作业\img.png" alt="img" style="zoom:80%;" />
+<img src="../../assets/test.png" alt="img" style="zoom:80%;" />
 
 ### 示例测试
 
@@ -550,10 +550,10 @@ rust/src/
 
 ```
 rust/src/semaphore
-├── core.rs			# 信号量核心操作实现
+├── core.rs		# 信号量核心操作实现
 ├── error.rs		# 错误类型与错误码定义
 ├── global.rs		# 全局资源管理
-├── mod.rs			# 模块声明与公共接口
+├── mod.rs		# 模块声明与公共接口
 └── types.rs		# 类型定义与数据结构
 ```
 
