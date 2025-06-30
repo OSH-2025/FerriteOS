@@ -59,7 +59,7 @@
 
 ## 项目背景
 
-​	随着物联网设备数量的爆发式增长，轻量级实时操作系统（RTOS）在智能家居、工业自动化等场景中广泛应用。华为LiteOS作为一款高性能的嵌入式操作系统，凭借其低功耗、高实时性和模块化架构，在物联网领域占据重要地位。然而，LiteOS是基于C语言开发的，存在内存安全隐患、并发可靠性不足以及生态扩展性受限等问题。Rust语言主要在安全性、性能、生态支持等方面有巨大优势，用Rust改写C语言操作系统已成趋势。为了提升系统的安全性、可靠性和开发效率，我们计划使用Rust语言对LiteOS内核进行重构。
+​随着物联网设备数量的爆发式增长，轻量级实时操作系统（RTOS）在智能家居、工业自动化等场景中广泛应用。华为LiteOS作为一款高性能的嵌入式操作系统，凭借其低功耗、高实时性和模块化架构，在物联网领域占据重要地位。然而，LiteOS是基于C语言开发的，存在内存安全隐患、并发可靠性不足以及生态扩展性受限等问题。Rust语言主要在安全性、性能、生态支持等方面有巨大优势，用Rust改写C语言操作系统已成趋势。为了提升系统的安全性、可靠性和开发效率，我们计划使用Rust语言对LiteOS内核进行重构。
 
 ## C语言的缺陷和Rust的优势
 
@@ -75,7 +75,7 @@ C 语言缺乏自动内存边界检查，依赖开发者手动管理内存，容
 
 LiteOS 的内核层代码主要集中在 `kernel/base` 目录下，这一部分是整个操作系统的核心，负责提供基础的操作系统功能。如下将介绍各个模块的相关功能。
 
-![image-20250630160114358](D:\MarkDown\temp\image-LiteOS.png)
+![image-20250630160114358](../../assets/liteos_kernel_architecture.png)
 
 ### 1. 调试模块（debug）
 
@@ -567,11 +567,11 @@ rust/src/semaphore
 
 ### 编译与链接成功
 
-![image-20250629193555157](C:\Users\jhx\AppData\Roaming\Typora\typora-user-images\image-20250629193555157.png)
+![image-20250629193555157](../../assets/build_result.png)
 
 ### 测试全部通过
 
-![image-20250630102044673](C:\Users\jhx\AppData\Roaming\Typora\typora-user-images\image-20250630102044673.png)
+![image-20250630102044673](../../assets/test_result.png)
 
 从图中结果可知，90 条测试样例全部通过。
 
@@ -579,7 +579,7 @@ rust/src/semaphore
 
 各个模块的demo均运行成功，错误个数`g_demoInspectErrCnt`为0。
 
-<img src="C:\Users\jhx\AppData\Roaming\Typora\typora-user-images\image-20250629194650896.png" alt="image-20250629194650896" style="zoom:80%;" />
+<img src="../../assets/demo_result.png" alt="image-20250629194650896" style="zoom:80%;" />
 
 # 总结与展望
 
