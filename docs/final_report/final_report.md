@@ -520,6 +520,12 @@ rust/src/semaphore
 
 从图中结果可知，90 条测试样例全部通过。
 
+### Demo运行成功
+
+各个模块的demo均运行成功，错误个数`g_demoInspectErrCnt`为0。
+
+<img src="C:\Users\jhx\AppData\Roaming\Typora\typora-user-images\image-20250629194650896.png" alt="image-20250629194650896" style="zoom:80%;" />
+
 # 总结与展望
 
 ## 工作总结
