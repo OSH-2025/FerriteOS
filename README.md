@@ -16,6 +16,12 @@ FerriteOS
 - [秦铭格 PB23111594](https://github.com/QinMingge)
 - [袁谦朗 PB23111711](https://github.com/csjike)
 
+## 项目简介
+
+本项目采用 Rust 语言对 Huawei LiteOS 的核心内核模块进行了重构，涵盖了任务管理、内存管理、硬件相关功能（中断处理、异常管理、系统时钟）、进程间通信（消息队列、事件机制、信号量、互斥锁）以及软件定时器等关键模块。
+
+在重构过程中，我们着重解决了 FFI（Foreign Function Interface）的统一管理和 unsafe 代码的安全处理等技术难点。项目旨在充分利用 Rust 语言的内存安全保证和先进的并发编程模型，显著提升 LiteOS 的系统安全性、稳定性和可维护性。
+
 ## 项目进展
 
 | 项目阶段 |      日期      |                           工作内容                           |
