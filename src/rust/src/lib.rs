@@ -21,6 +21,7 @@ mod task;
 mod tick;
 mod timer;
 mod utils;
+mod ramfs;
 
 #[unsafe(export_name = "HelloRust")]
 pub extern "C" fn hello_rust() {
