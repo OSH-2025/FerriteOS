@@ -9,6 +9,13 @@
     - [4. 调度模块（sched）](#4-调度模块sched)
     - [5. Shell 命令模块（shellcmd）](#5-shell-命令模块shellcmd)
     - [6. 其他核心文件](#6-其他核心文件)
+- [编译经验总结](#编译经验总结)
+  - [rust交叉编译](#rust交叉编译)
+  - [C和rust混合编译](#c和rust混合编译)
+    - [C调用rust](#c调用rust)
+    - [rust调用C](#rust调用c)
+    - [混合编译流程图](#混合编译流程图)
+- [中期计划回顾](#中期计划回顾)
 - [重构策略与技术挑战](#重构策略与技术挑战)
   - [如何重构](#如何重构)
     - [模块化组织代码](#模块化组织代码)
@@ -180,6 +187,146 @@ Shell 命令模块提供了命令行工具，用于系统运行时的监控和�
 - `los_task.c`：实现任务管理核心逻辑。
 - `los_tick.c`：实现系统节拍（Tick）逻辑。
 ```
+
+# 编译经验总结
+基于LiteOS的改写实践，我们总结了一些rust交叉编译与C/Rust混合编译经验，希望能供其他人参考。
+## rust交叉编译
+rust交叉编译需要进行以下的环境配置：
+1. Rust目标安装
+```bash
+rustup target add armv7a-none-eabi
+```
+
+2. C交叉工具链
+安装ARM GCC工具链（如 gcc-arm-none-eabi），验证编译器是否安装成功：
+```bash
+arm-none-eabi-gcc -v
+```
+
+3. Cargo配置（.cargo/config.toml）
+指定裸机目标：
+```toml
+[build]
+target = "armv7a-none-eabi"     # Cortex-A9
+```
+
+## C和rust混合编译
+### C调用rust
+1. 创建lib项目c_call_rust，同时创建C文件，完成后，项目目录结构如下：
+```text
+.
+├── csrc/
+    ├── main.c
+└── src/
+    ├── lib.rs
+└── target/
+    ├── .gitignore
+    ├── Cargo.lock
+    └── Cargo.toml
+```
+2. 编写lib.rs
+```rust
+#[unsafe(no_mangle)]
+pub fn add(left: i32, right: i32) -> i32 {
+    left + right
+}
+```
+- 为了防止函数名被编译器修改，可以加上`#[unsafe(no_mangle)]`。
+
+- 为了能让rust的函数通过FFI被C调用，需要加上`extern "C"`对函数进行修饰。
+
+3. 编写Cargo.toml
+```toml
+[package]
+name = "c_call_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name="add"
+crate-type = ["staticlib"]
+```
+其中crate-type = ["staticlib"]指定rustc编译结果是什么类型，默认为rust自用的rlib格式库，为了让C语言调用，需要更改为静态库或者动态库，这里指定为静态库类型。
+
+4. 编译rust项目
+```bash
+cargo build
+```
+5. 编写main.c
+```c
+#include <stdio.h>
+#include <stdint.h>
+
+extern int32_t add(int32_t left, int32_t right);
+
+int main()
+{
+    printf("1 + 1 = %d\n", add(1, 1));
+    return 0;
+}
+```
+这里就和写正常C语言代码差不多，唯一需要注意的是声明一下要使用的rust函数。
+
+6. 编译main.c
+```bash
+gcc -o main main.c -L../target/debug -ladd
+```
+`-L../target/debug`指定静态库所在的目录，`-ladd`链接名为`libadd.a`的静态库。
+
+
+7. 运行`main`程序，观察到以下结果
+```bash
+1 + 1 = 2
+```
+
+### rust调用C
+不采用中期汇报中的那种编译rust的时候先编译C代码的方式，而是分别编译rust和C代码，最后直接链接在一起。
+
+1. Makefile修改
+```makefile
+# LiteOS根目录Makefile
+# 添加 Rust 静态库路径
+LITEOS_LDFLAGS += -L$(LITEOSTOPDIR)/rust_liteos/target/armv7a-none-eabi/debug
+LITEOS_BASELIB += -lrust_liteos  # 匹配librust_liteos.a
+```
+
+2. 模块替换规范
+   
+- 注释原C模块：
+```makefile
+# kernel/base/mem/Makefile
+# LOS_SRC := los_err.c  # 注释掉被Rust替换的模块
+```
+
+- 通过menuconfig配置所需的模块：
+
+```text
+[ ] Run Kernel Dynamic Mem Demo  # 空间键切换选中状态
+```
+### 混合编译流程图
+```mermaid
+graph LR
+    A[Rust项目] -->|cargo b| B[静态库.a]
+    C[LiteOS源码] --> D[make menuconfig]
+    D --> E[禁用被替换模块]
+    B --> F[修改Makefile链接路径]
+    C & F --> G[make编译]
+    G --> H[QEMU验证]
+```
+
+
+# 中期计划回顾
+在中期汇报时，我们组提出了以下计划：
+<img src="../../assets/plan.png" alt="img" style="zoom:80%;" />
+
+现在对这些计划进行回顾与总结：
+- **Rust改写成果**：我们基本实现了对kernel/base目录下的核心模块（如内存管理、调度、任务管理等）的Rust重构。除了与valist相关的不定长参数函数，由于Rust语言本身尚未提供对C风格可变参数的完整支持，这部分代码的改写工作受到限制。
+
+- **优化处理unsafe**：我们识别并总结了四类unsafe块处理方法，在消息队列模块中成功实践了unsafe优化，为后续模块改写提供了技术方案参考。但由于时间限制，未能推广到其他模块。
+
+- **测试与验证**：通过QEMU模拟器进行系统级验证，我们成功运行了liteos自带的test程序，初步验证了改写代码的正确性。但性能和鲁棒性还有待进一步的测试。
+
+总体而言，项目在核心功能改写方面取得了显著进展，为操作系统内核的Rust化积累了宝贵经验。
 
 # 重构策略与技术挑战
 
